@@ -620,81 +620,6 @@ async function handleRemoveFriend(friendUsername) {
   }
 }
 
-async function handleRespondToFriendRequest(friendUsername, accept) {
-  try {
-    const response = await fetch("/respond-friend-request", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-ID": currentUser.sessionId,
-      },
-      body: JSON.stringify({
-        username: currentUser.username,
-        friendUsername: friendUsername,
-        accept: accept,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Session expired");
-    }
-
-    const data = await response.json();
-
-    if (data.success) {
-      showNotification(data.message, "success", accept ? "Friend Added" : "Request Declined");
-      loadUserFriends();
-    } else {
-      showNotification(data.error || "Failed to respond to request", "error", "Action Failed");
-    }
-  } catch (error) {
-    if (error.message === "Session expired") {
-      handleSessionExpired();
-    } else {
-      showNotification(
-        "Error responding to request: " + error.message,
-        "error",
-        "Connection Error"
-      );
-    }
-  }
-}
-
-async function handleRemoveFriend(friendUsername) {
-  try {
-    const response = await fetch("/remove-friend", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-ID": currentUser.sessionId,
-      },
-      body: JSON.stringify({
-        username: currentUser.username,
-        friendUsername: friendUsername,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Session expired");
-    }
-
-    const data = await response.json();
-
-    if (data.success) {
-      showNotification("Friend removed", "info", "Friend Removed");
-      loadUserFriends();
-    } else {
-      showNotification(data.error || "Failed to remove friend", "error", "Action Failed");
-    }
-  } catch (error) {
-    if (error.message === "Session expired") {
-      handleSessionExpired();
-    } else {
-      showNotification("Error removing friend: " + error.message, "error", "Connection Error");
-    }
-  }
-}
-
 function startPrivateChatWithFriend(friendUsername) {
   currentRoom = {
     id: `private_${friendUsername}`,
@@ -945,6 +870,7 @@ async function handleJoinRoom(inviteCode) {
   }
 }
 
+// 🔥 FIXED: Το κύριο πρόβλημα - remove duplicate addMessageToChat call
 function handleSendMessage() {
   const input = document.getElementById("message-input");
   const text = input.value.trim();
@@ -961,7 +887,7 @@ function handleSendMessage() {
     const friendUsername = currentRoom.name;
     messageData.receiver = friendUsername;
     socket.emit("private message", messageData);
-    addMessageToChat(messageData);
+    // 🔥 ΑΦΑΙΡΕΣΑΜΕ: addMessageToChat(messageData); - Αυτό προκαλούσε το διπλό μήνυμα
   } else {
     messageData.room_id = currentRoom.id;
     socket.emit("chat message", messageData);
@@ -1348,4 +1274,3 @@ socket.on("disconnect", (reason) => {
 socket.on("connect_error", (error) => {
   console.error("🔌 Connection error:", error);
 });
-
