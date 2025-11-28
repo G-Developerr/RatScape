@@ -1,12 +1,10 @@
-// database.js - FIXED FRIEND REQUESTS VERSION
+// database.js - COMPLETELY FIXED FRIEND REQUESTS
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 
-// ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιούμε απόλυτο path
 const dbPath = path.join(process.cwd(), "chat.db");
 console.log("📁 Database path:", dbPath);
 
-// Δημιουργία persistent database
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error("❌ Error opening database:", err);
@@ -17,7 +15,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // Initialize database tables
 db.serialize(() => {
-  // Users table - FIXED VERSION
+  // Users table
   db.run(
     `CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +35,7 @@ db.serialize(() => {
     }
   );
 
-  // Sessions table - NEW TABLE FOR PERSISTENT SESSIONS
+  // Sessions table
   db.run(
     `CREATE TABLE IF NOT EXISTS sessions (
       session_id TEXT PRIMARY KEY,
@@ -128,13 +126,12 @@ db.serialize(() => {
     }
   );
 
-  // Friends table - FIXED: Track who sent the request
+  // Friends table - SIMPLIFIED VERSION
   db.run(
     `CREATE TABLE IF NOT EXISTS friends (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user1 TEXT NOT NULL,
       user2 TEXT NOT NULL,
-      requested_by TEXT NOT NULL, -- NEW: who sent the request
       status TEXT DEFAULT 'pending',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       responded_at DATETIME,
@@ -162,13 +159,12 @@ db.serialize(() => {
   });
 });
 
-// Generate random invite code
 function generateInviteCode() {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
 }
 
 const dbHelpers = {
-  // Session methods - NEW METHODS FOR PERSISTENT SESSIONS
+  // Session methods
   saveSession: (sessionId, sessionData) => {
     return new Promise((resolve, reject) => {
       db.run(
@@ -247,7 +243,6 @@ const dbHelpers = {
 
   cleanupExpiredSessions: () => {
     return new Promise((resolve, reject) => {
-      // Delete sessions older than 7 days
       db.run(
         `DELETE FROM sessions WHERE last_accessed < datetime('now', '-7 days')`,
         (err) => {
@@ -290,11 +285,6 @@ const dbHelpers = {
           console.error("❌ Error in findUserByEmail:", err);
           reject(err);
         } else {
-          if (row) {
-            console.log(`✅ Found user by email: ${email}`);
-          } else {
-            console.log(`❌ User not found by email: ${email}`);
-          }
           resolve(row);
         }
       });
@@ -314,10 +304,8 @@ const dbHelpers = {
     });
   },
 
-  // FIXED: saveUser now uses UPDATE instead of INSERT OR REPLACE
   saveUser: (user) => {
     return new Promise((resolve, reject) => {
-      // Χρησιμοποιούμε UPDATE αντί για INSERT OR REPLACE για να αποφύγουμε το NOT NULL constraint
       db.run(
         `UPDATE users SET status = ?, last_seen = datetime('now') WHERE username = ?`,
         [user.status, user.username],
@@ -326,12 +314,6 @@ const dbHelpers = {
             console.error("❌ Error in saveUser:", err);
             reject(err);
           } else {
-            // Αν δεν βρεθεί χρήστης, τότε αγνοούμε το error (δεν είναι κρίσιμο)
-            if (this.changes === 0) {
-              console.log(`⚠️ User not found for status update: ${user.username}`);
-            } else {
-              console.log(`✅ User status updated: ${user.username}`);
-            }
             resolve();
           }
         }
@@ -346,7 +328,6 @@ const dbHelpers = {
           console.error("❌ Error getting all users:", err);
           reject(err);
         } else {
-          console.log(`📊 Total users in database: ${rows.length}`);
           resolve(rows || []);
         }
       });
@@ -563,19 +544,20 @@ const dbHelpers = {
     });
   },
 
-  // Friends methods - FIXED VERSION
+  // Friends methods - COMPLETELY FIXED
   sendFriendRequest: (fromUser, toUser) => {
     return new Promise((resolve, reject) => {
       const [userA, userB] = [fromUser, toUser].sort();
 
       db.run(
-        `INSERT OR IGNORE INTO friends (user1, user2, requested_by, status) VALUES (?, ?, ?, 'pending')`,
-        [userA, userB, fromUser],
-        (err) => {
+        `INSERT OR IGNORE INTO friends (user1, user2, status) VALUES (?, ?, 'pending')`,
+        [userA, userB],
+        function (err) {
           if (err) {
             console.error("❌ Error in sendFriendRequest:", err);
             reject(err);
           } else {
+            console.log(`✅ Friend request sent from ${fromUser} to ${toUser}`);
             resolve();
           }
         }
@@ -583,24 +565,28 @@ const dbHelpers = {
     });
   },
 
-  // FIXED: Get only requests sent TO the user (not FROM the user)
+  // FIXED: Get pending requests sent TO the user
   getPendingRequests: (username) => {
     return new Promise((resolve, reject) => {
       db.all(
         `SELECT 
-          requested_by as friend_username,
+          CASE 
+            WHEN user1 = ? THEN user2
+            ELSE user1
+          END as friend_username,
           created_at
          FROM friends 
          WHERE (user1 = ? OR user2 = ?) 
          AND status = 'pending'
-         AND requested_by != ?  -- Exclude requests sent by the current user
+         AND (user1 != ? OR user2 != ?)  -- Exclude self
          ORDER BY created_at DESC`,
-        [username, username, username],
+        [username, username, username, username, username],
         (err, rows) => {
           if (err) {
             console.error("❌ Error in getPendingRequests:", err);
             reject(err);
           } else {
+            console.log(`📨 Pending requests for ${username}:`, rows?.length || 0);
             resolve(rows || []);
           }
         }
@@ -608,7 +594,7 @@ const dbHelpers = {
     });
   },
 
-  // FIXED: Also get sent requests for display purposes
+  // FIXED: Get sent requests (requests sent BY the user)
   getSentRequests: (username) => {
     return new Promise((resolve, reject) => {
       db.all(
@@ -621,36 +607,49 @@ const dbHelpers = {
          FROM friends 
          WHERE (user1 = ? OR user2 = ?) 
          AND status = 'pending'
-         AND requested_by = ?  -- Only requests sent by the current user
          ORDER BY created_at DESC`,
-        [username, username, username, username],
+        [username, username, username],
         (err, rows) => {
           if (err) {
             console.error("❌ Error in getSentRequests:", err);
             reject(err);
           } else {
-            resolve(rows || []);
+            // Filter out requests where the current user is the receiver
+            const sentRequests = rows.filter(row => 
+              row.friend_username !== username
+            );
+            console.log(`📤 Sent requests from ${username}:`, sentRequests.length);
+            resolve(sentRequests);
           }
         }
       );
     });
   },
 
+  // FIXED: Respond to friend request
   respondToFriendRequest: (username, friendUsername, accept) => {
     return new Promise((resolve, reject) => {
       const [userA, userB] = [username, friendUsername].sort();
       const newStatus = accept ? "accepted" : "rejected";
 
+      console.log(`🔄 Responding to friend request: ${username} -> ${friendUsername}, accept: ${accept}`);
+
       db.run(
         `UPDATE friends SET status = ?, responded_at = datetime('now') 
          WHERE user1 = ? AND user2 = ? AND status = 'pending'`,
         [newStatus, userA, userB],
-        (err) => {
+        function (err) {
           if (err) {
             console.error("❌ Error in respondToFriendRequest:", err);
             reject(err);
           } else {
-            resolve();
+            if (this.changes === 0) {
+              console.log("❌ No pending friend request found to respond to");
+              reject(new Error("No pending friend request found"));
+            } else {
+              console.log(`✅ Friend request ${accept ? 'accepted' : 'rejected'}`);
+              resolve();
+            }
           }
         }
       );
@@ -676,6 +675,7 @@ const dbHelpers = {
             console.error("❌ Error in getFriends:", err);
             reject(err);
           } else {
+            console.log(`👥 Friends for ${username}:`, rows?.length || 0);
             resolve(rows || []);
           }
         }
@@ -706,11 +706,12 @@ const dbHelpers = {
     return new Promise((resolve, reject) => {
       const [userA, userB] = [user1, user2].sort();
 
-      db.run(`DELETE FROM friends WHERE user1 = ? AND user2 = ?`, [userA, userB], (err) => {
+      db.run(`DELETE FROM friends WHERE user1 = ? AND user2 = ?`, [userA, userB], function (err) {
         if (err) {
           console.error("❌ Error in removeFriend:", err);
           reject(err);
         } else {
+          console.log(`✅ Friend removed: ${user1} and ${user2}`);
           resolve();
         }
       });
