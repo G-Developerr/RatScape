@@ -1,4 +1,4 @@
-// server.js - FIXED FRIEND REQUESTS VERSION
+// server.js - FIXED FRIEND REQUESTS
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -9,7 +9,6 @@ const { dbHelpers } = require("./database.js");
 const app = express();
 const server = createServer(app);
 
-// FIXED: WebSocket config for Render
 const io = new Server(server, {
   cors: {
     origin: ["https://ratscape.onrender.com", "http://localhost:3000", "http://localhost:10000"],
@@ -19,17 +18,14 @@ const io = new Server(server, {
   transports: ['websocket', 'polling']
 });
 
-// Middleware
 app.use(cors({
   origin: ["https://ratscape.onrender.com", "http://localhost:3000"],
   credentials: true
 }));
 app.use(express.json());
 
-// Serve static files correctly for Render
 app.use(express.static(path.join(__dirname)));
 
-// Routes
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
@@ -38,12 +34,10 @@ app.get("/test", (req, res) => {
   res.sendFile(path.join(__dirname, "test.html"));
 });
 
-// Memory sessions as fallback
 const userSessions = new Map();
 const onlineUsers = new Map();
 const roomSockets = new Map();
 
-// Enhanced session middleware using database
 async function validateSession(req, res, next) {
   const sessionId = req.headers["x-session-id"];
   const username = req.params.username || req.body.username;
@@ -53,14 +47,12 @@ async function validateSession(req, res, next) {
   }
 
   try {
-    // Try database first, then memory fallback
     let session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     
     if (!session) {
       return res.status(401).json({ success: false, error: "Invalid session" });
     }
 
-    // Check session expiration (7 days)
     const oneWeek = 7 * 24 * 60 * 60 * 1000;
     const sessionTime = new Date(session.last_accessed || session.createdAt).getTime();
     
@@ -70,14 +62,11 @@ async function validateSession(req, res, next) {
       return res.status(401).json({ success: false, error: "Session expired" });
     }
 
-    // If username is provided, verify it matches session
     if (username && session.username !== username) {
       return res.status(401).json({ success: false, error: "Session mismatch" });
     }
 
-    // Update last accessed time in database
     await dbHelpers.updateSessionAccess(sessionId);
-
     next();
   } catch (error) {
     console.error("Session validation error:", error);
@@ -105,7 +94,6 @@ app.get("/debug-users", async (req, res) => {
     res.status(500).json({
       success: false,
       error: getErrorMessage(error),
-      message: "Cannot access users table",
     });
   }
 });
@@ -114,8 +102,6 @@ app.get("/debug-users", async (req, res) => {
 app.post("/register", async (req, res) => {
   try {
     const { email, username, password } = req.body;
-
-    console.log("📝 Registration attempt:", { email, username });
 
     if (!email || !username || !password) {
       return res.status(400).json({ success: false, error: "All fields are required" });
@@ -130,7 +116,6 @@ app.post("/register", async (req, res) => {
       existingEmail = await dbHelpers.findUserByEmail(email);
       existingUsername = await dbHelpers.findUserByUsername(username);
     } catch (dbError) {
-      console.error("❌ Database error during user check:", dbError);
       return res.status(500).json({
         success: false,
         error: "Database error during registration",
@@ -147,21 +132,17 @@ app.post("/register", async (req, res) => {
 
     try {
       await dbHelpers.createUser(email, username, password);
-      console.log("✅ User created successfully:", username);
-
       res.json({
         success: true,
         message: "Account created successfully! You can now login.",
       });
     } catch (createError) {
-      console.error("❌ Error creating user in database:", createError);
       return res.status(500).json({
         success: false,
         error: "Failed to create user account. Please try again.",
       });
     }
   } catch (error) {
-    console.error("❌ Unexpected error during registration:", error);
     res.status(500).json({
       success: false,
       error: "Internal server error during registration",
@@ -169,12 +150,9 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// FIXED login endpoint with database sessions
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    console.log("🔐 Login attempt for email:", email);
 
     if (!email || !password) {
       return res.status(400).json({ success: false, error: "Email and password required" });
@@ -183,9 +161,7 @@ app.post("/login", async (req, res) => {
     let user;
     try {
       user = await dbHelpers.findUserByEmail(email);
-      console.log("📊 User lookup result:", user ? "User found" : "User not found");
     } catch (dbError) {
-      console.error("❌ Database error during login:", dbError);
       return res.status(500).json({
         success: false,
         error: "Database error during login",
@@ -193,29 +169,24 @@ app.post("/login", async (req, res) => {
     }
 
     if (!user) {
-      console.log("❌ User not found for email:", email);
       return res.status(401).json({ success: false, error: "Invalid email or password" });
     }
 
     if (user.password !== password) {
-      console.log("❌ Invalid password for user:", user.username);
       return res.status(401).json({ success: false, error: "Invalid email or password" });
     }
 
-    // Create session - SAVE TO DATABASE
     const sessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
     const sessionData = {
       username: user.username,
       createdAt: new Date().toISOString(),
     };
 
-    // Save to both database and memory (fallback)
     await dbHelpers.saveSession(sessionId, sessionData);
     userSessions.set(sessionId, sessionData);
 
     try {
       await dbHelpers.saveUser({ username: user.username, status: "Online" });
-      console.log("✅ Login successful for user:", user.username);
     } catch (statusError) {
       console.error("⚠️ Could not update user status:", statusError);
     }
@@ -229,7 +200,6 @@ app.post("/login", async (req, res) => {
       sessionId: sessionId,
     });
   } catch (error) {
-    console.error("❌ Unexpected error during login:", error);
     res.status(500).json({
       success: false,
       error: "Internal server error during login",
@@ -237,26 +207,19 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// FIXED session verification endpoint
 app.get("/verify-session/:username", async (req, res) => {
   try {
     const { username } = req.params;
     const sessionId = req.headers["x-session-id"];
 
-    console.log("🔍 Verifying session for:", username, "session:", sessionId);
-
     if (!sessionId) {
       return res.status(401).json({ success: false, error: "Session ID required" });
     }
 
-    // Check both database and memory
     const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     const user = await dbHelpers.findUserByUsername(username);
 
     if (session && session.username === username && user) {
-      console.log("✅ Session verified:", username);
-      
-      // Update session access time
       await dbHelpers.updateSessionAccess(sessionId);
       
       res.json({
@@ -267,19 +230,17 @@ app.get("/verify-session/:username", async (req, res) => {
         },
       });
     } else {
-      console.log("❌ Invalid session for:", username);
-      // Clean up invalid session
-      await dbHelpers.deleteSession(sessionId);
-      userSessions.delete(sessionId);
+      if (session) {
+        await dbHelpers.deleteSession(sessionId);
+        userSessions.delete(sessionId);
+      }
       res.status(401).json({ success: false, error: "Invalid session" });
     }
   } catch (error) {
-    console.error("❌ Error verifying session:", error);
     res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
 
-// Logout endpoint
 app.post("/logout", async (req, res) => {
   try {
     const { username } = req.body;
@@ -296,12 +257,11 @@ app.post("/logout", async (req, res) => {
 
     res.json({ success: true, message: "Logged out successfully" });
   } catch (error) {
-    console.error("❌ Error during logout:", error);
     res.json({ success: true });
   }
 });
 
-// Protected routes with session validation
+// Protected routes
 app.post("/create-room", validateSession, async (req, res) => {
   try {
     const { name, username } = req.body;
@@ -320,7 +280,6 @@ app.post("/create-room", validateSession, async (req, res) => {
       message: "Room created successfully",
     });
   } catch (error) {
-    console.error("❌ Error creating room:", error);
     res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
@@ -347,7 +306,6 @@ app.post("/join-room", validateSession, async (req, res) => {
       message: "Joined room successfully",
     });
   } catch (error) {
-    console.error("❌ Error joining room:", error);
     res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
@@ -358,12 +316,11 @@ app.get("/user-rooms/:username", validateSession, async (req, res) => {
     const rooms = await dbHelpers.getUserRooms(username);
     res.json({ success: true, rooms });
   } catch (error) {
-    console.error("❌ Error getting user rooms:", error);
     res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
 
-// Friend routes with session validation - FIXED VERSION
+// Friend routes - COMPLETELY FIXED
 app.post("/send-friend-request", validateSession, async (req, res) => {
   try {
     const { fromUser, toUser } = req.body;
@@ -376,28 +333,23 @@ app.post("/send-friend-request", validateSession, async (req, res) => {
       return res.status(400).json({ success: false, error: "Cannot add yourself as friend" });
     }
 
-    // Check if target user exists
     const targetUser = await dbHelpers.findUserByUsername(toUser);
     if (!targetUser) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    // Check if already friends
     const areAlreadyFriends = await dbHelpers.areFriends(fromUser, toUser);
     if (areAlreadyFriends) {
       return res.status(400).json({ success: false, error: "Already friends" });
     }
 
-    // Check for pending request
     const hasPendingRequest = await dbHelpers.hasPendingRequest(fromUser, toUser);
     if (hasPendingRequest) {
       return res.status(400).json({ success: false, error: "Friend request already sent" });
     }
 
-    // Send friend request
     await dbHelpers.sendFriendRequest(fromUser, toUser);
 
-    // Notify target user if online
     const targetSocket = onlineUsers.get(toUser);
     if (targetSocket) {
       io.to(targetSocket.socketId).emit("friend_request", { from: fromUser });
@@ -421,8 +373,11 @@ app.post("/respond-friend-request", validateSession, async (req, res) => {
       return res.status(400).json({ success: false, error: "Both usernames required" });
     }
 
+    console.log(`🔄 Friend request response: ${username} responding to ${friendUsername}, accept: ${accept}`);
+
     await dbHelpers.respondToFriendRequest(username, friendUsername, accept);
 
+    // Notify the sender that their request was accepted
     const senderSocket = onlineUsers.get(friendUsername);
     if (senderSocket && accept) {
       io.to(senderSocket.socketId).emit("friend_request_accepted", { by: username });
@@ -438,19 +393,19 @@ app.post("/respond-friend-request", validateSession, async (req, res) => {
   }
 });
 
-// FIXED: Get pending requests (only requests sent TO the user)
+// FIXED: Get pending requests (requests sent TO the user)
 app.get("/pending-requests/:username", validateSession, async (req, res) => {
   try {
     const { username } = req.params;
     const requests = await dbHelpers.getPendingRequests(username);
-    res.json({ success: false, requests }); // FIXED: This should be success: true
+    res.json({ success: true, requests });
   } catch (error) {
     console.error("❌ Error getting pending requests:", error);
     res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
 
-// NEW: Get sent requests (requests sent BY the user)
+// Get sent requests (requests sent BY the user)
 app.get("/sent-requests/:username", validateSession, async (req, res) => {
   try {
     const { username } = req.params;
@@ -510,7 +465,7 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
   }
 });
 
-// Socket.IO connection with session validation
+// Socket.IO connection
 io.on("connection", async (socket) => {
   console.log("🔗 User connected:", socket.id);
 
@@ -522,7 +477,6 @@ io.on("connection", async (socket) => {
     try {
       const { username, sessionId } = data;
 
-      // Validate session using database
       const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
       if (!session || session.username !== username) {
         socket.emit("session_expired");
@@ -540,41 +494,32 @@ io.on("connection", async (socket) => {
       await dbHelpers.saveUser({ username, status: "Online" });
       console.log("✅ User authenticated:", username);
     } catch (error) {
-      console.error("❌ Error during authentication:", error);
       socket.emit("session_expired");
     }
   });
 
-  // FIXED: Join room with proper validation
   socket.on("join room", async (data) => {
     try {
       const { roomId, username, sessionId } = data;
-      console.log("🚀 Attempting to join room:", { roomId, username });
 
-      // Validate session using database
       const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
       if (!session || session.username !== username) {
         socket.emit("session_expired");
         return;
       }
 
-      // Check if room exists
       const room = await dbHelpers.getRoomById(roomId);
       if (!room) {
-        console.log("❌ Room not found:", roomId);
         socket.emit("error", { message: "Room not found" });
         return;
       }
 
-      // Check if user is member
       const isMember = await dbHelpers.isUserInRoom(roomId, username);
       if (!isMember) {
-        console.log("❌ User not member of room:", { username, roomId });
         socket.emit("error", { message: "You are not a member of this room" });
         return;
       }
 
-      // Leave previous room
       if (currentRoomId) {
         socket.leave(currentRoomId);
         const roomSocketSet = roomSockets.get(currentRoomId);
@@ -583,40 +528,33 @@ io.on("connection", async (socket) => {
         }
       }
 
-      // Join new room
       socket.join(roomId);
       currentRoomId = roomId;
       currentUsername = username;
       currentSessionId = sessionId;
 
-      // Update room sockets tracking
       if (!roomSockets.has(roomId)) {
         roomSockets.set(roomId, new Set());
       }
       roomSockets.get(roomId).add(socket.id);
 
-      // Update online users
       if (onlineUsers.has(username)) {
         onlineUsers.get(username).currentRoom = roomId;
       }
 
-      // Load room data
       const members = await dbHelpers.getRoomMembers(roomId);
       const userJoinedAt = members.find((m) => m.username === username)?.joined_at;
       const messages = await dbHelpers.getRoomMessages(roomId, userJoinedAt);
 
-      // Send data to client
       socket.emit("load messages", messages);
       socket.emit("room members", members);
       socket.emit("room info", room);
 
-      // Notify others
       socket.to(roomId).emit("room members", members);
 
-      console.log(`✅ ${username} successfully joined room: ${room.name} (${roomId})`);
+      console.log(`✅ ${username} joined room: ${room.name}`);
       
     } catch (error) {
-      console.error("❌ Error joining room:", error);
       socket.emit("error", { message: "Failed to join room: " + error.message });
     }
   });
@@ -628,7 +566,6 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      // Validate session for each message
       const session = await dbHelpers.getSession(currentSessionId) || userSessions.get(currentSessionId);
       if (!session || session.username !== currentUsername) {
         socket.emit("session_expired");
@@ -644,7 +581,6 @@ io.on("connection", async (socket) => {
       await dbHelpers.saveMessage(messageData);
       io.to(currentRoomId).emit("chat message", messageData);
 
-      console.log(`💬 Message in ${currentRoomId} from ${currentUsername}`);
     } catch (error) {
       console.error("❌ Error saving message:", getErrorMessage(error));
     }
@@ -659,7 +595,6 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      // Validate session
       const session = await dbHelpers.getSession(currentSessionId) || userSessions.get(currentSessionId);
       if (!session || session.username !== sender) {
         socket.emit("session_expired");
@@ -680,13 +615,11 @@ io.on("connection", async (socket) => {
       }
 
       socket.emit("private message", data);
-      console.log("🔒 Private message from:", sender, "to:", receiver);
     } catch (error) {
       console.error("❌ Error saving private message:", getErrorMessage(error));
     }
   });
 
-  // Add manual room data requests
   socket.on("get room info", async (data) => {
     try {
       const { roomId } = data;
@@ -718,8 +651,6 @@ io.on("connection", async (socket) => {
       } catch (error) {
         console.error("❌ Error updating user status:", error);
       }
-
-      console.log("👤 User left:", currentUsername);
     }
 
     if (currentRoomId) {
@@ -729,7 +660,6 @@ io.on("connection", async (socket) => {
         if (roomSocketSet.size === 0) {
           roomSockets.delete(currentRoomId);
         } else {
-          // Notify remaining users about member leaving
           const members = await dbHelpers.getRoomMembers(currentRoomId);
           socket.to(currentRoomId).emit("room members", members);
         }
@@ -738,30 +668,26 @@ io.on("connection", async (socket) => {
   });
 });
 
-// Clean up expired sessions periodically
 setInterval(async () => {
   try {
     await dbHelpers.cleanupExpiredSessions();
     console.log("🧹 Cleaned expired sessions from database");
     
-    // Also clean memory sessions
     const oneWeek = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
     for (const [sessionId, session] of userSessions.entries()) {
       if (now - session.createdAt > oneWeek) {
         userSessions.delete(sessionId);
-        console.log("🧹 Cleaned expired memory session:", sessionId);
       }
     }
   } catch (error) {
     console.error("Error cleaning expired sessions:", error);
   }
-}, 60 * 60 * 1000); // Run every hour
+}, 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 RatScape Server running on port ${PORT}`);
   console.log(`📱 Available at: http://localhost:${PORT}`);
   console.log(`💬 Enhanced security with session management`);
-  console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
 });
