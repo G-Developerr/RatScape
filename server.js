@@ -75,6 +75,9 @@ async function validateSession(req, res, next) {
       return res.status(401).json({ success: false, error: "Session mismatch" });
     }
 
+    // Update last accessed time in database
+    await dbHelpers.updateSessionAccess(sessionId);
+
     next();
   } catch (error) {
     console.error("Session validation error:", error);
@@ -203,7 +206,7 @@ app.post("/login", async (req, res) => {
     const sessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
     const sessionData = {
       username: user.username,
-      createdAt: Date.now(),
+      createdAt: new Date().toISOString(),
     };
 
     // Save to both database and memory (fallback)
@@ -252,6 +255,10 @@ app.get("/verify-session/:username", async (req, res) => {
 
     if (session && session.username === username && user) {
       console.log("✅ Session verified:", username);
+      
+      // Update session access time
+      await dbHelpers.updateSessionAccess(sessionId);
+      
       res.json({
         success: true,
         user: {
