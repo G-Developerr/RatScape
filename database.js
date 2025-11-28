@@ -1,4 +1,4 @@
-// database.js - FIXED COMMONJS VERSION
+// database.js - FIXED FRIEND REQUESTS VERSION
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 
@@ -128,12 +128,13 @@ db.serialize(() => {
     }
   );
 
-  // Friends table
+  // Friends table - FIXED: Track who sent the request
   db.run(
     `CREATE TABLE IF NOT EXISTS friends (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user1 TEXT NOT NULL,
       user2 TEXT NOT NULL,
+      requested_by TEXT NOT NULL, -- NEW: who sent the request
       status TEXT DEFAULT 'pending',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       responded_at DATETIME,
@@ -562,14 +563,14 @@ const dbHelpers = {
     });
   },
 
-  // Friends methods
+  // Friends methods - FIXED VERSION
   sendFriendRequest: (fromUser, toUser) => {
     return new Promise((resolve, reject) => {
       const [userA, userB] = [fromUser, toUser].sort();
 
       db.run(
-        `INSERT OR IGNORE INTO friends (user1, user2, status) VALUES (?, ?, 'pending')`,
-        [userA, userB],
+        `INSERT OR IGNORE INTO friends (user1, user2, requested_by, status) VALUES (?, ?, ?, 'pending')`,
+        [userA, userB, fromUser],
         (err) => {
           if (err) {
             console.error("❌ Error in sendFriendRequest:", err);
@@ -582,7 +583,33 @@ const dbHelpers = {
     });
   },
 
+  // FIXED: Get only requests sent TO the user (not FROM the user)
   getPendingRequests: (username) => {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT 
+          requested_by as friend_username,
+          created_at
+         FROM friends 
+         WHERE (user1 = ? OR user2 = ?) 
+         AND status = 'pending'
+         AND requested_by != ?  -- Exclude requests sent by the current user
+         ORDER BY created_at DESC`,
+        [username, username, username],
+        (err, rows) => {
+          if (err) {
+            console.error("❌ Error in getPendingRequests:", err);
+            reject(err);
+          } else {
+            resolve(rows || []);
+          }
+        }
+      );
+    });
+  },
+
+  // FIXED: Also get sent requests for display purposes
+  getSentRequests: (username) => {
     return new Promise((resolve, reject) => {
       db.all(
         `SELECT 
@@ -594,11 +621,12 @@ const dbHelpers = {
          FROM friends 
          WHERE (user1 = ? OR user2 = ?) 
          AND status = 'pending'
+         AND requested_by = ?  -- Only requests sent by the current user
          ORDER BY created_at DESC`,
-        [username, username, username],
+        [username, username, username, username],
         (err, rows) => {
           if (err) {
-            console.error("❌ Error in getPendingRequests:", err);
+            console.error("❌ Error in getSentRequests:", err);
             reject(err);
           } else {
             resolve(rows || []);
