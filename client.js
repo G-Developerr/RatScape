@@ -958,11 +958,14 @@ function handleSendMessage() {
   };
 
   if (currentRoom.isPrivate) {
+    // 🔥 FIXED: Private message - ΔΕΝ προσθέτουμε το μήνυμα εδώ
+    // Ο server θα το επιστρέψει μέσω socket.on("private message")
     const friendUsername = currentRoom.name;
     messageData.receiver = friendUsername;
     socket.emit("private message", messageData);
-    addMessageToChat(messageData);
+    // ❌ ΔΙΑΓΡΑΦΗΚΕ: addMessageToChat(messageData); 
   } else {
+    // ✅ Group chat - Το socket.on("chat message") θα το προσθέσει
     messageData.room_id = currentRoom.id;
     socket.emit("chat message", messageData);
   }
@@ -986,12 +989,17 @@ socket.on("chat message", (message) => {
   }
 });
 
+/ ===== FIXED Socket Handler - Private Messages =====
+
 socket.on("private message", (message) => {
   const isFromCurrentFriend =
     message.sender === currentRoom.name || message.receiver === currentRoom.name;
+  
+  // 🔥 FIXED: Προσθέτουμε το μήνυμα ΜΟΝΟ αν είμαστε στο σωστό chat
   if (currentRoom.isPrivate && isFromCurrentFriend) {
     addMessageToChat(message);
   } else if (message.sender !== currentUser.username) {
+    // Notification για μήνυμα από άλλο chat
     showNotification(`New private message from ${message.sender}`, "info", "New Message");
   }
 });
@@ -1348,4 +1356,5 @@ socket.on("disconnect", (reason) => {
 socket.on("connect_error", (error) => {
   console.error("🔌 Connection error:", error);
 });
+
 
