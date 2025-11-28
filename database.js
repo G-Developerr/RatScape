@@ -1,3 +1,4 @@
+// database.js - FIXED COMMONJS VERSION
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 
@@ -165,7 +166,7 @@ function generateInviteCode() {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
 }
 
-export const dbHelpers = {
+const dbHelpers = {
   // Session methods - NEW METHODS FOR PERSISTENT SESSIONS
   saveSession: (sessionId, sessionData) => {
     return new Promise((resolve, reject) => {
