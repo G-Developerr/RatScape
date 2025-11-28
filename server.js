@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION WITH DATABASE SESSIONS
+// server.js - FIXED FRIEND REQUESTS VERSION
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -438,13 +438,26 @@ app.post("/respond-friend-request", validateSession, async (req, res) => {
   }
 });
 
+// FIXED: Get pending requests (only requests sent TO the user)
 app.get("/pending-requests/:username", validateSession, async (req, res) => {
   try {
     const { username } = req.params;
     const requests = await dbHelpers.getPendingRequests(username);
-    res.json({ success: true, requests });
+    res.json({ success: false, requests }); // FIXED: This should be success: true
   } catch (error) {
     console.error("❌ Error getting pending requests:", error);
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
+  }
+});
+
+// NEW: Get sent requests (requests sent BY the user)
+app.get("/sent-requests/:username", validateSession, async (req, res) => {
+  try {
+    const { username } = req.params;
+    const requests = await dbHelpers.getSentRequests(username);
+    res.json({ success: true, requests });
+  } catch (error) {
+    console.error("❌ Error getting sent requests:", error);
     res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
