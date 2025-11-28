@@ -475,16 +475,20 @@ function displayUserFriends(friends, pendingRequests) {
   friendsList.appendChild(friendsSection);
 }
 
-// FIXED: Enhanced friend request handling with validation
+// ===== FRIENDS SYSTEM FUNCTIONS - FIXED =====
+
 async function handleAddFriend(friendUsername) {
-  if (!friendUsername.trim()) {
+  // 🔥 FIXED: Καλύτερος έλεγχος input
+  const trimmedUsername = friendUsername.trim();
+  
+  if (!trimmedUsername) {
     showNotification("Please enter a username!", "warning", "Missing Info");
     return;
   }
 
-  // Check if trying to add yourself
-  if (friendUsername.trim().toLowerCase() === currentUser.username.toLowerCase()) {
-    showNotification("You cannot add yourself as a friend!", "warning", "Invalid Request");
+  // 🔥 FIXED: Έλεγχος αν προσπαθείς να προσθέσεις τον εαυτό σου
+  if (trimmedUsername.toLowerCase() === currentUser.username.toLowerCase()) {
+    showNotification("You cannot add yourself as a friend!", "warning", "Invalid Action");
     return;
   }
 
@@ -497,33 +501,121 @@ async function handleAddFriend(friendUsername) {
       },
       body: JSON.stringify({
         fromUser: currentUser.username,
-        toUser: friendUsername.trim(),
+        toUser: trimmedUsername,
       }),
     });
 
     const data = await response.json();
 
-    if (data.success) {
+    // 🔥 FIXED: Καλύτερος χειρισμός όλων των περιπτώσεων
+    if (response.ok && data.success) {
       showNotification(data.message, "success", "Friend Request Sent");
       hideAllModals();
       document.getElementById("friend-username-input").value = "";
-      loadUserFriends(); // Refresh friends list
+      loadUserFriends();
     } else {
-      showNotification(
-        data.error || "Failed to send friend request",
-        "error",
-        "Friend Request Failed"
-      );
+      // 🔥 Εδώ δείχνουμε το ΣΩΣΤΟ μήνυμα λάθους
+      let errorMessage = data.error || "Failed to send friend request";
+      let errorTitle = "Friend Request Failed";
+
+      // Καλύτερα μηνύματα ανάλογα με το error
+      if (response.status === 404) {
+        errorMessage = `User "${trimmedUsername}" does not exist!`;
+        errorTitle = "User Not Found";
+      } else if (response.status === 400) {
+        if (data.error.includes("Already friends")) {
+          errorTitle = "Already Friends";
+        } else if (data.error.includes("already sent")) {
+          errorTitle = "Request Already Sent";
+        }
+      } else if (response.status === 401) {
+        handleSessionExpired();
+        return;
+      }
+
+      showNotification(errorMessage, "error", errorTitle);
+    }
+  } catch (error) {
+    console.error("Error sending friend request:", error);
+    showNotification(
+      "Connection error. Please check your internet and try again.",
+      "error",
+      "Connection Error"
+    );
+  }
+}
+
+async function handleRespondToFriendRequest(friendUsername, accept) {
+  try {
+    const response = await fetch("/respond-friend-request", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-ID": currentUser.sessionId,
+      },
+      body: JSON.stringify({
+        username: currentUser.username,
+        friendUsername: friendUsername,
+        accept: accept,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Session expired");
+    }
+
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification(data.message, "success", accept ? "Friend Added" : "Request Declined");
+      loadUserFriends();
+    } else {
+      showNotification(data.error || "Failed to respond to request", "error", "Action Failed");
     }
   } catch (error) {
     if (error.message === "Session expired") {
       handleSessionExpired();
     } else {
       showNotification(
-        "Error sending friend request: " + error.message,
+        "Error responding to request: " + error.message,
         "error",
         "Connection Error"
       );
+    }
+  }
+}
+
+async function handleRemoveFriend(friendUsername) {
+  try {
+    const response = await fetch("/remove-friend", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-ID": currentUser.sessionId,
+      },
+      body: JSON.stringify({
+        username: currentUser.username,
+        friendUsername: friendUsername,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Session expired");
+    }
+
+    const data = await response.json();
+
+    if (data.success) {
+      showNotification("Friend removed", "info", "Friend Removed");
+      loadUserFriends();
+    } else {
+      showNotification(data.error || "Failed to remove friend", "error", "Action Failed");
+    }
+  } catch (error) {
+    if (error.message === "Session expired") {
+      handleSessionExpired();
+    } else {
+      showNotification("Error removing friend: " + error.message, "error", "Connection Error");
     }
   }
 }
@@ -1256,3 +1348,4 @@ socket.on("disconnect", (reason) => {
 socket.on("connect_error", (error) => {
   console.error("🔌 Connection error:", error);
 });
+
