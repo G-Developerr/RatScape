@@ -1,8 +1,8 @@
-// database.js - MongoDB Version for Production - FIXED
+// database.js - FIXED MongoDB Version
 const mongoose = require('mongoose');
 
-// MongoDB Connection String
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://mitsosjinavos_db_user:81dUjNKxRBiwQ2R5@ratscape.zgvlxzs.mongodb.net/ratscape?retryWrites=true&w=majority';
+// MongoDB Connection String - ΧΡΗΣΙΜΟΠΟΙΗΣΕ ΤΟ ΔΙΚΟ ΣΟΥ!
+const MONGODB_URI = process.env.MONGODB_URI || 'YOUR_MONGODB_CONNECTION_STRING_HERE';
 
 // ===== SCHEMAS =====
 
@@ -15,6 +15,8 @@ const userSchema = new mongoose.Schema({
 });
 
 const roomSchema = new mongoose.Schema({
+  // FIXED: Χρησιμοποιούμε String για custom IDs
+  room_id: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   invite_code: { type: String, required: true, unique: true },
   created_by: { type: String, required: true },
@@ -22,13 +24,15 @@ const roomSchema = new mongoose.Schema({
 });
 
 const roomMemberSchema = new mongoose.Schema({
-  room_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
+  // FIXED: String reference στο room_id
+  room_id: { type: String, required: true },
   username: { type: String, required: true },
   joined_at: { type: Date, default: Date.now }
 });
 
 const messageSchema = new mongoose.Schema({
-  room_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Room', required: true },
+  // FIXED: String reference
+  room_id: { type: String, required: true },
   sender: { type: String, required: true },
   text: { type: String, required: true },
   time: { type: String, required: true },
@@ -92,20 +96,48 @@ const dbHelpers = {
     return await User.find({});
   },
 
-  // Room methods
+  // Room methods - FIXED
   createRoom: async function(name, createdBy) {
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const room = new Room({ name, invite_code: inviteCode, created_by: createdBy });
+    const roomId = `room_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    
+    const room = new Room({ 
+      room_id: roomId,
+      name, 
+      invite_code: inviteCode, 
+      created_by: createdBy 
+    });
     await room.save();
-    return { roomId: room._id, inviteCode };
+    
+    return { roomId: roomId, inviteCode };
   },
 
   getRoomByInviteCode: async function(inviteCode) {
-    return await Room.findOne({ invite_code: inviteCode });
+    const room = await Room.findOne({ invite_code: inviteCode });
+    if (room) {
+      return {
+        id: room.room_id,
+        name: room.name,
+        invite_code: room.invite_code,
+        created_by: room.created_by,
+        created_at: room.created_at
+      };
+    }
+    return null;
   },
 
   getRoomById: async function(roomId) {
-    return await Room.findById(roomId);
+    const room = await Room.findOne({ room_id: roomId });
+    if (room) {
+      return {
+        id: room.room_id,
+        name: room.name,
+        invite_code: room.invite_code,
+        created_by: room.created_by,
+        created_at: room.created_at
+      };
+    }
+    return null;
   },
 
   addUserToRoom: async function(roomId, username) {
@@ -122,14 +154,23 @@ const dbHelpers = {
   },
 
   getUserRooms: async function(username) {
-    const members = await RoomMember.find({ username }).populate('room_id');
-    return members.map(m => ({
-      id: m.room_id._id,
-      name: m.room_id.name,
-      invite_code: m.room_id.invite_code,
-      created_by: m.room_id.created_by,
-      created_at: m.room_id.created_at
-    }));
+    const members = await RoomMember.find({ username });
+    const rooms = [];
+    
+    for (const member of members) {
+      const room = await Room.findOne({ room_id: member.room_id });
+      if (room) {
+        rooms.push({
+          id: room.room_id,
+          name: room.name,
+          invite_code: room.invite_code,
+          created_by: room.created_by,
+          created_at: room.created_at
+        });
+      }
+    }
+    
+    return rooms;
   },
 
   getRoomMembers: async function(roomId) {
@@ -283,7 +324,7 @@ const dbHelpers = {
   }
 };
 
-// 🔥 FIXED: Initialize database connection properly
+// Initialize database connection
 async function initializeDatabase() {
   try {
     console.log("🔄 Connecting to MongoDB Atlas...");
@@ -312,7 +353,7 @@ async function initializeDatabase() {
     return mongoose.connection;
   } catch (error) {
     console.error("❌ Failed to connect to MongoDB:", error);
-    console.error("Connection string used:", MONGODB_URI.replace(/:[^:@]+@/, ':****@')); // Hide password
+    console.error("Connection string used:", MONGODB_URI.replace(/:[^:@]+@/, ':****@'));
     throw error;
   }
 }
