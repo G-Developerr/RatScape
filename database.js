@@ -1,15 +1,8 @@
-// database.js - MongoDB Version for Production
+// database.js - MongoDB Version for Production - FIXED
 const mongoose = require('mongoose');
 
-// MongoDB Connection String - ΒΑΛΕ ΤΟ ΔΙΚΟ ΣΟΥ!
+// MongoDB Connection String
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://mitsosjinavos_db_user:81dUjNKxRBiwQ2R5@ratscape.zgvlxzs.mongodb.net/ratscape?retryWrites=true&w=majority';
-// Connect to MongoDB
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('✅ Connected to MongoDB Atlas'))
-.catch(err => console.error('❌ MongoDB connection error:', err));
 
 // ===== SCHEMAS =====
 
@@ -290,16 +283,38 @@ const dbHelpers = {
   }
 };
 
+// 🔥 FIXED: Initialize database connection properly
 async function initializeDatabase() {
-  // Wait for connection
-  mongoose.connection.once('open', () => {
-    console.log("✅ Connected to MongoDB Atlas");
-    console.log("✅ Database ready (MongoDB)");
-  });
-  
-  mongoose.connection.on('error', (err) => {
-    console.error("❌ MongoDB connection error:", err);
-  });
-  
-  return mongoose.connection;
-}eDatabase };
+  try {
+    console.log("🔄 Connecting to MongoDB Atlas...");
+    
+    await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    
+    console.log('✅ Connected to MongoDB Atlas');
+    console.log('✅ Database ready (MongoDB)');
+    
+    // Set up connection event handlers
+    mongoose.connection.on('error', (err) => {
+      console.error("❌ MongoDB connection error:", err);
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.log("⚠️ MongoDB disconnected");
+    });
+    
+    mongoose.connection.on('reconnected', () => {
+      console.log("✅ MongoDB reconnected");
+    });
+    
+    return mongoose.connection;
+  } catch (error) {
+    console.error("❌ Failed to connect to MongoDB:", error);
+    console.error("Connection string used:", MONGODB_URI.replace(/:[^:@]+@/, ':****@')); // Hide password
+    throw error;
+  }
+}
+
+module.exports = { dbHelpers, initializeDatabase };
