@@ -6,8 +6,6 @@ const cors = require("cors");
 const path = require("path");
 const { dbHelpers, initializeDatabase } = require("./database.js");
 
-// Initialize database connection
-initializeDatabase();
 const app = express();
 const server = createServer(app);
 
@@ -114,7 +112,7 @@ app.post("/register", async (req, res) => {
   try {
     const { email, username, password } = req.body;
 
-    console.log("📝 Registration attempt:", { email, username });
+    console.log("🔍 Registration attempt:", { email, username });
 
     if (!email || !username || !password) {
       return res.status(400).json({ success: false, error: "All fields are required" });
@@ -173,7 +171,7 @@ app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    console.log("🔐 Login attempt for email:", email);
+    console.log("🔍 Login attempt for email:", email);
 
     if (!email || !password) {
       return res.status(400).json({ success: false, error: "Email and password required" });
@@ -358,7 +356,7 @@ app.get("/user-rooms/:username", validateSession, async (req, res) => {
   }
 });
 
-// Friend routes with session validation - FIXED VERSION
+// Friend routes with session validation
 app.post("/send-friend-request", validateSession, async (req, res) => {
   try {
     const { fromUser, toUser } = req.body;
@@ -371,28 +369,23 @@ app.post("/send-friend-request", validateSession, async (req, res) => {
       return res.status(400).json({ success: false, error: "Cannot add yourself as friend" });
     }
 
-    // Check if target user exists
     const targetUser = await dbHelpers.findUserByUsername(toUser);
     if (!targetUser) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
-    // Check if already friends
     const areAlreadyFriends = await dbHelpers.areFriends(fromUser, toUser);
     if (areAlreadyFriends) {
       return res.status(400).json({ success: false, error: "Already friends" });
     }
 
-    // Check for pending request
     const hasPendingRequest = await dbHelpers.hasPendingRequest(fromUser, toUser);
     if (hasPendingRequest) {
       return res.status(400).json({ success: false, error: "Friend request already sent" });
     }
 
-    // Send friend request
     await dbHelpers.sendFriendRequest(fromUser, toUser);
 
-    // Notify target user if online
     const targetSocket = onlineUsers.get(toUser);
     if (targetSocket) {
       io.to(targetSocket.socketId).emit("friend_request", { from: fromUser });
@@ -504,7 +497,6 @@ io.on("connection", async (socket) => {
     try {
       const { username, sessionId } = data;
 
-      // Validate session using database
       const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
       if (!session || session.username !== username) {
         socket.emit("session_expired");
@@ -527,20 +519,17 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // FIXED: Join room with proper validation
   socket.on("join room", async (data) => {
     try {
       const { roomId, username, sessionId } = data;
       console.log("🚀 Attempting to join room:", { roomId, username });
 
-      // Validate session using database
       const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
       if (!session || session.username !== username) {
         socket.emit("session_expired");
         return;
       }
 
-      // Check if room exists
       const room = await dbHelpers.getRoomById(roomId);
       if (!room) {
         console.log("❌ Room not found:", roomId);
@@ -548,7 +537,6 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      // Check if user is member
       const isMember = await dbHelpers.isUserInRoom(roomId, username);
       if (!isMember) {
         console.log("❌ User not member of room:", { username, roomId });
@@ -556,7 +544,6 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      // Leave previous room
       if (currentRoomId) {
         socket.leave(currentRoomId);
         const roomSocketSet = roomSockets.get(currentRoomId);
@@ -565,34 +552,28 @@ io.on("connection", async (socket) => {
         }
       }
 
-      // Join new room
       socket.join(roomId);
       currentRoomId = roomId;
       currentUsername = username;
       currentSessionId = sessionId;
 
-      // Update room sockets tracking
       if (!roomSockets.has(roomId)) {
         roomSockets.set(roomId, new Set());
       }
       roomSockets.get(roomId).add(socket.id);
 
-      // Update online users
       if (onlineUsers.has(username)) {
         onlineUsers.get(username).currentRoom = roomId;
       }
 
-      // Load room data
       const members = await dbHelpers.getRoomMembers(roomId);
       const userJoinedAt = members.find((m) => m.username === username)?.joined_at;
       const messages = await dbHelpers.getRoomMessages(roomId, userJoinedAt);
 
-      // Send data to client
       socket.emit("load messages", messages);
       socket.emit("room members", members);
       socket.emit("room info", room);
 
-      // Notify others
       socket.to(roomId).emit("room members", members);
 
       console.log(`✅ ${username} successfully joined room: ${room.name} (${roomId})`);
@@ -610,7 +591,6 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      // Validate session for each message
       const session = await dbHelpers.getSession(currentSessionId) || userSessions.get(currentSessionId);
       if (!session || session.username !== currentUsername) {
         socket.emit("session_expired");
@@ -641,7 +621,6 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      // Validate session
       const session = await dbHelpers.getSession(currentSessionId) || userSessions.get(currentSessionId);
       if (!session || session.username !== sender) {
         socket.emit("session_expired");
@@ -668,7 +647,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // Add manual room data requests
   socket.on("get room info", async (data) => {
     try {
       const { roomId } = data;
@@ -701,7 +679,7 @@ io.on("connection", async (socket) => {
         console.error("❌ Error updating user status:", error);
       }
 
-      console.log("👤 User left:", currentUsername);
+      console.log("💤 User left:", currentUsername);
     }
 
     if (currentRoomId) {
@@ -711,7 +689,6 @@ io.on("connection", async (socket) => {
         if (roomSocketSet.size === 0) {
           roomSockets.delete(currentRoomId);
         } else {
-          // Notify remaining users about member leaving
           const members = await dbHelpers.getRoomMembers(currentRoomId);
           socket.to(currentRoomId).emit("room members", members);
         }
@@ -726,24 +703,36 @@ setInterval(async () => {
     await dbHelpers.cleanupExpiredSessions();
     console.log("🧹 Cleaned expired sessions from database");
     
-    // Also clean memory sessions
     const oneWeek = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
     for (const [sessionId, session] of userSessions.entries()) {
       if (now - session.createdAt > oneWeek) {
         userSessions.delete(sessionId);
-        console.log("🧹 Cleaned expired memory session:", sessionId);
       }
     }
   } catch (error) {
     console.error("Error cleaning expired sessions:", error);
   }
-}, 60 * 60 * 1000); // Run every hour
+}, 60 * 60 * 1000);
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 RatScape Server running on port ${PORT}`);
-  console.log(`📱 Available at: http://localhost:${PORT}`);
-  console.log(`💬 Enhanced security with session management`);
-  console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
-});
+// 🔥 FIXED: Start server ONLY after database connection
+async function startServer() {
+  try {
+    // Wait for database to connect
+    await initializeDatabase();
+    
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 RatScape Server running on port ${PORT}`);
+      console.log(`📱 Available at: http://localhost:${PORT}`);
+      console.log(`💬 Enhanced security with session management`);
+      console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
+    });
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();
