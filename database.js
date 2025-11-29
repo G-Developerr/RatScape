@@ -2,8 +2,7 @@
 const mongoose = require('mongoose');
 
 // MongoDB Connection String - ΒΑΛΕ ΤΟ ΔΙΚΟ ΣΟΥ!
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://mitsosjinavos_db_user:1312@ratscape.zgvlxzs.mongodb.net/ratscape?retryWrites=true&w=majority';
-
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://mitsosjinavos_db_user:81dUjNKxRBiwQ2R5@ratscape.zgvlxzs.mongodb.net/ratscape?retryWrites=true&w=majority';
 // Connect to MongoDB
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
