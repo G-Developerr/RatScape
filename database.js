@@ -291,8 +291,15 @@ const dbHelpers = {
 };
 
 async function initializeDatabase() {
-  console.log("✅ Database ready (MongoDB)");
+  // Wait for connection
+  mongoose.connection.once('open', () => {
+    console.log("✅ Connected to MongoDB Atlas");
+    console.log("✅ Database ready (MongoDB)");
+  });
+  
+  mongoose.connection.on('error', (err) => {
+    console.error("❌ MongoDB connection error:", err);
+  });
+  
   return mongoose.connection;
-}
-
-module.exports = { dbHelpers, initializeDatabase };
+}eDatabase };
