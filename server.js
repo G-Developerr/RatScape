@@ -1,11 +1,13 @@
-// server.js - COMPLETE FIXED VERSION WITH DATABASE SESSIONS
+// server.js - COMPLETE FIXED VERSION WITH MONGODB
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
-const { dbHelpers } = require("./database.js");
+const { dbHelpers, initializeDatabase } = require("./database.js");
 
+// Initialize database connection
+initializeDatabase();
 const app = express();
 const server = createServer(app);
 
