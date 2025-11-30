@@ -5,11 +5,43 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RatScape - Group Chat</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#8B0000">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RatScape">
+    <meta name="description" content="Private group chat with invite codes. Join rooms and chat with friends in real-time.">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="72x72" href="/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="128x128" href="/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="384x384" href="/icon-384x384.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icon-16x16.png">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+    <!-- 🔥 PWA FLOATING INSTALL BUTTON - ΚΑΤΩ ΔΕΞΙΑ, ΜΟΝΟ ΣΤΟ HOME PAGE -->
+    <button id="pwa-install-btn" class="pwa-floating-install-button" style="display: none;" onclick="installPWA()">
+        <i class="fas fa-download"></i>
+        <span class="install-text">Download App</span>
+    </button>
+
     <!-- HEADER NAVIGATION -->
     <nav id="main-nav">
         <div class="nav-brand">
@@ -17,6 +49,7 @@
                 <img src="logo.jpg.jpg" alt="RatScape" class="nav-logo" style="height: 62px; width: auto;">
             </button>
         </div>
+        
         <div class="nav-actions" id="nav-logged-out">
             <button id="login-nav-btn" class="nav-btn"><i class="fas fa-sign-in-alt"></i> Login</button>
             <button id="register-nav-btn" class="nav-btn"><i class="fas fa-user-plus"></i> Register</button>
@@ -326,6 +359,97 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
+    
+    <!-- 🔥 PWA REGISTRATION SCRIPT -->
+    <script>
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then((registration) => {
+            console.log('✅ Service Worker registered:', registration.scope);
+          })
+          .catch((error) => {
+            console.log('❌ Service Worker registration failed:', error);
+          });
+      });
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      
+      // Εμφάνισε το install button ΜΟΝΟ στο home page
+      const homePageActive = document.getElementById('home-page').classList.contains('active');
+      const installButton = document.getElementById('pwa-install-btn');
+      
+      if (installButton && homePageActive) {
+        installButton.style.display = 'flex';
+      }
+    });
+
+    // Function για να trigger το install
+    window.installPWA = async () => {
+      if (!deferredPrompt) {
+        return;
+      }
+      
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        console.log('✅ User accepted PWA installation');
+        if (typeof showNotification === 'function') {
+          showNotification('App installed successfully!', 'success', 'Welcome!');
+        }
+      }
+      
+      deferredPrompt = null;
+      
+      const installButton = document.getElementById('pwa-install-btn');
+      if (installButton) {
+        installButton.style.display = 'none';
+      }
+    };
+
+    // Detect if app is running as PWA
+    window.addEventListener('load', () => {
+      if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+        console.log('✅ Running as PWA');
+        document.body.classList.add('pwa-mode');
+        
+        // Κρύψε το install button αν τρέχει σαν PWA
+        const installButton = document.getElementById('pwa-install-btn');
+        if (installButton) {
+          installButton.style.display = 'none';
+        }
+      }
+    });
+    
+    // 🔥 ΚΡΥΨΕ ΤΟ BUTTON ΟΤΑΝ ΑΛΛΑΖΕΙ PAGE
+    const observer = new MutationObserver(() => {
+      const homePageActive = document.getElementById('home-page').classList.contains('active');
+      const installButton = document.getElementById('pwa-install-btn');
+      const isPWA = document.body.classList.contains('pwa-mode');
+      
+      if (installButton && deferredPrompt && !isPWA) {
+        if (homePageActive) {
+          installButton.style.display = 'flex';
+        } else {
+          installButton.style.display = 'none';
+        }
+      }
+    });
+
+    // Παρακολούθησε το home page για class changes
+    const homePage = document.getElementById('home-page');
+    if (homePage) {
+      observer.observe(homePage, { attributes: true, attributeFilter: ['class'] });
+    }
+    </script>
 </body>
 
 </html>
