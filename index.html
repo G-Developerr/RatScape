@@ -39,8 +39,56 @@
     <!-- 🔥 PWA FLOATING INSTALL BUTTON - ΚΑΤΩ ΔΕΞΙΑ, ΜΟΝΟ ΣΤΟ HOME PAGE -->
     <button id="pwa-install-btn" class="pwa-floating-install-button" style="display: none;" onclick="installPWA()">
         <i class="fas fa-download"></i>
-        <span class="install-text">Download App</span>
+        <span class="install-text">Download RatScape</span>
     </button>
+
+    <!-- PWA INSTALL INSTRUCTIONS MODAL -->
+    <div class="modal" id="pwa-instructions-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Install RatScape App</h3>
+                <button class="close-modal-btn" id="close-pwa-instructions-modal">×</button>
+            </div>
+
+            <div class="form-container active">
+                <div class="pwa-instructions">
+                    <!-- Chrome/Edge Instructions -->
+                    <div class="browser-instruction" id="chrome-instruction">
+                        <h4><i class="fab fa-chrome"></i> Chrome / Edge</h4>
+                        <ol>
+                            <li>Click the <strong>Install</strong> button below</li>
+                            <li>Or look for the <strong>Install icon</strong> <i class="fas fa-download"></i> in the address bar</li>
+                            <li>Click "Install" to add to your apps</li>
+                        </ol>
+                    </div>
+
+                    <!-- Firefox Instructions -->
+                    <div class="browser-instruction" id="firefox-instruction">
+                        <h4><i class="fab fa-firefox"></i> Firefox</h4>
+                        <ol>
+                            <li>Click the <strong>menu button</strong> (three lines) </li>
+                            <li>Select <strong>"Install"</strong> from the menu</li>
+                            <li>Confirm installation</li>
+                        </ol>
+                    </div>
+
+                    <!-- Safari Instructions -->
+                    <div class="browser-instruction" id="safari-instruction">
+                        <h4><i class="fab fa-safari"></i> Safari</h4>
+                        <ol>
+                            <li>Click <strong>File</strong> in the menu bar</li>
+                            <li>Select <strong>"Add to Dock"</strong> or <strong>"Add to Home Screen"</strong></li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="pwa-manual-install"><i class="fas fa-download"></i> Try Install</button>
+                    <button class="btn btn-secondary" id="pwa-instructions-cancel">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- HEADER NAVIGATION -->
     <nav id="main-nav">
@@ -360,7 +408,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
     
-    <!-- 🔥 ΒΕΛΤΙΩΜΕΝΟΣ PWA SCRIPT -->
+    <!-- 🔥 ENHANCED PWA SCRIPT ΓΙΑ DESKTOP & MOBILE -->
     <script>
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
@@ -375,16 +423,23 @@
       });
     }
 
-    // PWA Install Prompt - ΒΕΛΤΙΩΜΕΝΟ
+    // PWA Install Management
     let deferredPrompt;
     let installButton = document.getElementById('pwa-install-btn');
+    let pwaInstructionsModal = document.getElementById('pwa-instructions-modal');
 
-    // Function για να εμφανίζει το install button
+    // Function για να εμφανίζει το install button (ΜΟΝΟ στο home page)
     function showInstallButton() {
-      if (installButton && deferredPrompt) {
+      const homePageActive = document.getElementById('home-page').classList.contains('active');
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                    window.navigator.standalone === true;
+      
+      if (installButton && homePageActive && !isPWA) {
         installButton.style.display = 'flex';
         installButton.classList.add('fade-in');
-        console.log('🔄 Install button shown');
+        console.log('🔄 Install button shown on home page');
+      } else {
+        installButton.style.display = 'none';
       }
     }
 
@@ -396,53 +451,95 @@
       }
     }
 
-    // Event listener για install prompt
+    // Event listener για install prompt (για browsers που το υποστηρίζουν)
     window.addEventListener('beforeinstallprompt', (e) => {
       console.log('📱 PWA Install Prompt triggered');
       e.preventDefault();
       deferredPrompt = e;
-      
-      // Έλεγξε αν βρισκόμαστε στο home page
-      checkAndShowInstallButton();
+      showInstallButton();
     });
 
-    // Function για έλεγχο και εμφάνιση του button
-    function checkAndShowInstallButton() {
-      const homePageActive = document.getElementById('home-page').classList.contains('active');
-      const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
-                    window.navigator.standalone === true;
-      
-      if (deferredPrompt && homePageActive && !isPWA) {
-        showInstallButton();
+    // Enhanced install function
+    window.installPWA = async () => {
+      // Αν υπάρχει deferredPrompt (Chrome/Edge στα desktop)
+      if (deferredPrompt) {
+        console.log('📲 Starting PWA installation with browser prompt...');
+        
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        console.log(`📱 User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} installation`);
+        
+        if (outcome === 'accepted') {
+          if (typeof showNotification === 'function') {
+            showNotification('App installed successfully!', 'success', 'Welcome to RatScape!');
+          }
+          hideInstallButton();
+        }
+        
+        deferredPrompt = null;
       } else {
-        hideInstallButton();
+        // Αν δεν υπάρχει deferredPrompt (Firefox, Safari, ή κάποια desktop browsers)
+        console.log('ℹ️ Showing manual installation instructions');
+        showPWAInstructions();
+      }
+    };
+
+    // Function για εμφάνιση instructions modal
+    function showPWAInstructions() {
+      if (pwaInstructionsModal) {
+        pwaInstructionsModal.classList.add('active');
+        
+        // Detect browser και show appropriate instructions
+        detectBrowserAndShowInstructions();
       }
     }
 
-    // Function για install
-    window.installPWA = async () => {
-      if (!deferredPrompt) {
-        console.log('❌ No install prompt available');
-        return;
+    // Browser detection για instructions
+    function detectBrowserAndShowInstructions() {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const chromeInstruction = document.getElementById('chrome-instruction');
+      const firefoxInstruction = document.getElementById('firefox-instruction');
+      const safariInstruction = document.getElementById('safari-instruction');
+      
+      // Hide all first
+      [chromeInstruction, firefoxInstruction, safariInstruction].forEach(el => {
+        if (el) el.style.display = 'none';
+      });
+      
+      // Show based on browser detection
+      if (userAgent.includes('chrome') || userAgent.includes('edg')) {
+        if (chromeInstruction) chromeInstruction.style.display = 'block';
+      } else if (userAgent.includes('firefox')) {
+        if (firefoxInstruction) firefoxInstruction.style.display = 'block';
+      } else if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+        if (safariInstruction) safariInstruction.style.display = 'block';
+      } else {
+        // Default to Chrome instructions
+        if (chromeInstruction) chromeInstruction.style.display = 'block';
       }
-      
-      console.log('📲 Starting PWA installation...');
-      
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      console.log(`📱 User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} installation`);
-      
-      if (outcome === 'accepted') {
-        // Show success notification
-        if (typeof showNotification === 'function') {
-          showNotification('App installed successfully!', 'success', 'Welcome to RatScape!');
-        }
-        hideInstallButton();
+    }
+
+    // Manual install attempt
+    document.getElementById('pwa-manual-install')?.addEventListener('click', () => {
+      // Try to trigger install via beforeinstallprompt if available
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+      } else {
+        // Show generic instructions
+        alert('Look for the install option in your browser menu. Typically: Chrome/Edge: Click the install icon in address bar | Firefox: Menu → Install | Safari: File → Add to Dock');
       }
-      
-      deferredPrompt = null;
-    };
+      pwaInstructionsModal.classList.remove('active');
+    });
+
+    // Close instructions modal
+    document.getElementById('close-pwa-instructions-modal')?.addEventListener('click', () => {
+      pwaInstructionsModal.classList.remove('active');
+    });
+    
+    document.getElementById('pwa-instructions-cancel')?.addEventListener('click', () => {
+      pwaInstructionsModal.classList.remove('active');
+    });
 
     // Έλεγχος αν τρέχει ως PWA
     window.addEventListener('load', () => {
@@ -456,12 +553,14 @@
       } else {
         console.log('🌐 Running in browser');
         document.body.classList.remove('pwa-mode');
+        // Στα desktop, δείξε το κουμπί ακόμα και χωρίς deferredPrompt
+        setTimeout(showInstallButton, 1000);
       }
     });
 
     // Παρακολούθηση αλλαγών σελίδας για το install button
     const observer = new MutationObserver(() => {
-      checkAndShowInstallButton();
+      showInstallButton();
     });
 
     // Παρακολούθησε όλες τις σελίδες για αλλαγές
@@ -474,7 +573,7 @@
 
     // Έλεγξε κατά το load
     document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(checkAndShowInstallButton, 1000);
+      setTimeout(showInstallButton, 1500);
     });
 
     // Debug function
@@ -483,10 +582,51 @@
       console.log('- deferredPrompt:', deferredPrompt ? 'Available' : 'Not available');
       console.log('- Home page active:', document.getElementById('home-page').classList.contains('active'));
       console.log('- Is PWA:', window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true);
-      console.log('- Install button:', installButton ? 'Found' : 'Not found');
-      console.log('- Install button display:', installButton ? getComputedStyle(installButton).display : 'N/A');
+      console.log('- User Agent:', navigator.userAgent);
+      console.log('- Install button visible:', installButton ? getComputedStyle(installButton).display !== 'none' : 'N/A');
     };
     </script>
+
+    <style>
+    /* Additional CSS for PWA Instructions Modal */
+    .pwa-instructions {
+      margin: 20px 0;
+    }
+    
+    .browser-instruction {
+      background: rgba(26, 26, 26, 0.9);
+      padding: 15px;
+      border-radius: var(--radius);
+      margin-bottom: 15px;
+      border-left: 4px solid var(--primary);
+    }
+    
+    .browser-instruction h4 {
+      color: var(--text);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .browser-instruction ol {
+      color: var(--text-light);
+      padding-left: 20px;
+    }
+    
+    .browser-instruction li {
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    
+    .browser-instruction strong {
+      color: var(--accent-red);
+    }
+    
+    .fab, .fas {
+      font-size: 1.2em;
+    }
+    </style>
 </body>
 
 </html>
