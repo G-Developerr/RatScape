@@ -360,7 +360,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
     
-    <!-- 🔥 PWA REGISTRATION SCRIPT -->
+    <!-- 🔥 ΒΕΛΤΙΩΜΕΝΟΣ PWA SCRIPT -->
     <script>
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
@@ -375,80 +375,117 @@
       });
     }
 
-    // PWA Install Prompt
+    // PWA Install Prompt - ΒΕΛΤΙΩΜΕΝΟ
     let deferredPrompt;
+    let installButton = document.getElementById('pwa-install-btn');
 
+    // Function για να εμφανίζει το install button
+    function showInstallButton() {
+      if (installButton && deferredPrompt) {
+        installButton.style.display = 'flex';
+        installButton.classList.add('fade-in');
+        console.log('🔄 Install button shown');
+      }
+    }
+
+    // Function για να κρύβει το install button
+    function hideInstallButton() {
+      if (installButton) {
+        installButton.style.display = 'none';
+        installButton.classList.remove('fade-in');
+      }
+    }
+
+    // Event listener για install prompt
     window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('📱 PWA Install Prompt triggered');
       e.preventDefault();
       deferredPrompt = e;
       
-      // Εμφάνισε το install button ΜΟΝΟ στο home page
-      const homePageActive = document.getElementById('home-page').classList.contains('active');
-      const installButton = document.getElementById('pwa-install-btn');
-      
-      if (installButton && homePageActive) {
-        installButton.style.display = 'flex';
-      }
+      // Έλεγξε αν βρισκόμαστε στο home page
+      checkAndShowInstallButton();
     });
 
-    // Function για να trigger το install
+    // Function για έλεγχο και εμφάνιση του button
+    function checkAndShowInstallButton() {
+      const homePageActive = document.getElementById('home-page').classList.contains('active');
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                    window.navigator.standalone === true;
+      
+      if (deferredPrompt && homePageActive && !isPWA) {
+        showInstallButton();
+      } else {
+        hideInstallButton();
+      }
+    }
+
+    // Function για install
     window.installPWA = async () => {
       if (!deferredPrompt) {
+        console.log('❌ No install prompt available');
         return;
       }
+      
+      console.log('📲 Starting PWA installation...');
       
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       
+      console.log(`📱 User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} installation`);
+      
       if (outcome === 'accepted') {
-        console.log('✅ User accepted PWA installation');
+        // Show success notification
         if (typeof showNotification === 'function') {
-          showNotification('App installed successfully!', 'success', 'Welcome!');
+          showNotification('App installed successfully!', 'success', 'Welcome to RatScape!');
         }
+        hideInstallButton();
       }
       
       deferredPrompt = null;
-      
-      const installButton = document.getElementById('pwa-install-btn');
-      if (installButton) {
-        installButton.style.display = 'none';
-      }
     };
 
-    // Detect if app is running as PWA
+    // Έλεγχος αν τρέχει ως PWA
     window.addEventListener('load', () => {
-      if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                    window.navigator.standalone === true;
+      
+      if (isPWA) {
         console.log('✅ Running as PWA');
         document.body.classList.add('pwa-mode');
-        
-        // Κρύψε το install button αν τρέχει σαν PWA
-        const installButton = document.getElementById('pwa-install-btn');
-        if (installButton) {
-          installButton.style.display = 'none';
-        }
-      }
-    });
-    
-    // 🔥 ΚΡΥΨΕ ΤΟ BUTTON ΟΤΑΝ ΑΛΛΑΖΕΙ PAGE
-    const observer = new MutationObserver(() => {
-      const homePageActive = document.getElementById('home-page').classList.contains('active');
-      const installButton = document.getElementById('pwa-install-btn');
-      const isPWA = document.body.classList.contains('pwa-mode');
-      
-      if (installButton && deferredPrompt && !isPWA) {
-        if (homePageActive) {
-          installButton.style.display = 'flex';
-        } else {
-          installButton.style.display = 'none';
-        }
+        hideInstallButton();
+      } else {
+        console.log('🌐 Running in browser');
+        document.body.classList.remove('pwa-mode');
       }
     });
 
-    // Παρακολούθησε το home page για class changes
-    const homePage = document.getElementById('home-page');
-    if (homePage) {
-      observer.observe(homePage, { attributes: true, attributeFilter: ['class'] });
-    }
+    // Παρακολούθηση αλλαγών σελίδας για το install button
+    const observer = new MutationObserver(() => {
+      checkAndShowInstallButton();
+    });
+
+    // Παρακολούθησε όλες τις σελίδες για αλλαγές
+    document.querySelectorAll('.page').forEach(page => {
+      observer.observe(page, { 
+        attributes: true, 
+        attributeFilter: ['class'] 
+      });
+    });
+
+    // Έλεγξε κατά το load
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(checkAndShowInstallButton, 1000);
+    });
+
+    // Debug function
+    window.debugPWA = () => {
+      console.log('🔍 PWA Debug Info:');
+      console.log('- deferredPrompt:', deferredPrompt ? 'Available' : 'Not available');
+      console.log('- Home page active:', document.getElementById('home-page').classList.contains('active'));
+      console.log('- Is PWA:', window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true);
+      console.log('- Install button:', installButton ? 'Found' : 'Not found');
+      console.log('- Install button display:', installButton ? getComputedStyle(installButton).display : 'N/A');
+    };
     </script>
 </body>
 
