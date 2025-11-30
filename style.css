@@ -1635,6 +1635,223 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 1.2rem;
     }
 }
+    /* ========================================
+   PWA FLOATING INSTALL BUTTON - ΚΑΤΩ ΔΕΞΙΑ
+   ΒΕΛΤΙΩΜΕΝΟ STYLING ΜΕ ΤΑ ΧΡΩΜΑΤΑ ΤΟΥ APP
+   ======================================== */
+
+.pwa-floating-install-button {
+    /* Position - Fixed κάτω δεξιά */
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 9999;
+    
+    /* Styling με τα χρώματα του RatScape */
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%);
+    color: white;
+    border: none;
+    padding: 16px 24px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 1rem;
+    
+    /* Layout */
+    display: none; /* Hidden by default */
+    align-items: center;
+    gap: 10px;
+    
+    /* Shadows & Effects */
+    box-shadow: 0 8px 25px rgba(139, 0, 0, 0.5),
+                0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    
+    /* Animation ready */
+    transform: scale(1);
+    animation: floatPulse 3s ease-in-out infinite;
+    
+    /* Border για emphasis */
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Shine effect */
+.pwa-floating-install-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s ease;
+    border-radius: 50px;
+}
+
+.pwa-floating-install-button:hover::before {
+    left: 100%;
+}
+
+/* Hover effects */
+.pwa-floating-install-button:hover {
+    transform: scale(1.1) translateY(-3px);
+    box-shadow: 0 12px 35px rgba(255, 0, 0, 0.6),
+                0 6px 15px rgba(0, 0, 0, 0.4);
+    animation: none; /* Stop pulse on hover */
+    background: linear-gradient(135deg, var(--accent-red) 0%, #CC0000 100%);
+}
+
+.pwa-floating-install-button:active {
+    transform: scale(0.95);
+}
+
+/* Icon styling */
+.pwa-floating-install-button i {
+    font-size: 1.3rem;
+    animation: downloadBounce 2s ease-in-out infinite;
+}
+
+.pwa-floating-install-button:hover i {
+    animation: none;
+    transform: translateY(-2px);
+}
+
+/* Text styling */
+.pwa-floating-install-button .install-text {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+}
+
+/* Pulse animation */
+@keyframes floatPulse {
+    0%, 100% {
+        transform: scale(1) translateY(0);
+        box-shadow: 0 8px 25px rgba(139, 0, 0, 0.5),
+                    0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        transform: scale(1.05) translateY(-5px);
+        box-shadow: 0 12px 35px rgba(139, 0, 0, 0.6),
+                    0 6px 15px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* Download icon bounce */
+@keyframes downloadBounce {
+    0%, 100% { 
+        transform: translateY(0); 
+    }
+    50% { 
+        transform: translateY(-5px); 
+    }
+}
+
+/* Εγγυημένη εμφάνιση του install button */
+.pwa-floating-install-button.fade-in {
+    display: flex !important;
+    animation: fadeInSlideUp 0.5s ease-out forwards;
+}
+
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(50px) scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Hide button when running as PWA */
+body.pwa-mode .pwa-floating-install-button {
+    display: none !important;
+}
+
+/* Tablet responsive (landscape) */
+@media (max-width: 1024px) {
+    .pwa-floating-install-button {
+        bottom: 25px;
+        right: 25px;
+        padding: 14px 20px;
+        font-size: 0.95rem;
+    }
+    
+    .pwa-floating-install-button i {
+        font-size: 1.2rem;
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .pwa-floating-install-button {
+        bottom: 20px;
+        right: 20px;
+        padding: 14px 18px;
+        font-size: 0.9rem;
+        border-radius: 45px;
+    }
+    
+    .pwa-floating-install-button .install-text {
+        font-size: 0.85rem;
+    }
+    
+    .pwa-floating-install-button i {
+        font-size: 1.1rem;
+    }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+    .pwa-floating-install-button {
+        bottom: 15px;
+        right: 15px;
+        padding: 12px 16px;
+        font-size: 0.85rem;
+    }
+    
+    /* Μικρότερο text στα πολύ μικρά screens */
+    .pwa-floating-install-button .install-text {
+        display: none;
+    }
+    
+    .pwa-floating-install-button i {
+        font-size: 1.3rem;
+        margin: 0;
+    }
+    
+    /* Στρογγυλό button μόνο με icon */
+    .pwa-floating-install-button {
+        width: 56px;
+        height: 56px;
+        padding: 0;
+        border-radius: 50%;
+        display: none;
+        justify-content: center;
+        align-items: center;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 360px) {
+    .pwa-floating-install-button {
+        bottom: 10px;
+        right: 10px;
+        width: 50px;
+        height: 50px;
+    }
+    
+    .pwa-floating-install-button i {
+        font-size: 1.2rem;
+    }
+}
+
+/* Special case: Avoid overlap with notification container */
+.notification-container ~ .pwa-floating-install-button {
+    bottom: 30px; /* Ensure it doesn't overlap with notifications */
+}
 
 /* Mobile responsive */
 @media (max-width: 768px) {
@@ -1739,5 +1956,6 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 }
+
 
 
