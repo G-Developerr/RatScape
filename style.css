@@ -31,7 +31,17 @@ body {
     color: var(--text);
     min-height: 100vh;
 }
+/* Εγγυημένη εμφάνιση του install button */
+.pwa-floating-install-button.fade-in {
+  display: flex !important;
+  animation: fadeInSlideUp 0.5s ease-out forwards;
+}
 
+/* Debug class για testing */
+.debug-mode .pwa-floating-install-button {
+  display: flex !important;
+  background: blue !important;
+}
 
 /* Navigation - Τελειωμένο Dark/Horror Theme */
 
@@ -1729,4 +1739,5 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 }
+
 
