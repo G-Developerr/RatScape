@@ -1,0 +1,20 @@
+{
+  "name": "RatScape - Group Chat",
+  "short_name": "RatScape",
+  "description": "Private group chat with invite codes. Join rooms and chat with friends in real-time.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0D0D",
+  "theme_color": "#8B0000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.jpg.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "communication"],
+  "prefer_related_applications": false
+}
