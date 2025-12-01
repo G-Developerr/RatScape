@@ -15,7 +15,6 @@ const userSchema = new mongoose.Schema({
 });
 
 const roomSchema = new mongoose.Schema({
-  // FIXED: Χρησιμοποιούμε String για custom IDs
   room_id: { type: String, required: true, unique: true },
   name: { type: String, required: true },
   invite_code: { type: String, required: true, unique: true },
@@ -24,14 +23,12 @@ const roomSchema = new mongoose.Schema({
 });
 
 const roomMemberSchema = new mongoose.Schema({
-  // FIXED: String reference στο room_id
   room_id: { type: String, required: true },
   username: { type: String, required: true },
   joined_at: { type: Date, default: Date.now }
 });
 
 const messageSchema = new mongoose.Schema({
-  // FIXED: String reference
   room_id: { type: String, required: true },
   sender: { type: String, required: true },
   text: { type: String, required: true },
@@ -61,6 +58,19 @@ const sessionSchema = new mongoose.Schema({
   last_accessed: { type: Date, default: Date.now }
 });
 
+// ===== ΝΕΟ SCHEMA: UNREAD MESSAGES =====
+const unreadMessageSchema = new mongoose.Schema({
+  user: { type: String, required: true, index: true },
+  sender: { type: String, required: true },
+  room_id: { type: String },
+  message_id: { type: String },
+  type: { type: String, enum: ['private', 'group'], required: true },
+  count: { type: Number, default: 1 },
+  last_message: { type: String },
+  last_message_time: { type: Date, default: Date.now },
+  created_at: { type: Date, default: Date.now }
+});
+
 // ===== MODELS =====
 const User = mongoose.model('User', userSchema);
 const Room = mongoose.model('Room', roomSchema);
@@ -69,6 +79,7 @@ const Message = mongoose.model('Message', messageSchema);
 const PrivateMessage = mongoose.model('PrivateMessage', privateMessageSchema);
 const Friend = mongoose.model('Friend', friendSchema);
 const Session = mongoose.model('Session', sessionSchema);
+const UnreadMessage = mongoose.model('UnreadMessage', unreadMessageSchema);
 
 // ===== DATABASE HELPERS =====
 
@@ -96,7 +107,7 @@ const dbHelpers = {
     return await User.find({});
   },
 
-  // Room methods - FIXED
+  // Room methods
   createRoom: async function(name, createdBy) {
     const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const roomId = `room_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -321,6 +332,127 @@ const dbHelpers = {
     const oneWeek = 7 * 24 * 60 * 60 * 1000;
     const expiredDate = new Date(Date.now() - oneWeek);
     await Session.deleteMany({ last_accessed: { $lt: expiredDate } });
+  },
+
+  // ===== ΝΕΕΣ ΜΕΘΟΔΟΙ: UNREAD MESSAGES =====
+  
+  addUnreadMessage: async function(user, sender, type, room_id = null, message_data = null) {
+    try {
+      const query = { 
+        user, 
+        sender,
+        type,
+        room_id: room_id || null
+      };
+      
+      const existing = await UnreadMessage.findOne(query);
+      
+      if (existing) {
+        existing.count += 1;
+        existing.last_message = message_data?.text || "New message";
+        existing.last_message_time = new Date();
+        await existing.save();
+        console.log(`✅ Updated unread for ${user} from ${sender}: ${existing.count} messages`);
+        return existing;
+      } else {
+        const unread = new UnreadMessage({
+          user,
+          sender,
+          type,
+          room_id,
+          last_message: message_data?.text || "New message",
+          message_id: message_data?.message_id || `msg_${Date.now()}`
+        });
+        await unread.save();
+        console.log(`✅ Created unread for ${user} from ${sender}`);
+        return unread;
+      }
+    } catch (error) {
+      console.error("❌ Error adding unread message:", error);
+      return null;
+    }
+  },
+
+  getUnreadMessages: async function(user) {
+    try {
+      const unreads = await UnreadMessage.find({ user }).sort({ last_message_time: -1 });
+      return unreads;
+    } catch (error) {
+      console.error("❌ Error getting unread messages:", error);
+      return [];
+    }
+  },
+
+  getUnreadCountForUser: async function(user, sender = null, type = null, room_id = null) {
+    try {
+      const query = { user };
+      if (sender) query.sender = sender;
+      if (type) query.type = type;
+      if (room_id) query.room_id = room_id;
+      
+      const unread = await UnreadMessage.findOne(query);
+      return unread ? unread.count : 0;
+    } catch (error) {
+      console.error("❌ Error getting unread count:", error);
+      return 0;
+    }
+  },
+
+  markAsRead: async function(user, sender = null, type = null, room_id = null) {
+    try {
+      const query = { user };
+      if (sender) query.sender = sender;
+      if (type) query.type = type;
+      if (room_id) query.room_id = room_id;
+      
+      const result = await UnreadMessage.deleteMany(query);
+      console.log(`✅ Marked as read for ${user}: ${result.deletedCount} messages`);
+      return result.deletedCount > 0;
+    } catch (error) {
+      console.error("❌ Error marking messages as read:", error);
+      return false;
+    }
+  },
+
+  clearAllUnread: async function(user) {
+    try {
+      const result = await UnreadMessage.deleteMany({ user });
+      console.log(`✅ Cleared all unread for ${user}: ${result.deletedCount} messages`);
+      return result.deletedCount > 0;
+    } catch (error) {
+      console.error("❌ Error clearing all unread messages:", error);
+      return false;
+    }
+  },
+
+  getUnreadSummary: async function(user) {
+    try {
+      const unreads = await UnreadMessage.find({ user });
+      
+      const summary = {
+        total: 0,
+        private: {},
+        groups: {}
+      };
+      
+      unreads.forEach(unread => {
+        summary.total += unread.count;
+        
+        if (unread.type === 'private') {
+          summary.private[unread.sender] = unread.count;
+        } else if (unread.type === 'group') {
+          if (!summary.groups[unread.room_id]) {
+            summary.groups[unread.room_id] = 0;
+          }
+          summary.groups[unread.room_id] += unread.count;
+        }
+      });
+      
+      return summary;
+    } catch (error) {
+      console.error("❌ Error getting unread summary:", error);
+      return { total: 0, private: {}, groups: {} };
+    }
   }
 };
 
