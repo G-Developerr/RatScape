@@ -19,6 +19,8 @@
     --radius: 8px;
     --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     --success: #228B22;
+    --warning: #FFA500;
+    --info: #4285F4;
     --card-bg: rgba(26, 26, 26, 0.85);
     --border-color: rgba(51, 51, 51, 0.7);
     --accent-color: #8B0000;
@@ -31,20 +33,8 @@ body {
     color: var(--text);
     min-height: 100vh;
 }
-/* Εγγυημένη εμφάνιση του install button */
-.pwa-floating-install-button.fade-in {
-  display: flex !important;
-  animation: fadeInSlideUp 0.5s ease-out forwards;
-}
-
-/* Debug class για testing */
-.debug-mode .pwa-floating-install-button {
-  display: flex !important;
-  background: blue !important;
-}
 
 /* Navigation - Τελειωμένο Dark/Horror Theme */
-
 #main-nav {
     background: rgba(26, 26, 26, 0.95);
     backdrop-filter: blur(12px);
@@ -112,6 +102,7 @@ body {
     transition: all 0.2s ease;
     font-weight: 600;
     font-size: 0.9rem;
+    position: relative;
 }
 
 .nav-btn:hover {
@@ -120,9 +111,7 @@ body {
     box-shadow: 0 4px 8px rgba(255, 0, 0, 0.3);
 }
 
-
 /* Icons styling */
-
 .nav-btn i,
 .btn i,
 .cta-btn i,
@@ -162,9 +151,7 @@ body {
     color: var(--accent-red);
 }
 
-
 /* Pages */
-
 .page {
     display: none;
     min-height: calc(100vh - 66px);
@@ -174,9 +161,7 @@ body {
     display: block;
 }
 
-
-/* Home Page - Βελτιωμένο Hero Section */
-
+/* Home Page */
 #home-page {
     padding: 0;
 }
@@ -288,9 +273,7 @@ body {
     font-size: 0.9rem;
 }
 
-
 /* Rooms Page */
-
 .rooms-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -328,6 +311,7 @@ body {
     padding: 20px;
     transition: all 0.2s ease;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
 }
 
 .room-card:hover {
@@ -380,9 +364,7 @@ body {
     margin-bottom: 10px;
 }
 
-
 /* Chat Layout */
-
 .chat-layout {
     display: flex;
     height: calc(100vh - 66px);
@@ -390,9 +372,7 @@ body {
     backdrop-filter: blur(8px);
 }
 
-
 /* Sidebar */
-
 #sidebar {
     width: 280px;
     background: rgba(38, 38, 38, 0.8);
@@ -428,9 +408,7 @@ body {
     background: var(--success);
 }
 
-
 /* Room Details */
-
 .room-details {
     padding: 15px;
     border-bottom: 1px solid var(--border-color);
@@ -475,9 +453,7 @@ body {
     background: rgba(139, 0, 0, 0.2);
 }
 
-
 /* Room Members */
-
 .room-members-section {
     padding: 15px;
     flex: 1;
@@ -505,6 +481,7 @@ body {
     padding: 12px;
     border-radius: var(--radius);
     transition: all 0.2s ease;
+    position: relative;
 }
 
 .member-item:hover {
@@ -541,9 +518,7 @@ body {
     color: var(--text-light);
 }
 
-
 /* User Profile */
-
 .user-profile {
     padding: 12px 15px;
     background: rgba(38, 38, 38, 0.8);
@@ -583,9 +558,7 @@ body {
     color: var(--text-light);
 }
 
-
 /* Main Chat */
-
 #main-chat {
     flex: 1;
     display: flex;
@@ -640,9 +613,7 @@ body {
     background: #CC0000;
 }
 
-
 /* Messages */
-
 #messages-container {
     flex: 1;
     overflow-y: auto;
@@ -716,9 +687,7 @@ body {
     font-size: 0.95rem;
 }
 
-
 /* Input Area */
-
 .message-input-container {
     padding: 15px 20px;
     background: rgba(38, 38, 38, 0.8);
@@ -792,9 +761,7 @@ body {
     background: var(--accent-red);
 }
 
-
 /* Modals */
-
 .modal {
     display: none;
     position: fixed;
@@ -956,9 +923,7 @@ body {
     background: var(--primary-light);
 }
 
-
 /* Friends Page Styles */
-
 .friends-list-page {
     display: flex;
     flex-direction: column;
@@ -1012,6 +977,7 @@ body {
     border: 1px solid var(--border-color);
     transition: all 0.2s ease;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
 }
 
 .friend-card:hover {
@@ -1070,9 +1036,7 @@ body {
     margin: 0.5rem 0;
 }
 
-
 /* Button improvements */
-
 .btn-danger {
     background: var(--accent-red);
     border: 1px solid var(--accent-red);
@@ -1083,9 +1047,7 @@ body {
     background: #CC0000;
 }
 
-
 /* Enhanced Friends System Styles */
-
 .friends-section {
     margin-bottom: 2rem;
 }
@@ -1126,28 +1088,9 @@ body {
     gap: 1rem;
 }
 
-
-/* Scrollbar */
-
-::-webkit-scrollbar {
-    width: 6px;
-}
-
-::-webkit-scrollbar-track {
-    background: rgba(26, 26, 26, 0.5);
-}
-
-::-webkit-scrollbar-thumb {
-    background: rgba(139, 0, 0, 0.6);
-    border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 0, 0, 0.6);
-}
-
-
-/* Beautiful Notification System */
+/* ========================================
+   BEAUTIFUL NOTIFICATION SYSTEM
+   ======================================== */
 
 .notification-container {
     position: fixed;
@@ -1174,6 +1117,7 @@ body {
     opacity: 0;
     transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     max-width: 350px;
+    position: relative;
 }
 
 .notification.active {
@@ -1184,6 +1128,17 @@ body {
 .notification.hiding {
     transform: translateX(400px);
     opacity: 0;
+}
+
+.notification.clickable {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.notification.clickable:hover {
+    transform: translateX(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8);
+    background: rgba(50, 50, 50, 0.95);
 }
 
 .notification-icon {
@@ -1231,9 +1186,7 @@ body {
     color: var(--accent-red);
 }
 
-
 /* Notification Types */
-
 .notification.success {
     border-left: 4px solid var(--success);
 }
@@ -1253,67 +1206,348 @@ body {
 }
 
 .notification.warning {
-    border-left: 4px solid #FFA500;
+    border-left: 4px solid var(--warning);
 }
 
 .notification.warning .notification-icon {
-    background: #FFA500;
+    background: var(--warning);
     color: white;
 }
 
 .notification.info {
-    border-left: 4px solid #4285F4;
+    border-left: 4px solid var(--info);
 }
 
 .notification.info .notification-icon {
-    background: #4285F4;
+    background: var(--info);
     color: white;
 }
 
+/* Notification Count Badge */
+.notification-count-badge {
+    position: absolute;
+    top: 10px;
+    right: 35px;
+    background: var(--primary);
+    color: white;
+    border-radius: 10px;
+    min-width: 22px;
+    height: 22px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    animation: badgePop 0.3s ease-out;
+}
 
-/* Responsive */
+/* Unread Notification Style */
+.notification.unread {
+    border-left: 6px solid var(--accent-red) !important;
+    background: linear-gradient(90deg, rgba(139, 0, 0, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%);
+}
+
+.notification.unread .notification-title {
+    color: var(--accent-red);
+    font-weight: bold;
+}
+
+.notification.unread .notification-title::after {
+    content: " ●";
+    color: var(--accent-red);
+    animation: blink 1s infinite;
+    font-size: 1.2em;
+    vertical-align: middle;
+    margin-left: 5px;
+}
+
+/* Offline Notification Style */
+.notification.offline {
+    border-left: 6px solid var(--warning);
+    background: linear-gradient(90deg, rgba(255, 165, 0, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%);
+}
+
+.notification.offline .notification-title {
+    color: var(--warning);
+}
+
+/* ========================================
+   UNREAD MESSAGES & BADGES SYSTEM
+   ======================================== */
+
+/* Badge Animations */
+@keyframes badgePop {
+    0% { transform: scale(0); opacity: 0; }
+    70% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes badgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+@keyframes highlightPulse {
+    0%, 100% { 
+        box-shadow: 0 0 0 0 rgba(139, 0, 0, 0.7);
+        transform: scale(1);
+    }
+    50% { 
+        box-shadow: 0 0 0 15px rgba(139, 0, 0, 0);
+        transform: scale(1.02);
+    }
+}
+
+/* Navigation Badges */
+.nav-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--accent-red);
+    color: white;
+    border-radius: 10px;
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    z-index: 100;
+    animation: badgePop 0.3s ease-out;
+}
+
+/* Friend List Badges */
+.friend-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--accent-red);
+    color: white;
+    border-radius: 10px;
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    z-index: 1;
+    animation: badgePop 0.3s ease-out;
+}
+
+/* Room List Badges */
+.room-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--accent-red);
+    color: white;
+    border-radius: 10px;
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    z-index: 1;
+    animation: badgePop 0.3s ease-out;
+}
+
+/* Member Item Unread Indicator */
+.member-item.unread {
+    background: rgba(139, 0, 0, 0.15);
+    border-left: 3px solid var(--accent-red);
+}
+
+.member-item.unread::after {
+    content: "●";
+    color: var(--accent-red);
+    font-size: 0.8rem;
+    position: absolute;
+    right: 15px;
+    animation: blink 1s infinite;
+}
+
+/* Enhanced Hover Effects for Unread Items */
+.friend-card.has-unread {
+    border-left: 3px solid var(--accent-red);
+    background: rgba(139, 0, 0, 0.1);
+}
+
+.room-card.has-unread {
+    border-left: 3px solid var(--accent-red);
+    background: rgba(139, 0, 0, 0.1);
+}
+
+.friend-card.has-unread:hover,
+.room-card.has-unread:hover {
+    background: rgba(139, 0, 0, 0.2);
+    border-color: var(--accent-red);
+}
+
+/* Highlight Animation for Clicked Notifications */
+.highlight-animation {
+    animation: highlightPulse 2s ease-in-out;
+    border: 2px solid var(--accent-red) !important;
+}
+
+/* ========================================
+   PWA FLOATING INSTALL BUTTON
+   ======================================== */
+
+.pwa-floating-install-button {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 9999;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%);
+    color: white;
+    border: none;
+    padding: 16px 24px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 1rem;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 8px 25px rgba(139, 0, 0, 0.5),
+                0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    transform: scale(1);
+    animation: floatPulse 3s ease-in-out infinite;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.pwa-floating-install-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s ease;
+    border-radius: 50px;
+}
+
+.pwa-floating-install-button:hover::before {
+    left: 100%;
+}
+
+.pwa-floating-install-button:hover {
+    transform: scale(1.1) translateY(-3px);
+    box-shadow: 0 12px 35px rgba(255, 0, 0, 0.6),
+                0 6px 15px rgba(0, 0, 0, 0.4);
+    animation: none;
+    background: linear-gradient(135deg, var(--accent-red) 0%, #CC0000 100%);
+}
+
+.pwa-floating-install-button:active {
+    transform: scale(0.95);
+}
+
+.pwa-floating-install-button i {
+    font-size: 1.3rem;
+    animation: downloadBounce 2s ease-in-out infinite;
+}
+
+.pwa-floating-install-button:hover i {
+    animation: none;
+    transform: translateY(-2px);
+}
+
+.pwa-floating-install-button .install-text {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+}
+
+.pwa-floating-install-button.fade-in {
+    display: flex !important;
+    animation: fadeInSlideUp 0.5s ease-out forwards;
+}
+
+@keyframes floatPulse {
+    0%, 100% {
+        transform: scale(1) translateY(0);
+        box-shadow: 0 8px 25px rgba(139, 0, 0, 0.5),
+                    0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        transform: scale(1.05) translateY(-5px);
+        box-shadow: 0 12px 35px rgba(139, 0, 0, 0.6),
+                    0 6px 15px rgba(0, 0, 0, 0.4);
+    }
+}
+
+@keyframes downloadBounce {
+    0%, 100% { 
+        transform: translateY(0); 
+    }
+    50% { 
+        transform: translateY(-5px); 
+    }
+}
+
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(50px) scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+body.pwa-mode .pwa-floating-install-button {
+    display: none !important;
+}
+
+/* ========================================
+   SCROLLBAR STYLING
+   ======================================== */
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(26, 26, 26, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(139, 0, 0, 0.6);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 0, 0, 0.6);
+}
+
+/* ========================================
+   MOBILE RESPONSIVE
+   ======================================== */
 
 @media (max-width: 768px) {
-    #sidebar {
-        width: 240px;
-    }
-    .rooms-list {
-        grid-template-columns: 1fr;
-    }
-    .hero-section h1 {
-        font-size: 2.2rem;
-    }
-    .nav-actions {
-        gap: 4px;
-    }
-    .nav-btn {
-        padding: 10px 16px;
-        font-size: 0.8rem;
-    }
-    .features-grid {
-        grid-template-columns: 1fr;
-        padding: 40px 20px;
-    }
-    .rooms-header {
-        flex-direction: column;
-        gap: 15px;
-        align-items: flex-start;
-    }
-    .chat-layout {
-        flex-direction: column;
-    }
-    #sidebar {
-        width: 100%;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .message {
-        max-width: 85%;
-    }
-    /* Enhanced Mobile Responsive Styles */
-@media (max-width: 768px) {
-    /* Improved navigation for mobile */
+    /* Navigation */
     #main-nav {
         padding: 8px 15px;
         flex-wrap: wrap;
@@ -1342,7 +1576,7 @@ body {
         font-size: 0.9rem;
     }
     
-    /* Improved chat layout for mobile - keep horizontal */
+    /* Chat Layout */
     .chat-layout {
         flex-direction: row;
         height: calc(100vh - 66px);
@@ -1356,7 +1590,6 @@ body {
         z-index: 10;
     }
     
-    /* Hide text in collapsed sidebar */
     .sidebar-header h2,
     .room-info span,
     .invite-code-section label,
@@ -1410,7 +1643,7 @@ body {
         display: flex;
     }
     
-    /* Improved messages */
+    /* Messages */
     .message {
         max-width: 85%;
     }
@@ -1423,7 +1656,7 @@ body {
         font-size: 1.1rem;
     }
     
-    /* Improved input area */
+    /* Input area */
     .message-input-container {
         padding: 12px 15px;
     }
@@ -1437,7 +1670,7 @@ body {
         gap: 2px;
     }
     
-    /* Rooms page improvements */
+    /* Rooms page */
     .rooms-header {
         flex-direction: column;
         gap: 15px;
@@ -1460,7 +1693,7 @@ body {
         font-size: 2rem;
     }
     
-    /* Friends page improvements */
+    /* Friends page */
     .friend-card {
         padding: 1rem;
     }
@@ -1473,6 +1706,77 @@ body {
     .btn-sm {
         padding: 6px 12px;
         font-size: 0.8rem;
+    }
+    
+    /* Notifications */
+    .notification-container {
+        top: 70px;
+        right: 10px;
+        max-width: 300px;
+    }
+    
+    .notification {
+        max-width: 300px;
+        padding: 12px 16px;
+    }
+    
+    .notification-count-badge {
+        top: 8px;
+        right: 30px;
+        min-width: 18px;
+        height: 18px;
+        font-size: 0.6rem;
+    }
+    
+    /* Badges */
+    .nav-badge {
+        min-width: 16px;
+        height: 16px;
+        font-size: 0.5rem;
+        top: -3px;
+        right: -3px;
+    }
+    
+    .friend-badge,
+    .room-badge {
+        top: 5px;
+        right: 5px;
+        min-width: 18px;
+        height: 18px;
+        font-size: 0.6rem;
+    }
+    
+    /* PWA Button */
+    .pwa-floating-install-button {
+        bottom: 20px;
+        right: 20px;
+        padding: 14px 18px;
+        font-size: 0.9rem;
+        border-radius: 45px;
+    }
+    
+    .pwa-floating-install-button .install-text {
+        font-size: 0.85rem;
+    }
+    
+    .pwa-floating-install-button i {
+        font-size: 1.1rem;
+    }
+    
+    /* Mobile sidebar overlay */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 5;
+    }
+    
+    .sidebar-overlay.active {
+        display: block;
     }
 }
 
@@ -1507,304 +1811,8 @@ body {
     .rooms-list {
         grid-template-columns: 1fr;
     }
-}
-/* ========================================
-   PWA FLOATING INSTALL BUTTON - ΚΑΤΩ ΔΕΞΙΑ
-   Πρόσθεσε αυτό στο ΤΕΛΟΣ του style.css
-   ======================================== */
-
-.pwa-floating-install-button {
-    /* Position - Fixed κάτω δεξιά */
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    z-index: 9999;
     
-    /* Styling */
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%);
-    color: white;
-    border: none;
-    padding: 16px 24px;
-    border-radius: 50px;
-    cursor: pointer;
-    font-weight: 700;
-    font-size: 1rem;
-    
-    /* Layout */
-    display: none; /* Hidden by default */
-    align-items: center;
-    gap: 10px;
-    
-    /* Shadows & Effects */
-    box-shadow: 0 8px 25px rgba(139, 0, 0, 0.5),
-                0 4px 10px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    
-    /* Animation ready */
-    transform: scale(1);
-    animation: floatPulse 3s ease-in-out infinite;
-}
-
-/* Shine effect */
-.pwa-floating-install-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    transition: left 0.6s ease;
-    border-radius: 50px;
-}
-
-.pwa-floating-install-button:hover::before {
-    left: 100%;
-}
-
-/* Hover effects */
-.pwa-floating-install-button:hover {
-    transform: scale(1.1) translateY(-3px);
-    box-shadow: 0 12px 35px rgba(255, 0, 0, 0.6),
-                0 6px 15px rgba(0, 0, 0, 0.4);
-    animation: none; /* Stop pulse on hover */
-}
-
-.pwa-floating-install-button:active {
-    transform: scale(0.95);
-}
-
-/* Icon styling */
-.pwa-floating-install-button i {
-    font-size: 1.3rem;
-    animation: downloadBounce 2s ease-in-out infinite;
-}
-
-.pwa-floating-install-button:hover i {
-    animation: none;
-    transform: translateY(-2px);
-}
-
-/* Text styling */
-.pwa-floating-install-button .install-text {
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    font-size: 0.9rem;
-}
-
-/* Pulse animation */
-@keyframes floatPulse {
-    0%, 100% {
-        transform: scale(1) translateY(0);
-        box-shadow: 0 8px 25px rgba(139, 0, 0, 0.5),
-                    0 4px 10px rgba(0, 0, 0, 0.3);
-    }
-    50% {
-        transform: scale(1.05) translateY(-5px);
-        box-shadow: 0 12px 35px rgba(139, 0, 0, 0.6),
-                    0 6px 15px rgba(0, 0, 0, 0.4);
-    }
-}
-
-/* Download icon bounce */
-@keyframes downloadBounce {
-    0%, 100% { 
-        transform: translateY(0); 
-    }
-    50% { 
-        transform: translateY(-5px); 
-    }
-}
-
-/* Hide button when running as PWA */
-body.pwa-mode .pwa-floating-install-button {
-    display: none !important;
-}
-
-/* Tablet responsive (landscape) */
-@media (max-width: 1024px) {
-    .pwa-floating-install-button {
-        bottom: 25px;
-        right: 25px;
-        padding: 14px 20px;
-        font-size: 0.95rem;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.2rem;
-    }
-}
-    /* ========================================
-   PWA FLOATING INSTALL BUTTON - ΚΑΤΩ ΔΕΞΙΑ
-   ΒΕΛΤΙΩΜΕΝΟ STYLING ΜΕ ΤΑ ΧΡΩΜΑΤΑ ΤΟΥ APP
-   ======================================== */
-
-.pwa-floating-install-button {
-    /* Position - Fixed κάτω δεξιά */
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    z-index: 9999;
-    
-    /* Styling με τα χρώματα του RatScape */
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%);
-    color: white;
-    border: none;
-    padding: 16px 24px;
-    border-radius: 50px;
-    cursor: pointer;
-    font-weight: 700;
-    font-size: 1rem;
-    
-    /* Layout */
-    display: none; /* Hidden by default */
-    align-items: center;
-    gap: 10px;
-    
-    /* Shadows & Effects */
-    box-shadow: 0 8px 25px rgba(139, 0, 0, 0.5),
-                0 4px 10px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    
-    /* Animation ready */
-    transform: scale(1);
-    animation: floatPulse 3s ease-in-out infinite;
-    
-    /* Border για emphasis */
-    border: 2px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Shine effect */
-.pwa-floating-install-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    transition: left 0.6s ease;
-    border-radius: 50px;
-}
-
-.pwa-floating-install-button:hover::before {
-    left: 100%;
-}
-
-/* Hover effects */
-.pwa-floating-install-button:hover {
-    transform: scale(1.1) translateY(-3px);
-    box-shadow: 0 12px 35px rgba(255, 0, 0, 0.6),
-                0 6px 15px rgba(0, 0, 0, 0.4);
-    animation: none; /* Stop pulse on hover */
-    background: linear-gradient(135deg, var(--accent-red) 0%, #CC0000 100%);
-}
-
-.pwa-floating-install-button:active {
-    transform: scale(0.95);
-}
-
-/* Icon styling */
-.pwa-floating-install-button i {
-    font-size: 1.3rem;
-    animation: downloadBounce 2s ease-in-out infinite;
-}
-
-.pwa-floating-install-button:hover i {
-    animation: none;
-    transform: translateY(-2px);
-}
-
-/* Text styling */
-.pwa-floating-install-button .install-text {
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    font-size: 0.9rem;
-}
-
-/* Pulse animation */
-@keyframes floatPulse {
-    0%, 100% {
-        transform: scale(1) translateY(0);
-        box-shadow: 0 8px 25px rgba(139, 0, 0, 0.5),
-                    0 4px 10px rgba(0, 0, 0, 0.3);
-    }
-    50% {
-        transform: scale(1.05) translateY(-5px);
-        box-shadow: 0 12px 35px rgba(139, 0, 0, 0.6),
-                    0 6px 15px rgba(0, 0, 0, 0.4);
-    }
-}
-
-/* Download icon bounce */
-@keyframes downloadBounce {
-    0%, 100% { 
-        transform: translateY(0); 
-    }
-    50% { 
-        transform: translateY(-5px); 
-    }
-}
-
-/* Εγγυημένη εμφάνιση του install button */
-.pwa-floating-install-button.fade-in {
-    display: flex !important;
-    animation: fadeInSlideUp 0.5s ease-out forwards;
-}
-
-@keyframes fadeInSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(50px) scale(0.8);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-/* Hide button when running as PWA */
-body.pwa-mode .pwa-floating-install-button {
-    display: none !important;
-}
-
-/* Tablet responsive (landscape) */
-@media (max-width: 1024px) {
-    .pwa-floating-install-button {
-        bottom: 25px;
-        right: 25px;
-        padding: 14px 20px;
-        font-size: 0.95rem;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.2rem;
-    }
-}
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-    .pwa-floating-install-button {
-        bottom: 20px;
-        right: 20px;
-        padding: 14px 18px;
-        font-size: 0.9rem;
-        border-radius: 45px;
-    }
-    
-    .pwa-floating-install-button .install-text {
-        font-size: 0.85rem;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.1rem;
-    }
-}
-
-/* Small mobile */
-@media (max-width: 480px) {
+    /* PWA Button mobile */
     .pwa-floating-install-button {
         bottom: 15px;
         right: 15px;
@@ -1812,7 +1820,6 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.85rem;
     }
     
-    /* Μικρότερο text στα πολύ μικρά screens */
     .pwa-floating-install-button .install-text {
         display: none;
     }
@@ -1822,290 +1829,28 @@ body.pwa-mode .pwa-floating-install-button {
         margin: 0;
     }
     
-    /* Στρογγυλό button μόνο με icon */
     .pwa-floating-install-button {
         width: 56px;
         height: 56px;
         padding: 0;
         border-radius: 50%;
-        display: none;
         justify-content: center;
         align-items: center;
     }
-}
-
-/* Extra small devices */
-@media (max-width: 360px) {
-    .pwa-floating-install-button {
-        bottom: 10px;
-        right: 10px;
-        width: 50px;
-        height: 50px;
-    }
     
-    .pwa-floating-install-button i {
-        font-size: 1.2rem;
-    }
-}
-
-/* Special case: Avoid overlap with notification container */
-.notification-container ~ .pwa-floating-install-button {
-    bottom: 30px; /* Ensure it doesn't overlap with notifications */
-}
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-    .pwa-floating-install-button {
-        bottom: 20px;
-        right: 20px;
-        padding: 14px 18px;
-        font-size: 0.9rem;
-        border-radius: 45px;
-    }
-    
-    .pwa-floating-install-button .install-text {
-        font-size: 0.85rem;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.1rem;
-    }
-}
-
-/* Small mobile */
-@media (max-width: 480px) {
-    .pwa-floating-install-button {
-        bottom: 15px;
-        right: 15px;
-        padding: 12px 16px;
-        font-size: 0.85rem;
-    }
-    
-    /* Μικρότερο text στα πολύ μικρά screens */
-    .pwa-floating-install-button .install-text {
+    /* Notification count badge hide on very small screens */
+    .notification-count-badge {
         display: none;
     }
     
-    .pwa-floating-install-button i {
-        font-size: 1.3rem;
-        margin: 0;
-    }
-    
-    /* Στρογγυλό button μόνο με icon */
-    .pwa-floating-install-button {
-        width: 56px;
-        height: 56px;
-        padding: 0;
-        border-radius: 50%;
-        display: none;
-        justify-content: center;
-        align-items: center;
-    }
-}
-    /* ========================================
-   UNREAD MESSAGES & BADGES STYLING
-   ======================================== */
-
-/* Badges στους φίλους */
-.friend-card {
-    position: relative;
-}
-
-.friend-unread-badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: var(--accent-red);
-    color: white;
-    border-radius: 10px;
-    min-width: 20px;
-    height: 20px;
-    font-size: 0.7rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 5px;
-    font-weight: bold;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-    z-index: 1;
-    animation: badgePop 0.3s ease-out;
-}
-
-/* Badges στα δωμάτια */
-.room-card {
-    position: relative;
-}
-
-.room-unread-badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: var(--accent-red);
-    color: white;
-    border-radius: 10px;
-    min-width: 20px;
-    height: 20px;
-    font-size: 0.7rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 5px;
-    font-weight: bold;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-    z-index: 1;
-    animation: badgePop 0.3s ease-out;
-}
-
-/* Badges στο navigation */
-.nav-btn {
-    position: relative;
-}
-
-.nav-unread-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background: var(--accent-red);
-    color: white;
-    border-radius: 10px;
-    min-width: 18px;
-    height: 18px;
-    font-size: 0.6rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 4px;
-    font-weight: bold;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-    z-index: 100;
-    animation: badgePop 0.3s ease-out;
-}
-
-/* Animations */
-@keyframes badgePop {
-    0% { transform: scale(0); opacity: 0; }
-    70% { transform: scale(1.2); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
-}
-
-@keyframes badgePulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-}
-
-/* Unread notifications styling */
-.notification.unread {
-    border-left: 6px solid var(--accent-red) !important;
-    background: linear-gradient(90deg, rgba(139, 0, 0, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%);
-}
-
-.notification.unread .notification-title {
-    color: var(--accent-red);
-    font-weight: bold;
-}
-
-.notification.unread .notification-title::after {
-    content: " ●";
-    color: var(--accent-red);
-    animation: blink 1s infinite;
-    font-size: 1.2em;
-    vertical-align: middle;
-    margin-left: 5px;
-}
-
-@keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-}
-
-/* Unread count στο notification */
-.notification.unread-count {
-    position: absolute;
-    top: 10px;
-    right: 35px;
-    background: var(--primary);
-    color: white;
-    border-radius: 10px;
-    min-width: 22px;
-    height: 22px;
-    font-size: 0.7rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 6px;
-    font-weight: bold;
-}
-
-/* Enhanced hover για notifications με unread */
-.notification.unread:hover {
-    transform: translateX(-5px) scale(1.02);
-    box-shadow: 0 15px 35px rgba(139, 0, 0, 0.3);
-}
-
-/* Offline notifications styling */
-.notification.offline {
-    border-left: 6px solid #FFA500;
-    background: linear-gradient(90deg, rgba(255, 165, 0, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%);
-}
-
-.notification.offline .notification-title {
-    color: #FFA500;
-}
-
-/* Unread indicator στο sidebar */
-.member-item.unread {
-    background: rgba(139, 0, 0, 0.15);
-    border-left: 3px solid var(--accent-red);
-}
-
-.member-item.unread::after {
-    content: "●";
-    color: var(--accent-red);
-    font-size: 0.8rem;
-    position: absolute;
-    right: 15px;
-    animation: blink 1s infinite;
-}
-
-/* Mobile responsive για badges */
-@media (max-width: 768px) {
-    .friend-unread-badge,
-    .room-unread-badge {
-        top: 5px;
-        right: 5px;
-        min-width: 18px;
-        height: 18px;
-        font-size: 0.6rem;
-    }
-    
-    .nav-unread-badge {
-        min-width: 16px;
-        height: 16px;
-        font-size: 0.5rem;
-        top: -3px;
-        right: -3px;
-    }
-    
-    .notification.unread-count {
-        top: 8px;
-        right: 30px;
-        min-width: 18px;
-        height: 18px;
-        font-size: 0.6rem;
-    }
-}
-
-/* Extra small devices */
-@media (max-width: 480px) {
-    .friend-unread-badge,
-    .room-unread-badge {
+    /* Smaller badges */
+    .friend-badge,
+    .room-badge {
         min-width: 16px;
         height: 16px;
         font-size: 0.55rem;
-    }
-    
-    .notification.unread-count {
-        display: none; /* Κρύβουμε το count σε πολύ μικρές οθόνες */
+        top: 3px;
+        right: 3px;
     }
 }
 
@@ -2121,48 +1866,156 @@ body.pwa-mode .pwa-floating-install-button {
     .pwa-floating-install-button i {
         font-size: 1.2rem;
     }
+    
+    .notification-container {
+        right: 5px;
+        max-width: 280px;
+    }
+    
+    .notification {
+        max-width: 280px;
+        padding: 10px 14px;
+    }
+}
+
+/* Tablet responsive (landscape) */
+@media (max-width: 1024px) {
+    .pwa-floating-install-button {
+        bottom: 25px;
+        right: 25px;
+        padding: 14px 20px;
+        font-size: 0.95rem;
+    }
+    
+    .pwa-floating-install-button i {
+        font-size: 1.2rem;
+    }
+    
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 /* Special case: Avoid overlap with notification container */
 .notification-container ~ .pwa-floating-install-button {
-    bottom: 30px; /* Ensure it doesn't overlap with notifications */
+    bottom: 30px;
 }
 
-/* Smooth entrance animation when button appears */
-.pwa-floating-install-button.fade-in {
-    animation: fadeInSlideUp 0.5s ease-out forwards;
+/* Ensure buttons with badges have proper spacing */
+.nav-btn.has-badge {
+    padding-right: 30px;
 }
 
-@keyframes fadeInSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(50px) scale(0.8);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-/* Mobile sidebar overlay */
-@media (max-width: 768px) {
-    .sidebar-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        z-index: 5;
-    }
-    
-    .sidebar-overlay.active {
-        display: block;
-    }
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
 }
 
+/* Empty states styling */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
 }
 
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--accent-red);
+    opacity: 0.5;
+}
 
+.empty-state h3 {
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
 
+.empty-state p {
+    margin-bottom: 1.5rem;
+}
 
+/* Error states */
+.error-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--accent-red);
+}
+
+.error-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.error-state h3 {
+    margin-bottom: 0.5rem;
+}
+
+/* Success states */
+.success-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--success);
+}
+
+.success-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.success-state h3 {
+    margin-bottom: 0.5rem;
+}
+
+/* Connection status indicator */
+.connection-status {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(26, 26, 26, 0.9);
+    padding: 5px 10px;
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    color: var(--text-light);
+}
+
+.connection-status.connected {
+    color: var(--success);
+}
+
+.connection-status.disconnected {
+    color: var(--accent-red);
+}
+
+.connection-status.connecting {
+    color: var(--warning);
+}
+
+.connection-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.connection-dot.connected {
+    background: var(--success);
+    animation: pulse 2s infinite;
+}
+
+.connection-dot.disconnected {
+    background: var(--accent-red);
+}
+
+.connection-dot.connecting {
+    background: var(--warning);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
