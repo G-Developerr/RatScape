@@ -1902,6 +1902,212 @@ body.pwa-mode .pwa-floating-install-button {
         align-items: center;
     }
 }
+    /* ========================================
+   UNREAD MESSAGES & BADGES STYLING
+   ======================================== */
+
+/* Badges στους φίλους */
+.friend-card {
+    position: relative;
+}
+
+.friend-unread-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--accent-red);
+    color: white;
+    border-radius: 10px;
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    z-index: 1;
+    animation: badgePop 0.3s ease-out;
+}
+
+/* Badges στα δωμάτια */
+.room-card {
+    position: relative;
+}
+
+.room-unread-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--accent-red);
+    color: white;
+    border-radius: 10px;
+    min-width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    z-index: 1;
+    animation: badgePop 0.3s ease-out;
+}
+
+/* Badges στο navigation */
+.nav-btn {
+    position: relative;
+}
+
+.nav-unread-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--accent-red);
+    color: white;
+    border-radius: 10px;
+    min-width: 18px;
+    height: 18px;
+    font-size: 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    z-index: 100;
+    animation: badgePop 0.3s ease-out;
+}
+
+/* Animations */
+@keyframes badgePop {
+    0% { transform: scale(0); opacity: 0; }
+    70% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes badgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Unread notifications styling */
+.notification.unread {
+    border-left: 6px solid var(--accent-red) !important;
+    background: linear-gradient(90deg, rgba(139, 0, 0, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%);
+}
+
+.notification.unread .notification-title {
+    color: var(--accent-red);
+    font-weight: bold;
+}
+
+.notification.unread .notification-title::after {
+    content: " ●";
+    color: var(--accent-red);
+    animation: blink 1s infinite;
+    font-size: 1.2em;
+    vertical-align: middle;
+    margin-left: 5px;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* Unread count στο notification */
+.notification.unread-count {
+    position: absolute;
+    top: 10px;
+    right: 35px;
+    background: var(--primary);
+    color: white;
+    border-radius: 10px;
+    min-width: 22px;
+    height: 22px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    font-weight: bold;
+}
+
+/* Enhanced hover για notifications με unread */
+.notification.unread:hover {
+    transform: translateX(-5px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(139, 0, 0, 0.3);
+}
+
+/* Offline notifications styling */
+.notification.offline {
+    border-left: 6px solid #FFA500;
+    background: linear-gradient(90deg, rgba(255, 165, 0, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%);
+}
+
+.notification.offline .notification-title {
+    color: #FFA500;
+}
+
+/* Unread indicator στο sidebar */
+.member-item.unread {
+    background: rgba(139, 0, 0, 0.15);
+    border-left: 3px solid var(--accent-red);
+}
+
+.member-item.unread::after {
+    content: "●";
+    color: var(--accent-red);
+    font-size: 0.8rem;
+    position: absolute;
+    right: 15px;
+    animation: blink 1s infinite;
+}
+
+/* Mobile responsive για badges */
+@media (max-width: 768px) {
+    .friend-unread-badge,
+    .room-unread-badge {
+        top: 5px;
+        right: 5px;
+        min-width: 18px;
+        height: 18px;
+        font-size: 0.6rem;
+    }
+    
+    .nav-unread-badge {
+        min-width: 16px;
+        height: 16px;
+        font-size: 0.5rem;
+        top: -3px;
+        right: -3px;
+    }
+    
+    .notification.unread-count {
+        top: 8px;
+        right: 30px;
+        min-width: 18px;
+        height: 18px;
+        font-size: 0.6rem;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+    .friend-unread-badge,
+    .room-unread-badge {
+        min-width: 16px;
+        height: 16px;
+        font-size: 0.55rem;
+    }
+    
+    .notification.unread-count {
+        display: none; /* Κρύβουμε το count σε πολύ μικρές οθόνες */
+    }
+}
 
 /* Extra small devices */
 @media (max-width: 360px) {
@@ -1956,6 +2162,7 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 }
+
 
 
 
