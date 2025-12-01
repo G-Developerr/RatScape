@@ -1,4 +1,4 @@
-// client.js - RatRoom Client with Enhanced Security & Beautiful Notifications
+// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM
 const socket = io();
 
 // Current user state
@@ -16,9 +16,16 @@ let currentRoom = {
     inviteCode: null,
 };
 
-// ===== BEAUTIFUL NOTIFICATION SYSTEM =====
+// ===== UNREAD MESSAGES SYSTEM =====
+let unreadMessages = {
+    private: {},    // {friendUsername: count}
+    groups: {},     // {roomId: count}
+    total: 0
+};
 
-function showNotification(message, type = "info", title = null) {
+// ===== BEAUTIFUL NOTIFICATION SYSTEM WITH CLICKABLE =====
+
+function showNotification(message, type = "info", title = null, action = null, unreadCount = 1) {
     const container = document.getElementById("notification-container");
     if (!container) {
         createNotificationContainer();
@@ -26,6 +33,10 @@ function showNotification(message, type = "info", title = null) {
 
     const notification = document.createElement("div");
     notification.className = `notification ${type}`;
+    
+    if (action) {
+        notification.dataset.action = JSON.stringify(action);
+    }
 
     // Set icon based on type
     let icon, notificationTitle;
@@ -47,16 +58,61 @@ function showNotification(message, type = "info", title = null) {
             notificationTitle = title || "Info";
     }
 
+    // Προσθήκη unread count στο message αν υπάρχει
+    let displayMessage = message;
+    if (unreadCount > 1) {
+        displayMessage = `(${unreadCount}) ${message}`;
+    }
+
     notification.innerHTML = `
         <div class="notification-icon">${icon}</div>
         <div class="notification-content">
             <div class="notification-title">${notificationTitle}</div>
-            <div class="notification-message">${message}</div>
+            <div class="notification-message">${displayMessage}</div>
         </div>
         <button class="notification-close">×</button>
     `;
 
+    // Προσθήκη unread count badge αν είναι > 1
+    if (unreadCount > 1) {
+        const countBadge = document.createElement('div');
+        countBadge.className = 'notification-count-badge';
+        countBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        notification.appendChild(countBadge);
+    }
+
     document.getElementById("notification-container").appendChild(notification);
+
+    // CLICK HANDLER για notifications με action
+    if (action) {
+        notification.style.cursor = 'pointer';
+        notification.classList.add('clickable');
+        
+        notification.addEventListener('click', function(e) {
+            if (!e.target.classList.contains('notification-close')) {
+                handleNotificationAction(action);
+                hideNotification(notification);
+                
+                // Auto-clear unread όταν πατάς το notification
+                if (action.type === 'private_message') {
+                    clearUnread('private', action.sender);
+                } else if (action.type === 'room_message') {
+                    clearUnread('group', action.sender, action.roomId);
+                }
+            }
+        });
+        
+        // Hover effect
+        notification.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateX(-5px)';
+            this.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.8)';
+        });
+        
+        notification.addEventListener('mouseleave', function() {
+            this.style.transform = '';
+            this.style.boxShadow = '';
+        });
+    }
 
     // Animate in
     setTimeout(() => {
@@ -64,12 +120,19 @@ function showNotification(message, type = "info", title = null) {
     }, 10);
 
     // Add close event
-    notification.querySelector(".notification-close").addEventListener("click", () => {
+    notification.querySelector(".notification-close").addEventListener("click", (e) => {
+        e.stopPropagation();
         hideNotification(notification);
     });
 
-    // Auto hide after 5 seconds for non-error messages
-    if (type !== "error") {
+    // Auto hide after 8 seconds για notifications με action
+    if (action) {
+        setTimeout(() => {
+            if (notification.parentElement) {
+                hideNotification(notification);
+            }
+        }, 8000);
+    } else if (type !== "error") {
         setTimeout(() => {
             if (notification.parentElement) {
                 hideNotification(notification);
@@ -96,6 +159,401 @@ function createNotificationContainer() {
     container.id = "notification-container";
     container.className = "notification-container";
     document.body.appendChild(container);
+}
+
+// ===== UNREAD SYSTEM FUNCTIONS =====
+
+// Προσθήκη unread message
+function addUnreadMessage(type, sender, roomId = null) {
+    const key = roomId || sender;
+    
+    if (type === 'private') {
+        if (!unreadMessages.private[sender]) {
+            unreadMessages.private[sender] = 0;
+        }
+        unreadMessages.private[sender]++;
+    } else if (type === 'group') {
+        if (!unreadMessages.groups[roomId]) {
+            unreadMessages.groups[roomId] = 0;
+        }
+        unreadMessages.groups[roomId]++;
+    }
+    
+    updateUnreadBadges();
+    
+    // Ενημέρωση UI αν είμαστε στη σωστή σελίδα
+    updateFriendsListBadges();
+    updateRoomsListBadges();
+}
+
+// Καθαρισμός unread messages
+function clearUnread(type, sender, roomId = null) {
+    if (type === 'private') {
+        if (unreadMessages.private[sender]) {
+            delete unreadMessages.private[sender];
+        }
+    } else if (type === 'group') {
+        if (unreadMessages.groups[roomId]) {
+            delete unreadMessages.groups[roomId];
+        }
+    }
+    
+    updateUnreadBadges();
+    
+    // Ενημέρωση server
+    socket.emit('mark_as_read', { type, sender, roomId });
+}
+
+// Ενημέρωση όλων των badges
+function updateUnreadBadges() {
+    // Υπολογισμός total
+    const privateTotal = Object.values(unreadMessages.private).reduce((a, b) => a + b, 0);
+    const groupsTotal = Object.values(unreadMessages.groups).reduce((a, b) => a + b, 0);
+    unreadMessages.total = privateTotal + groupsTotal;
+    
+    // Ενημέρωση title
+    updateTitleBadge();
+    
+    // Ενημέρωση navigation buttons
+    updateNavBadges();
+}
+
+// Ενημέρωση badge στο title
+function updateTitleBadge() {
+    if (unreadMessages.total > 0) {
+        document.title = `(${unreadMessages.total}) RatScape`;
+    } else {
+        document.title = 'RatScape';
+    }
+}
+
+// Ενημέρωση badges στο navigation
+function updateNavBadges() {
+    const friendsBtn = document.getElementById('my-friends-btn');
+    const roomsBtn = document.getElementById('my-rooms-btn');
+    
+    if (friendsBtn) {
+        const privateTotal = Object.values(unreadMessages.private).reduce((a, b) => a + b, 0);
+        updateButtonBadge(friendsBtn, privateTotal, 'friends');
+    }
+    
+    if (roomsBtn) {
+        const groupsTotal = Object.values(unreadMessages.groups).reduce((a, b) => a + b, 0);
+        updateButtonBadge(roomsBtn, groupsTotal, 'rooms');
+    }
+}
+
+// Προσθήκη/ενημέρωση badge σε button
+function updateButtonBadge(button, count, type) {
+    // Αφαίρεση υπάρχοντος badge
+    const existingBadge = button.querySelector('.nav-badge');
+    if (existingBadge) {
+        existingBadge.remove();
+    }
+    
+    // Προσθήκη νέου badge αν υπάρχουν unread
+    if (count > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'nav-badge';
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.cssText = `
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--accent-red);
+            color: white;
+            border-radius: 10px;
+            min-width: 20px;
+            height: 20px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            z-index: 100;
+            animation: badgePop 0.3s ease-out;
+        `;
+        
+        button.style.position = 'relative';
+        button.appendChild(badge);
+    }
+}
+
+// Ενημέρωση badges στη λίστα φίλων
+function updateFriendsListBadges() {
+    const friendCards = document.querySelectorAll('.friend-card:not(.pending)');
+    friendCards.forEach(card => {
+        const nameElement = card.querySelector('.friend-name');
+        if (nameElement) {
+            const friendName = nameElement.textContent;
+            const unreadCount = unreadMessages.private[friendName] || 0;
+            
+            // Αφαίρεση υπάρχοντος badge
+            const existingBadge = card.querySelector('.friend-badge');
+            if (existingBadge) {
+                existingBadge.remove();
+            }
+            
+            // Προσθήκη νέου badge
+            if (unreadCount > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'friend-badge';
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                badge.style.cssText = `
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: var(--accent-red);
+                    color: white;
+                    border-radius: 10px;
+                    min-width: 20px;
+                    height: 20px;
+                    font-size: 0.7rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0 5px;
+                    font-weight: bold;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+                    z-index: 1;
+                    animation: badgePop 0.3s ease-out;
+                `;
+                
+                card.style.position = 'relative';
+                card.appendChild(badge);
+            }
+        }
+    });
+}
+
+// Ενημέρωση badges στη λίστα δωματίων
+function updateRoomsListBadges() {
+    const roomCards = document.querySelectorAll('.room-card');
+    roomCards.forEach(card => {
+        const enterBtn = card.querySelector('.enter-room-btn');
+        if (enterBtn) {
+            const roomId = enterBtn.dataset.roomId;
+            const unreadCount = unreadMessages.groups[roomId] || 0;
+            
+            // Αφαίρεση υπάρχοντος badge
+            const existingBadge = card.querySelector('.room-badge');
+            if (existingBadge) {
+                existingBadge.remove();
+            }
+            
+            // Προσθήκη νέου badge
+            if (unreadCount > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'room-badge';
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                badge.style.cssText = `
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: var(--accent-red);
+                    color: white;
+                    border-radius: 10px;
+                    min-width: 20px;
+                    height: 20px;
+                    font-size: 0.7rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0 5px;
+                    font-weight: bold;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+                    z-index: 1;
+                    animation: badgePop 0.3s ease-out;
+                `;
+                
+                card.style.position = 'relative';
+                card.appendChild(badge);
+            }
+        }
+    });
+}
+
+// Φόρτωση offline notifications όταν συνδέεται ο χρήστης
+async function loadOfflineNotifications() {
+    if (!currentUser.authenticated) return;
+    
+    try {
+        const response = await fetch(`/offline-notifications/${currentUser.username}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                console.log(`📬 Loaded ${data.total} offline notifications`);
+                
+                // Αρχικοποίηση unreadMessages από summary
+                if (data.summary) {
+                    unreadMessages.private = data.summary.private || {};
+                    unreadMessages.groups = data.summary.groups || {};
+                    unreadMessages.total = data.summary.total || 0;
+                    updateUnreadBadges();
+                }
+                
+                // Εμφάνιση welcome notification
+                if (data.total > 0) {
+                    setTimeout(() => {
+                        showNotification(
+                            `You have ${data.unread_count} unread messages`,
+                            "info",
+                            "Welcome Back!",
+                            null,
+                            data.unread_count
+                        );
+                    }, 1000);
+                }
+                
+                // Εμφάνιση λεπτομερών notifications
+                data.notifications.forEach((notification, index) => {
+                    setTimeout(() => {
+                        let type = "info";
+                        let title = "Notification";
+                        
+                        switch (notification.type) {
+                            case 'offline_private_message':
+                                type = "info";
+                                title = "Unread Message";
+                                break;
+                            case 'offline_group_message':
+                                type = "info";
+                                title = "Unread Group Message";
+                                break;
+                            case 'offline_friend_request':
+                                type = "info";
+                                title = "Pending Friend Request";
+                                break;
+                        }
+                        
+                        showNotification(
+                            `${notification.sender}: ${notification.message || 'Friend request'}`,
+                            type,
+                            title,
+                            notification.action,
+                            notification.count || 1
+                        );
+                    }, 1500 + (index * 300));
+                });
+            }
+        }
+    } catch (error) {
+        console.error("Error loading offline notifications:", error);
+    }
+}
+
+// ===== HANDLE NOTIFICATION ACTIONS =====
+
+function handleNotificationAction(action) {
+    console.log("🔔 Handling notification action:", action);
+    
+    hideAllModals();
+    
+    switch (action.type) {
+        case 'private_message':
+            const friendUsername = action.sender;
+            if (friendUsername) {
+                // Clear unread για αυτόν τον φίλο
+                clearUnread('private', friendUsername);
+                
+                // Πήγαινε στη σελίδα φίλων
+                loadUserFriends();
+                showPage("friends-page");
+                
+                // Highlight και άνοιγμα chat
+                setTimeout(() => {
+                    highlightAndOpenFriendChat(friendUsername);
+                }, 800);
+            }
+            break;
+            
+        case 'room_message':
+            if (action.roomId) {
+                // Clear unread για αυτό το room
+                clearUnread('group', action.sender, action.roomId);
+                
+                // Πήγαινε στη σελίδα δωματίων
+                loadUserRooms();
+                showPage("rooms-page");
+                
+                // Highlight και είσοδος στο room
+                setTimeout(() => {
+                    highlightAndEnterRoom(action.roomId);
+                }, 800);
+            }
+            break;
+            
+        case 'friend_request':
+            // Πήγαινε στη σελίδα φίλων
+            loadUserFriends();
+            showPage("friends-page");
+            
+            // Highlight pending requests
+            setTimeout(() => {
+                highlightPendingRequests();
+            }, 800);
+            break;
+            
+        case 'friend_request_accepted':
+            // Πήγαινε στη σελίδα φίλων
+            loadUserFriends();
+            showPage("friends-page");
+            break;
+    }
+}
+
+// Βοηθητικές συναρτήσεις για highlight
+function highlightAndOpenFriendChat(friendUsername) {
+    const friendCards = document.querySelectorAll('.friend-card:not(.pending)');
+    friendCards.forEach(card => {
+        const nameElement = card.querySelector('.friend-name');
+        if (nameElement && nameElement.textContent === friendUsername) {
+            // Προσθήκη animation
+            card.style.animation = 'highlightPulse 2s ease-in-out';
+            card.style.border = '2px solid var(--accent-red)';
+            
+            // Κάνε click στο chat button
+            const chatBtn = card.querySelector('.chat-friend-btn');
+            if (chatBtn) {
+                setTimeout(() => {
+                    chatBtn.click();
+                }, 1000);
+            }
+        }
+    });
+}
+
+function highlightAndEnterRoom(roomId) {
+    const roomCards = document.querySelectorAll('.room-card');
+    roomCards.forEach(card => {
+        const enterBtn = card.querySelector('.enter-room-btn');
+        if (enterBtn && enterBtn.dataset.roomId === roomId) {
+            card.style.animation = 'highlightPulse 2s ease-in-out';
+            card.style.border = '2px solid var(--accent-red)';
+            
+            setTimeout(() => {
+                enterBtn.click();
+            }, 1500);
+        }
+    });
+}
+
+function highlightPendingRequests() {
+    const pendingSection = document.querySelector('.pending-requests-list');
+    if (pendingSection) {
+        pendingSection.scrollIntoView({ behavior: 'smooth' });
+        pendingSection.style.animation = 'highlightPulse 2s ease-in-out';
+        pendingSection.style.border = '2px solid var(--accent-red)';
+        pendingSection.style.padding = '10px';
+        pendingSection.style.borderRadius = 'var(--radius)';
+    }
 }
 
 // ===== UTILITY FUNCTIONS =====
@@ -196,6 +654,12 @@ function updateUIForAuthState() {
         });
 
         document.getElementById("display-my-username").textContent = currentUser.username;
+        
+        // Φόρτωση offline notifications όταν συνδέεται
+        setTimeout(() => {
+            loadOfflineNotifications();
+        }, 1000);
+        
     } else {
         loggedOutNav.style.display = "flex";
         loggedInNav.style.display = "none";
@@ -296,10 +760,16 @@ function displayUserRooms(rooms) {
 
         roomCard.querySelector(".enter-room-btn").addEventListener("click", () => {
             enterRoom(room.id, room.name, room.invite_code);
+            
+            // Clear unread όταν μπαίνεις στο room
+            clearUnread('group', null, room.id);
         });
 
         roomsList.appendChild(roomCard);
     });
+    
+    // Ενημέρωση badges μετά τη φόρτωση
+    updateRoomsListBadges();
 }
 
 function enterRoom(roomId, roomName, inviteCode) {
@@ -315,11 +785,11 @@ function enterRoom(roomId, roomName, inviteCode) {
     // Clear messages
     document.getElementById("messages-container").innerHTML = "";
 
-    // Emit join room with proper data types
+    // Emit join room
     console.log("📡 Emitting join room event...");
     
     socket.emit("join room", {
-        roomId: roomId,  // Ensure this is the correct ID (number)
+        roomId: roomId,
         username: currentUser.username,
         sessionId: currentUser.sessionId,
     });
@@ -402,35 +872,35 @@ function displayUserFriends(friends, pendingRequests) {
                   .join("")}
             </div>
         `;
-    friendsList.appendChild(pendingSection);
+        friendsList.appendChild(pendingSection);
 
-    pendingSection.querySelectorAll(".accept-request-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const friendUsername = e.target.dataset.friend;
-        handleRespondToFriendRequest(friendUsername, true);
-      });
-    });
+        pendingSection.querySelectorAll(".accept-request-btn").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const friendUsername = e.target.dataset.friend;
+                handleRespondToFriendRequest(friendUsername, true);
+            });
+        });
 
-    pendingSection.querySelectorAll(".decline-request-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const friendUsername = e.target.dataset.friend;
-        handleRespondToFriendRequest(friendUsername, false);
-      });
-    });
-  }
+        pendingSection.querySelectorAll(".decline-request-btn").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const friendUsername = e.target.dataset.friend;
+                handleRespondToFriendRequest(friendUsername, false);
+            });
+        });
+    }
 
-  const friendsSection = document.createElement("div");
-  friendsSection.className = "friends-section";
+    const friendsSection = document.createElement("div");
+    friendsSection.className = "friends-section";
 
-  if (friends.length === 0 && pendingRequests.length === 0) {
-    friendsSection.innerHTML = `
+    if (friends.length === 0 && pendingRequests.length === 0) {
+        friendsSection.innerHTML = `
             <div class="no-friends">
                 <p>You haven't added any friends yet.</p>
                 <p>Add friends to start private conversations!</p>
             </div>
         `;
-  } else if (friends.length > 0) {
-    friendsSection.innerHTML = `
+    } else if (friends.length > 0) {
+        friendsSection.innerHTML = `
             <h3>Your Friends (${friends.length})</h3>
             <div class="friends-list">
                 ${friends
@@ -455,192 +925,193 @@ function displayUserFriends(friends, pendingRequests) {
             </div>
         `;
 
-    friendsSection.querySelectorAll(".chat-friend-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const friendUsername = e.target.dataset.friend;
-        startPrivateChatWithFriend(friendUsername);
-      });
-    });
+        friendsSection.querySelectorAll(".chat-friend-btn").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const friendUsername = e.target.dataset.friend;
+                startPrivateChatWithFriend(friendUsername);
+                
+                // Clear unread όταν ανοίγεις chat
+                clearUnread('private', friendUsername);
+            });
+        });
 
-    friendsSection.querySelectorAll(".remove-friend-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const friendUsername = e.target.dataset.friend;
-        if (confirm(`Remove ${friendUsername} from friends?`)) {
-          handleRemoveFriend(friendUsername);
-        }
-      });
-    });
-  }
+        friendsSection.querySelectorAll(".remove-friend-btn").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const friendUsername = e.target.dataset.friend;
+                if (confirm(`Remove ${friendUsername} from friends?`)) {
+                    handleRemoveFriend(friendUsername);
+                }
+            });
+        });
+    }
 
-  friendsList.appendChild(friendsSection);
+    friendsList.appendChild(friendsSection);
+    
+    // Ενημέρωση badges μετά τη φόρτωση
+    updateFriendsListBadges();
 }
 
 // ===== FRIENDS SYSTEM FUNCTIONS - FIXED =====
 
 async function handleAddFriend(friendUsername) {
-  // 🔥 FIXED: Καλύτερος έλεγχος input
-  const trimmedUsername = friendUsername.trim();
-  
-  if (!trimmedUsername) {
-    showNotification("Please enter a username!", "warning", "Missing Info");
-    return;
-  }
-
-  // 🔥 FIXED: Έλεγχος αν προσπαθείς να προσθέσεις τον εαυτό σου
-  if (trimmedUsername.toLowerCase() === currentUser.username.toLowerCase()) {
-    showNotification("You cannot add yourself as a friend!", "warning", "Invalid Action");
-    return;
-  }
-
-  try {
-    const response = await fetch("/send-friend-request", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-ID": currentUser.sessionId,
-      },
-      body: JSON.stringify({
-        fromUser: currentUser.username,
-        toUser: trimmedUsername,
-      }),
-    });
-
-    const data = await response.json();
-
-    // 🔥 FIXED: Καλύτερος χειρισμός όλων των περιπτώσεων
-    if (response.ok && data.success) {
-      showNotification(data.message, "success", "Friend Request Sent");
-      hideAllModals();
-      document.getElementById("friend-username-input").value = "";
-      loadUserFriends();
-    } else {
-      // 🔥 Εδώ δείχνουμε το ΣΩΣΤΟ μήνυμα λάθους
-      let errorMessage = data.error || "Failed to send friend request";
-      let errorTitle = "Friend Request Failed";
-
-      // Καλύτερα μηνύματα ανάλογα με το error
-      if (response.status === 404) {
-        errorMessage = `User "${trimmedUsername}" does not exist!`;
-        errorTitle = "User Not Found";
-      } else if (response.status === 400) {
-        if (data.error.includes("Already friends")) {
-          errorTitle = "Already Friends";
-        } else if (data.error.includes("already sent")) {
-          errorTitle = "Request Already Sent";
-        }
-      } else if (response.status === 401) {
-        handleSessionExpired();
+    const trimmedUsername = friendUsername.trim();
+    
+    if (!trimmedUsername) {
+        showNotification("Please enter a username!", "warning", "Missing Info");
         return;
-      }
-
-      showNotification(errorMessage, "error", errorTitle);
     }
-  } catch (error) {
-    console.error("Error sending friend request:", error);
-    showNotification(
-      "Connection error. Please check your internet and try again.",
-      "error",
-      "Connection Error"
-    );
-  }
+
+    if (trimmedUsername.toLowerCase() === currentUser.username.toLowerCase()) {
+        showNotification("You cannot add yourself as a friend!", "warning", "Invalid Action");
+        return;
+    }
+
+    try {
+        const response = await fetch("/send-friend-request", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                fromUser: currentUser.username,
+                toUser: trimmedUsername,
+            }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showNotification(data.message, "success", "Friend Request Sent");
+            hideAllModals();
+            document.getElementById("friend-username-input").value = "";
+            loadUserFriends();
+        } else {
+            let errorMessage = data.error || "Failed to send friend request";
+            let errorTitle = "Friend Request Failed";
+
+            if (response.status === 404) {
+                errorMessage = `User "${trimmedUsername}" does not exist!`;
+                errorTitle = "User Not Found";
+            } else if (response.status === 400) {
+                if (data.error.includes("Already friends")) {
+                    errorTitle = "Already Friends";
+                } else if (data.error.includes("already sent")) {
+                    errorTitle = "Request Already Sent";
+                }
+            } else if (response.status === 401) {
+                handleSessionExpired();
+                return;
+            }
+
+            showNotification(errorMessage, "error", errorTitle);
+        }
+    } catch (error) {
+        console.error("Error sending friend request:", error);
+        showNotification(
+            "Connection error. Please check your internet and try again.",
+            "error",
+            "Connection Error"
+        );
+    }
 }
 
 async function handleRespondToFriendRequest(friendUsername, accept) {
-  try {
-    const response = await fetch("/respond-friend-request", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-ID": currentUser.sessionId,
-      },
-      body: JSON.stringify({
-        username: currentUser.username,
-        friendUsername: friendUsername,
-        accept: accept,
-      }),
-    });
+    try {
+        const response = await fetch("/respond-friend-request", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username,
+                friendUsername: friendUsername,
+                accept: accept,
+            }),
+        });
 
-    if (!response.ok) {
-      throw new Error("Session expired");
-    }
+        if (!response.ok) {
+            throw new Error("Session expired");
+        }
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (data.success) {
-      showNotification(data.message, "success", accept ? "Friend Added" : "Request Declined");
-      loadUserFriends();
-    } else {
-      showNotification(data.error || "Failed to respond to request", "error", "Action Failed");
+        if (data.success) {
+            showNotification(data.message, "success", accept ? "Friend Added" : "Request Declined");
+            loadUserFriends();
+        } else {
+            showNotification(data.error || "Failed to respond to request", "error", "Action Failed");
+        }
+    } catch (error) {
+        if (error.message === "Session expired") {
+            handleSessionExpired();
+        } else {
+            showNotification(
+                "Error responding to request: " + error.message,
+                "error",
+                "Connection Error"
+            );
+        }
     }
-  } catch (error) {
-    if (error.message === "Session expired") {
-      handleSessionExpired();
-    } else {
-      showNotification(
-        "Error responding to request: " + error.message,
-        "error",
-        "Connection Error"
-      );
-    }
-  }
 }
 
 async function handleRemoveFriend(friendUsername) {
-  try {
-    const response = await fetch("/remove-friend", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-ID": currentUser.sessionId,
-      },
-      body: JSON.stringify({
-        username: currentUser.username,
-        friendUsername: friendUsername,
-      }),
-    });
+    try {
+        const response = await fetch("/remove-friend", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username,
+                friendUsername: friendUsername,
+            }),
+        });
 
-    if (!response.ok) {
-      throw new Error("Session expired");
-    }
+        if (!response.ok) {
+            throw new Error("Session expired");
+        }
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (data.success) {
-      showNotification("Friend removed", "info", "Friend Removed");
-      loadUserFriends();
-    } else {
-      showNotification(data.error || "Failed to remove friend", "error", "Action Failed");
+        if (data.success) {
+            showNotification("Friend removed", "info", "Friend Removed");
+            loadUserFriends();
+        } else {
+            showNotification(data.error || "Failed to remove friend", "error", "Action Failed");
+        }
+    } catch (error) {
+        if (error.message === "Session expired") {
+            handleSessionExpired();
+        } else {
+            showNotification("Error removing friend: " + error.message, "error", "Connection Error");
+        }
     }
-  } catch (error) {
-    if (error.message === "Session expired") {
-      handleSessionExpired();
-    } else {
-      showNotification("Error removing friend: " + error.message, "error", "Connection Error");
-    }
-  }
 }
 
 function startPrivateChatWithFriend(friendUsername) {
-  currentRoom = {
-    id: `private_${friendUsername}`,
-    name: friendUsername,
-    inviteCode: null,
-    isPrivate: true,
-  };
+    currentRoom = {
+        id: `private_${friendUsername}`,
+        name: friendUsername,
+        inviteCode: null,
+        isPrivate: true,
+    };
 
-  document.getElementById("room-name-sidebar").textContent = friendUsername;
-  document.getElementById("room-name-header").textContent = `Private Chat with ${friendUsername}`;
-  document.getElementById("room-invite-code").textContent = "Private";
-  document.getElementById("sidebar-username").textContent = currentUser.username;
-  document.getElementById("sidebar-avatar").textContent = currentUser.username
-    .substring(0, 2)
-    .toUpperCase();
+    document.getElementById("room-name-sidebar").textContent = friendUsername;
+    document.getElementById("room-name-header").textContent = `Private Chat with ${friendUsername}`;
+    document.getElementById("room-invite-code").textContent = "Private";
+    document.getElementById("sidebar-username").textContent = currentUser.username;
+    document.getElementById("sidebar-avatar").textContent = currentUser.username
+        .substring(0, 2)
+        .toUpperCase();
 
-  document.getElementById("room-description").textContent =
-    `Private conversation with ${friendUsername}`;
-  document.getElementById("room-status").textContent = "Private chat";
+    document.getElementById("room-description").textContent =
+        `Private conversation with ${friendUsername}`;
+    document.getElementById("room-status").textContent = "Private chat";
 
-  document.getElementById("room-members-list").innerHTML = `
+    document.getElementById("room-members-list").innerHTML = `
         <div class="member-item">
             <div class="member-avatar">${currentUser.username.substring(0, 2).toUpperCase()}</div>
             <div class="member-info">
@@ -657,269 +1128,376 @@ function startPrivateChatWithFriend(friendUsername) {
         </div>
     `;
 
-  document.getElementById("messages-container").innerHTML = "";
-  loadPrivateMessages(friendUsername);
-  showPage("chat-page");
+    document.getElementById("messages-container").innerHTML = "";
+    loadPrivateMessages(friendUsername);
+    showPage("chat-page");
 }
 
 async function loadPrivateMessages(friendUsername) {
-  try {
-    const response = await fetch(`/private-messages/${currentUser.username}/${friendUsername}`, {
-      headers: {
-        "X-Session-ID": currentUser.sessionId,
-      },
-    });
+    try {
+        const response = await fetch(`/private-messages/${currentUser.username}/${friendUsername}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
 
-    if (!response.ok) {
-      throw new Error("Session expired");
-    }
+        if (!response.ok) {
+            throw new Error("Session expired");
+        }
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (data.success) {
-      const messagesContainer = document.getElementById("messages-container");
-      messagesContainer.innerHTML = "";
-      data.messages.forEach((msg) => addMessageToChat(msg));
+        if (data.success) {
+            const messagesContainer = document.getElementById("messages-container");
+            messagesContainer.innerHTML = "";
+            data.messages.forEach((msg) => addMessageToChat(msg));
+        }
+    } catch (error) {
+        if (error.message === "Session expired") {
+            handleSessionExpired();
+        } else {
+            console.error("Error loading private messages:", error);
+        }
     }
-  } catch (error) {
-    if (error.message === "Session expired") {
-      handleSessionExpired();
-    } else {
-      console.error("Error loading private messages:", error);
-    }
-  }
 }
 
 // ===== AUTHENTICATION FUNCTIONS =====
 
 async function handleLogin(email, password) {
-  try {
-    const response = await fetch("/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+        const response = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+        });
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (data.success) {
-      currentUser = {
-        username: data.user.username,
-        email: data.user.email,
-        authenticated: true,
-        sessionId: data.sessionId,
-      };
+        if (data.success) {
+            currentUser = {
+                username: data.user.username,
+                email: data.user.email,
+                authenticated: true,
+                sessionId: data.sessionId,
+            };
 
-      saveUserToLocalStorage(currentUser);
-      updateUIForAuthState();
-      hideAllModals();
-      showNotification("Welcome back, " + currentUser.username + "!", "success", "Welcome!");
+            saveUserToLocalStorage(currentUser);
+            updateUIForAuthState();
+            hideAllModals();
+            showNotification("Welcome back, " + currentUser.username + "!", "success", "Welcome!");
 
-      socket.emit("authenticate", {
-        username: currentUser.username,
-        sessionId: currentUser.sessionId,
-      });
+            socket.emit("authenticate", {
+                username: currentUser.username,
+                sessionId: currentUser.sessionId,
+            });
 
-      loadUserRooms();
-    } else {
-      showNotification(data.error || "Login failed", "error", "Login Error");
+            loadUserRooms();
+        } else {
+            showNotification(data.error || "Login failed", "error", "Login Error");
+        }
+    } catch (error) {
+        showNotification("Login error: " + error.message, "error", "Connection Error");
     }
-  } catch (error) {
-    showNotification("Login error: " + error.message, "error", "Connection Error");
-  }
 }
 
 async function handleRegister(email, username, password, confirmPassword) {
-  if (password !== confirmPassword) {
-    showNotification("Passwords do not match!", "error", "Registration Error");
-    return;
-  }
-
-  try {
-    const response = await fetch("/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, username, password }),
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      showNotification("Account created! Please login.", "success", "Registration Successful");
-      hideAllModals();
-      showModal("login-modal");
-    } else {
-      showNotification(data.error || "Registration failed", "error", "Registration Error");
+    if (password !== confirmPassword) {
+        showNotification("Passwords do not match!", "error", "Registration Error");
+        return;
     }
-  } catch (error) {
-    showNotification("Registration error: " + error.message, "error", "Connection Error");
-  }
+
+    try {
+        const response = await fetch("/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, username, password }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification("Account created! Please login.", "success", "Registration Successful");
+            hideAllModals();
+            showModal("login-modal");
+        } else {
+            showNotification(data.error || "Registration failed", "error", "Registration Error");
+        }
+    } catch (error) {
+        showNotification("Registration error: " + error.message, "error", "Connection Error");
+    }
 }
 
 function handleLogout() {
-  if (currentUser.authenticated) {
-    fetch("/logout", {
-      method: "POST",
-      headers: {
-        "X-Session-ID": currentUser.sessionId,
-      },
-      body: JSON.stringify({
-        username: currentUser.username,
-      }),
-    }).catch((error) => {
-      console.error("Logout error:", error);
-    });
-  }
+    if (currentUser.authenticated) {
+        fetch("/logout", {
+            method: "POST",
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username,
+            }),
+        }).catch((error) => {
+            console.error("Logout error:", error);
+        });
+    }
 
-  currentUser = { username: null, email: null, authenticated: false, sessionId: null };
-  currentRoom = { id: null, name: null, inviteCode: null };
-  clearUserFromLocalStorage();
-  updateUIForAuthState();
-  showPage("home-page");
-  showNotification("Logged out successfully!", "info", "Goodbye!");
+    currentUser = { username: null, email: null, authenticated: false, sessionId: null };
+    currentRoom = { id: null, name: null, inviteCode: null };
+    
+    // Clear local unread data
+    unreadMessages = { private: {}, groups: {}, total: 0 };
+    updateUnreadBadges();
+    
+    clearUserFromLocalStorage();
+    updateUIForAuthState();
+    showPage("home-page");
+    showNotification("Logged out successfully!", "info", "Goodbye!");
 
-  socket.disconnect();
-  socket.connect();
+    socket.disconnect();
+    socket.connect();
 }
 
 function handleSessionExpired() {
-  showNotification("Session expired. Please login again.", "error", "Session Expired");
-  handleLogout();
+    showNotification("Session expired. Please login again.", "error", "Session Expired");
+    handleLogout();
 }
 
 // ===== ROOM FUNCTIONS =====
 
 async function handleCreateRoom(roomName) {
-  if (!roomName.trim()) {
-    showNotification("Please enter a room name!", "warning", "Missing Info");
-    return;
-  }
-
-  try {
-    const response = await fetch("/create-room", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-ID": currentUser.sessionId,
-      },
-      body: JSON.stringify({ name: roomName, username: currentUser.username }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Session expired");
+    if (!roomName.trim()) {
+        showNotification("Please enter a room name!", "warning", "Missing Info");
+        return;
     }
 
-    const data = await response.json();
+    try {
+        const response = await fetch("/create-room", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({ name: roomName, username: currentUser.username }),
+        });
 
-    if (data.success) {
-      showNotification(`Room created! Invite code: ${data.inviteCode}`, "success", "Room Created");
-      hideAllModals();
-      document.getElementById("room-name-input").value = "";
-      enterRoom(data.roomId, roomName, data.inviteCode);
-    } else {
-      showNotification(data.error || "Failed to create room", "error", "Room Creation Failed");
+        if (!response.ok) {
+            throw new Error("Session expired");
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification(`Room created! Invite code: ${data.inviteCode}`, "success", "Room Created");
+            hideAllModals();
+            document.getElementById("room-name-input").value = "";
+            enterRoom(data.roomId, roomName, data.inviteCode);
+        } else {
+            showNotification(data.error || "Failed to create room", "error", "Room Creation Failed");
+        }
+    } catch (error) {
+        if (error.message === "Session expired") {
+            handleSessionExpired();
+        } else {
+            showNotification("Error creating room: " + error.message, "error", "Connection Error");
+        }
     }
-  } catch (error) {
-    if (error.message === "Session expired") {
-      handleSessionExpired();
-    } else {
-      showNotification("Error creating room: " + error.message, "error", "Connection Error");
-    }
-  }
 }
 
 async function handleJoinRoom(inviteCode) {
-  if (!inviteCode.trim()) {
-    showNotification("Please enter an invite code!", "warning", "Missing Info");
-    return;
-  }
-
-  try {
-    const response = await fetch("/join-room", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-ID": currentUser.sessionId,
-      },
-      body: JSON.stringify({
-        inviteCode: inviteCode.trim(), // FIXED: Removed .toUpperCase()
-        username: currentUser.username,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Session expired");
+    if (!inviteCode.trim()) {
+        showNotification("Please enter an invite code!", "warning", "Missing Info");
+        return;
     }
 
-    const data = await response.json();
+    try {
+        const response = await fetch("/join-room", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                inviteCode: inviteCode.trim(),
+                username: currentUser.username,
+            }),
+        });
 
-    if (data.success) {
-      showNotification("Joined room successfully!", "success", "Room Joined");
-      hideAllModals();
-      document.getElementById("invite-code-input").value = "";
-      enterRoom(data.roomId, data.roomName, inviteCode.trim()); // FIXED: Removed .toUpperCase()
-    } else {
-      showNotification(data.error || "Failed to join room", "error", "Join Room Failed");
+        if (!response.ok) {
+            throw new Error("Session expired");
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            showNotification("Joined room successfully!", "success", "Room Joined");
+            hideAllModals();
+            document.getElementById("invite-code-input").value = "";
+            enterRoom(data.roomId, data.roomName, inviteCode.trim());
+        } else {
+            showNotification(data.error || "Failed to join room", "error", "Join Room Failed");
+        }
+    } catch (error) {
+        if (error.message === "Session expired") {
+            handleSessionExpired();
+        } else {
+            showNotification("Error joining room: " + error.message, "error", "Connection Error");
+        }
     }
-  } catch (error) {
-    if (error.message === "Session expired") {
-      handleSessionExpired();
-    } else {
-      showNotification("Error joining room: " + error.message, "error", "Connection Error");
-    }
-  }
 }
 
 // 🔥 FIXED: Το κύριο πρόβλημα - remove duplicate addMessageToChat call
 function handleSendMessage() {
-  const input = document.getElementById("message-input");
-  const text = input.value.trim();
+    const input = document.getElementById("message-input");
+    const text = input.value.trim();
 
-  if (!text || !currentRoom.id) return;
+    if (!text || !currentRoom.id) return;
 
-  const messageData = {
-    text: text,
-    sender: currentUser.username,
-    time: getCurrentTime(),
-  };
+    const messageData = {
+        text: text,
+        sender: currentUser.username,
+        time: getCurrentTime(),
+    };
 
-  if (currentRoom.isPrivate) {
-    const friendUsername = currentRoom.name;
-    messageData.receiver = friendUsername;
-    socket.emit("private message", messageData);
-    // 🔥 ΑΦΑΙΡΕΣΑΜΕ: addMessageToChat(messageData); - Αυτό προκαλούσε το διπλό μήνυμα
-  } else {
-    messageData.room_id = currentRoom.id;
-    socket.emit("chat message", messageData);
-  }
+    if (currentRoom.isPrivate) {
+        const friendUsername = currentRoom.name;
+        messageData.receiver = friendUsername;
+        socket.emit("private message", messageData);
+    } else {
+        messageData.room_id = currentRoom.id;
+        socket.emit("chat message", messageData);
+    }
 
-  input.value = "";
-  input.style.height = "auto";
+    input.value = "";
+    input.style.height = "auto";
 }
 
 // ===== SOCKET EVENT HANDLERS =====
 
+socket.on("connect", () => {
+    console.log("🔗 Connected to server");
+    if (currentUser.authenticated) {
+        socket.emit("authenticate", {
+            username: currentUser.username,
+            sessionId: currentUser.sessionId,
+        });
+    }
+});
+
 socket.on("load messages", (messages) => {
-  console.log("💬 Received messages:", messages.length);
-  const messagesContainer = document.getElementById("messages-container");
-  messagesContainer.innerHTML = "";
-  messages.forEach((msg) => addMessageToChat(msg));
+    console.log("💬 Received messages:", messages.length);
+    const messagesContainer = document.getElementById("messages-container");
+    messagesContainer.innerHTML = "";
+    messages.forEach((msg) => addMessageToChat(msg));
 });
 
 socket.on("chat message", (message) => {
-  if (message.room_id === currentRoom.id) {
-    addMessageToChat(message);
-  }
+    if (message.room_id === currentRoom.id) {
+        addMessageToChat(message);
+    } else if (message.sender !== currentUser.username) {
+        // Προσθήκη unread για group message
+        addUnreadMessage('group', message.sender, message.room_id);
+        
+        showNotification(
+            `New message from ${message.sender} in a room`, 
+            "info", 
+            "New Room Message",
+            {
+                type: 'room_message',
+                roomId: message.room_id,
+                sender: message.sender
+            }
+        );
+    }
 });
 
 socket.on("private message", (message) => {
-  const isFromCurrentFriend =
-    message.sender === currentRoom.name || message.receiver === currentRoom.name;
-  if (currentRoom.isPrivate && isFromCurrentFriend) {
-    addMessageToChat(message);
-  } else if (message.sender !== currentUser.username) {
-    showNotification(`New private message from ${message.sender}`, "info", "New Message");
-  }
+    const isFromCurrentFriend =
+        message.sender === currentRoom.name || message.receiver === currentRoom.name;
+    if (currentRoom.isPrivate && isFromCurrentFriend) {
+        addMessageToChat(message);
+    } else if (message.sender !== currentUser.username) {
+        // Προσθήκη unread για private message
+        addUnreadMessage('private', message.sender);
+        
+        showNotification(
+            `New private message from ${message.sender}: ${message.text.substring(0, 30)}...`, 
+            "info", 
+            "New Message",
+            {
+                type: 'private_message',
+                sender: message.sender
+            }
+        );
+    }
+});
+
+// 🔥 ΝΕΟ: Unread summary από server
+socket.on("unread_summary", (summary) => {
+    console.log("📊 Received unread summary:", summary);
+    
+    unreadMessages.private = summary.private || {};
+    unreadMessages.groups = summary.groups || {};
+    unreadMessages.total = summary.total || 0;
+    
+    updateUnreadBadges();
+    updateFriendsListBadges();
+    updateRoomsListBadges();
+});
+
+// 🔥 ΝΕΟ: Real-time unread updates
+socket.on("unread_update", (data) => {
+    console.log("📬 Unread update:", data);
+    
+    if (data.type === 'private') {
+        addUnreadMessage('private', data.sender);
+    } else if (data.type === 'group') {
+        addUnreadMessage('group', data.sender, data.roomId);
+    }
+});
+
+// 🔥 ΝΕΟ: Unread cleared confirmation
+socket.on("unread_cleared", (data) => {
+    console.log("✅ Unread cleared:", data);
+    
+    clearUnread(data.type, data.sender, data.roomId);
+});
+
+// 🔥 ΝΕΟ: Server notifications με actions
+socket.on("notification", (data) => {
+    console.log("🔔 Server notification:", data);
+    
+    let notificationType = "info";
+    let title = "Notification";
+    
+    switch (data.type) {
+        case 'private_message':
+            notificationType = "info";
+            title = "New Message";
+            addUnreadMessage('private', data.sender);
+            break;
+        case 'group_message':
+            notificationType = "info";
+            title = "Group Message";
+            addUnreadMessage('group', data.sender, data.roomId);
+            break;
+        case 'friend_request':
+            notificationType = "info";
+            title = "Friend Request";
+            break;
+        case 'friend_request_accepted':
+            notificationType = "success";
+            title = "Friend Request Accepted";
+            break;
+    }
+    
+    showNotification(
+        `${data.sender}: ${data.message || 'Friend request'}`,
+        notificationType,
+        title,
+        data.action,
+        data.count || 1
+    );
 });
 
 socket.on("room members", (members) => {
@@ -940,181 +1518,204 @@ socket.on("room info", (room) => {
 });
 
 socket.on("friend_request", (data) => {
-  showNotification(`New friend request from ${data.from}`, "info", "Friend Request");
-  if (document.getElementById("friends-page").classList.contains("active")) {
-    loadUserFriends();
-  }
+    showNotification(
+        `New friend request from ${data.from}`, 
+        "info", 
+        "Friend Request",
+        {
+            type: 'friend_request',
+            from: data.from
+        }
+    );
+    if (document.getElementById("friends-page").classList.contains("active")) {
+        loadUserFriends();
+    }
 });
 
 socket.on("friend_request_accepted", (data) => {
-  showNotification(
-    `${data.by} accepted your friend request!`,
-    "success",
-    "Friend Request Accepted"
-  );
-  if (document.getElementById("friends-page").classList.contains("active")) {
-    loadUserFriends();
-  }
+    showNotification(
+        `${data.by} accepted your friend request!`, 
+        "success", 
+        "Friend Request Accepted",
+        {
+            type: 'friend_request_accepted',
+            by: data.by
+        }
+    );
+    if (document.getElementById("friends-page").classList.contains("active")) {
+        loadUserFriends();
+    }
 });
 
 socket.on("session_expired", () => {
-  handleSessionExpired();
+    handleSessionExpired();
 });
 
 socket.on("error", (data) => {
-  showNotification(data.message, "error", "Error");
+    showNotification(data.message, "error", "Error");
+});
+
+socket.on("disconnect", (reason) => {
+    console.log("🔌 Disconnected from server:", reason);
+    if (reason === "io server disconnect") {
+        socket.connect();
+    }
+});
+
+socket.on("connect_error", (error) => {
+    console.error("🔌 Connection error:", error);
 });
 
 // ===== EVENT LISTENERS =====
 
 function initializeEventListeners() {
-  document.getElementById("home-btn").addEventListener("click", () => showPage("home-page"));
-  document.getElementById("my-rooms-btn").addEventListener("click", () => {
-    loadUserRooms();
-    showPage("rooms-page");
-  });
-
-  document.getElementById("my-friends-btn").addEventListener("click", () => {
-    loadUserFriends();
-    showPage("friends-page");
-  });
-
-  document.getElementById("logout-btn").addEventListener("click", handleLogout);
-
-  document
-    .getElementById("login-nav-btn")
-    .addEventListener("click", () => showModal("login-modal"));
-  document
-    .getElementById("home-login-btn")
-    .addEventListener("click", () => showModal("login-modal"));
-
-  document
-    .getElementById("register-nav-btn")
-    .addEventListener("click", () => showModal("register-modal"));
-  document
-    .getElementById("home-register-btn")
-    .addEventListener("click", () => showModal("register-modal"));
-
-  document
-    .getElementById("create-room-btn")
-    .addEventListener("click", () => showModal("create-room-modal"));
-  document
-    .getElementById("create-room-btn-2")
-    .addEventListener("click", () => showModal("create-room-modal"));
-
-  document
-    .getElementById("join-room-btn")
-    .addEventListener("click", () => showModal("join-room-modal"));
-  document
-    .getElementById("join-room-btn-2")
-    .addEventListener("click", () => showModal("join-room-modal"));
-
-  document.getElementById("add-friend-btn").addEventListener("click", () => {
-    showModal("add-friend-modal");
-  });
-
-  document.querySelectorAll(".close-modal-btn").forEach((btn) => {
-    btn.addEventListener("click", hideAllModals);
-  });
-
-  document.querySelectorAll('[id$="-cancel"]').forEach((btn) => {
-    btn.addEventListener("click", hideAllModals);
-  });
-
-  document.getElementById("switch-to-register").addEventListener("click", () => {
-    hideAllModals();
-    showModal("register-modal");
-  });
-
-  document.getElementById("switch-to-login").addEventListener("click", () => {
-    hideAllModals();
-    showModal("login-modal");
-  });
-
-  document.getElementById("login-submit").addEventListener("click", () => {
-    const email = document.getElementById("login-email").value;
-    const password = document.getElementById("login-password").value;
-    handleLogin(email, password);
-  });
-
-  document.getElementById("register-submit").addEventListener("click", () => {
-    const email = document.getElementById("register-email").value;
-    const username = document.getElementById("register-username").value;
-    const password = document.getElementById("register-password").value;
-    const confirm = document.getElementById("register-confirm").value;
-    handleRegister(email, username, password, confirm);
-  });
-
-  document.getElementById("create-room-submit").addEventListener("click", () => {
-    const roomName = document.getElementById("room-name-input").value;
-    handleCreateRoom(roomName);
-  });
-
-  document.getElementById("join-room-submit").addEventListener("click", () => {
-    const inviteCode = document.getElementById("invite-code-input").value;
-    handleJoinRoom(inviteCode);
-  });
-
-  document.getElementById("add-friend-submit").addEventListener("click", () => {
-    const friendUsername = document.getElementById("friend-username-input").value;
-    handleAddFriend(friendUsername);
-  });
-
-  const chatForm = document.getElementById("chat-form");
-  const messageInput = document.getElementById("message-input");
-
-  chatForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    handleSendMessage();
-  });
-
-  messageInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  });
-
-  messageInput.addEventListener("input", function () {
-    this.style.height = "auto";
-    this.style.height = this.scrollHeight + "px";
-  });
-
-  document.getElementById("copy-invite-btn").addEventListener("click", () => {
-    const inviteCode = document.getElementById("room-invite-code").textContent;
-    navigator.clipboard.writeText(inviteCode).then(() => {
-      showNotification("Invite code copied!", "success", "Copied!");
+    document.getElementById("home-btn").addEventListener("click", () => showPage("home-page"));
+    document.getElementById("my-rooms-btn").addEventListener("click", () => {
+        loadUserRooms();
+        showPage("rooms-page");
     });
-  });
 
-  document.getElementById("copy-username-btn").addEventListener("click", () => {
-    const username = document.getElementById("display-my-username").textContent;
-    navigator.clipboard.writeText(username).then(() => {
-      showNotification("Username copied!", "success", "Copied!");
+    document.getElementById("my-friends-btn").addEventListener("click", () => {
+        loadUserFriends();
+        showPage("friends-page");
     });
-  });
 
-  document.getElementById("leave-room-btn").addEventListener("click", () => {
-    if (confirm("Leave this room?")) {
-      showPage("rooms-page");
-      loadUserRooms();
-    }
-  });
+    document.getElementById("logout-btn").addEventListener("click", handleLogout);
 
-  document.getElementById("clear-messages-btn").addEventListener("click", () => {
-    if (confirm("Clear all messages in this room?")) {
-      document.getElementById("messages-container").innerHTML = "";
-    }
-  });
+    document
+        .getElementById("login-nav-btn")
+        .addEventListener("click", () => showModal("login-modal"));
+    document
+        .getElementById("home-login-btn")
+        .addEventListener("click", () => showModal("login-modal"));
 
-  document.querySelectorAll(".input-action-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const emojis = ["😊", "😂", "❤️", "🔥", "👍", "🎮", "💼", "🎵", "🤔"];
-      const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-      messageInput.value += randomEmoji;
-      messageInput.focus();
+    document
+        .getElementById("register-nav-btn")
+        .addEventListener("click", () => showModal("register-modal"));
+    document
+        .getElementById("home-register-btn")
+        .addEventListener("click", () => showModal("register-modal"));
+
+    document
+        .getElementById("create-room-btn")
+        .addEventListener("click", () => showModal("create-room-modal"));
+    document
+        .getElementById("create-room-btn-2")
+        .addEventListener("click", () => showModal("create-room-modal"));
+
+    document
+        .getElementById("join-room-btn")
+        .addEventListener("click", () => showModal("join-room-modal"));
+    document
+        .getElementById("join-room-btn-2")
+        .addEventListener("click", () => showModal("join-room-modal"));
+
+    document.getElementById("add-friend-btn").addEventListener("click", () => {
+        showModal("add-friend-modal");
     });
-  });
+
+    document.querySelectorAll(".close-modal-btn").forEach((btn) => {
+        btn.addEventListener("click", hideAllModals);
+    });
+
+    document.querySelectorAll('[id$="-cancel"]').forEach((btn) => {
+        btn.addEventListener("click", hideAllModals);
+    });
+
+    document.getElementById("switch-to-register").addEventListener("click", () => {
+        hideAllModals();
+        showModal("register-modal");
+    });
+
+    document.getElementById("switch-to-login").addEventListener("click", () => {
+        hideAllModals();
+        showModal("login-modal");
+    });
+
+    document.getElementById("login-submit").addEventListener("click", () => {
+        const email = document.getElementById("login-email").value;
+        const password = document.getElementById("login-password").value;
+        handleLogin(email, password);
+    });
+
+    document.getElementById("register-submit").addEventListener("click", () => {
+        const email = document.getElementById("register-email").value;
+        const username = document.getElementById("register-username").value;
+        const password = document.getElementById("register-password").value;
+        const confirm = document.getElementById("register-confirm").value;
+        handleRegister(email, username, password, confirm);
+    });
+
+    document.getElementById("create-room-submit").addEventListener("click", () => {
+        const roomName = document.getElementById("room-name-input").value;
+        handleCreateRoom(roomName);
+    });
+
+    document.getElementById("join-room-submit").addEventListener("click", () => {
+        const inviteCode = document.getElementById("invite-code-input").value;
+        handleJoinRoom(inviteCode);
+    });
+
+    document.getElementById("add-friend-submit").addEventListener("click", () => {
+        const friendUsername = document.getElementById("friend-username-input").value;
+        handleAddFriend(friendUsername);
+    });
+
+    const chatForm = document.getElementById("chat-form");
+    const messageInput = document.getElementById("message-input");
+
+    chatForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        handleSendMessage();
+    });
+
+    messageInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
+    });
+
+    messageInput.addEventListener("input", function () {
+        this.style.height = "auto";
+        this.style.height = this.scrollHeight + "px";
+    });
+
+    document.getElementById("copy-invite-btn").addEventListener("click", () => {
+        const inviteCode = document.getElementById("room-invite-code").textContent;
+        navigator.clipboard.writeText(inviteCode).then(() => {
+            showNotification("Invite code copied!", "success", "Copied!");
+        });
+    });
+
+    document.getElementById("copy-username-btn").addEventListener("click", () => {
+        const username = document.getElementById("display-my-username").textContent;
+        navigator.clipboard.writeText(username).then(() => {
+            showNotification("Username copied!", "success", "Copied!");
+        });
+    });
+
+    document.getElementById("leave-room-btn").addEventListener("click", () => {
+        if (confirm("Leave this room?")) {
+            showPage("rooms-page");
+            loadUserRooms();
+        }
+    });
+
+    document.getElementById("clear-messages-btn").addEventListener("click", () => {
+        if (confirm("Clear all messages in this room?")) {
+            document.getElementById("messages-container").innerHTML = "";
+        }
+    });
+
+    document.querySelectorAll(".input-action-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const emojis = ["😊", "😂", "❤️", "🔥", "👍", "🎮", "💼", "🎵", "🤔"];
+            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+            messageInput.value += randomEmoji;
+            messageInput.focus();
+        });
+    });
 }
 
 // ===== MOBILE RESPONSIVE FUNCTIONALITY =====
@@ -1183,94 +1784,116 @@ function updateMobileUI() {
 // ===== INITIALIZATION =====
 
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("🐀 RatScape client initialized");
+    console.log("🐀 RatScape client initialized");
 
-  // Create notification container first
-  createNotificationContainer();
-  initializeEventListeners();
+    // Create notification container first
+    createNotificationContainer();
+    initializeEventListeners();
 
-  // Initialize mobile responsive features
-  initMobileSidebar();
-  updateMobileUI();
-  window.addEventListener('resize', function() {
-      initMobileSidebar();
-      updateMobileUI();
-  });
-
-  const savedUser = getUserFromLocalStorage();
-  if (savedUser && savedUser.authenticated) {
-    try {
-      const response = await fetch(`/verify-session/${savedUser.username}`, {
-        headers: {
-          "X-Session-ID": savedUser.sessionId,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          currentUser = {
-            username: data.user.username,
-            email: data.user.email,
-            authenticated: true,
-            sessionId: savedUser.sessionId,
-          };
-          updateUIForAuthState();
-
-          const lastPage = getLastPage();
-          showPage(lastPage);
-
-          socket.emit("authenticate", {
-            username: currentUser.username,
-            sessionId: currentUser.sessionId,
-          });
-
-          if (lastPage === "rooms-page") {
-            loadUserRooms();
-          } else if (lastPage === "friends-page") {
-            loadUserFriends();
-          }
-
-          console.log("✅ User session restored");
-        } else {
-          clearUserFromLocalStorage();
-          showPage("home-page");
-          console.log("❌ Session verification failed");
-        }
-      } else {
-        clearUserFromLocalStorage();
-        showPage("home-page");
-        console.log("❌ Session verification failed - server error");
-      }
-    } catch (error) {
-      console.error("Error verifying user session:", error);
-      clearUserFromLocalStorage();
-      showPage("home-page");
-    }
-  } else {
-    showPage("home-page");
-  }
-
-  console.log("✅ Ready to chat!");
-});
-
-socket.on("connect", () => {
-  console.log("🔗 Connected to server");
-  if (currentUser.authenticated) {
-    socket.emit("authenticate", {
-      username: currentUser.username,
-      sessionId: currentUser.sessionId,
+    // Initialize mobile responsive features
+    initMobileSidebar();
+    updateMobileUI();
+    window.addEventListener('resize', function() {
+        initMobileSidebar();
+        updateMobileUI();
     });
-  }
-});
 
-socket.on("disconnect", (reason) => {
-  console.log("🔌 Disconnected from server:", reason);
-  if (reason === "io server disconnect") {
-    socket.connect();
-  }
-});
+    // Προσθήκη CSS animations για unread system
+    const unreadStyle = document.createElement('style');
+    unreadStyle.textContent = `
+        @keyframes highlightPulse {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(139, 0, 0, 0.7);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 0 15px rgba(139, 0, 0, 0);
+                transform: scale(1.02);
+            }
+        }
+        
+        @keyframes badgePop {
+            0% { transform: scale(0); opacity: 0; }
+            70% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .notification-count-badge {
+            position: absolute;
+            top: 10px;
+            right: 35px;
+            background: var(--primary);
+            color: white;
+            border-radius: 10px;
+            min-width: 22px;
+            height: 22px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 6px;
+            font-weight: bold;
+            animation: badgePop 0.3s ease-out;
+        }
+    `;
+    document.head.appendChild(unreadStyle);
 
-socket.on("connect_error", (error) => {
-  console.error("🔌 Connection error:", error);
+    const savedUser = getUserFromLocalStorage();
+    if (savedUser && savedUser.authenticated) {
+        try {
+            const response = await fetch(`/verify-session/${savedUser.username}`, {
+                headers: {
+                    "X-Session-ID": savedUser.sessionId,
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    currentUser = {
+                        username: data.user.username,
+                        email: data.user.email,
+                        authenticated: true,
+                        sessionId: savedUser.sessionId,
+                    };
+                    updateUIForAuthState();
+
+                    const lastPage = getLastPage();
+                    showPage(lastPage);
+
+                    socket.emit("authenticate", {
+                        username: currentUser.username,
+                        sessionId: currentUser.sessionId,
+                    });
+
+                    // 🔥 Φόρτωση offline notifications
+                    await loadOfflineNotifications();
+
+                    if (lastPage === "rooms-page") {
+                        loadUserRooms();
+                    } else if (lastPage === "friends-page") {
+                        loadUserFriends();
+                    }
+
+                    console.log("✅ User session restored");
+                } else {
+                    clearUserFromLocalStorage();
+                    showPage("home-page");
+                    console.log("❌ Session verification failed");
+                }
+            } else {
+                clearUserFromLocalStorage();
+                showPage("home-page");
+                console.log("❌ Session verification failed - server error");
+            }
+        } catch (error) {
+            console.error("Error verifying user session:", error);
+            clearUserFromLocalStorage();
+            showPage("home-page");
+        }
+    } else {
+        showPage("home-page");
+    }
+
+    console.log("✅ Ready to chat!");
 });
