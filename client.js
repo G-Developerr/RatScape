@@ -161,6 +161,59 @@ function createNotificationContainer() {
     document.body.appendChild(container);
 }
 
+// ===== CONFIRMATION MODAL SYSTEM =====
+
+function showConfirmationModal(message, title = "Confirm", onConfirm = null, onCancel = null) {
+    // Δημιουργία modal container αν δεν υπάρχει
+    let modal = document.getElementById("confirmation-modal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "confirmation-modal";
+        modal.className = "modal";
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="confirmation-title">Confirm</h3>
+                    <button class="close-modal-btn" id="close-confirmation-modal">×</button>
+                </div>
+                <div class="form-container active">
+                    <div class="form-group" style="text-align: center; padding: 20px 0;">
+                        <p id="confirmation-message" style="font-size: 1rem; color: var(--text); margin: 0;"></p>
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn btn-primary" id="confirm-yes-btn">Yes</button>
+                        <button class="btn btn-secondary" id="confirm-no-btn">No</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Προσθήκη event listeners
+        document.getElementById("close-confirmation-modal").addEventListener("click", hideConfirmationModal);
+        document.getElementById("confirm-no-btn").addEventListener("click", hideConfirmationModal);
+        
+        document.getElementById("confirm-yes-btn").addEventListener("click", function() {
+            if (onConfirm) onConfirm();
+            hideConfirmationModal();
+        });
+    }
+    
+    // Ορισμός μηνύματος και τίτλου
+    document.getElementById("confirmation-title").textContent = title;
+    document.getElementById("confirmation-message").textContent = message;
+    
+    // Εμφάνιση modal
+    modal.classList.add("active");
+}
+
+function hideConfirmationModal() {
+    const modal = document.getElementById("confirmation-modal");
+    if (modal) {
+        modal.classList.remove("active");
+    }
+}
+
 // ===== UNREAD SYSTEM FUNCTIONS =====
 
 // Προσθήκη unread message
@@ -938,9 +991,11 @@ function displayUserFriends(friends, pendingRequests) {
         friendsSection.querySelectorAll(".remove-friend-btn").forEach((btn) => {
             btn.addEventListener("click", (e) => {
                 const friendUsername = e.target.dataset.friend;
-                if (confirm(`Remove ${friendUsername} from friends?`)) {
-                    handleRemoveFriend(friendUsername);
-                }
+                showConfirmationModal(
+                    `Remove ${friendUsername} from friends?`,
+                    "Remove Friend",
+                    () => handleRemoveFriend(friendUsername)
+                );
             });
         });
     }
@@ -1353,45 +1408,49 @@ async function handleJoinRoom(inviteCode) {
 // 🔥 FIXED: LEAVE ROOM FUNCTION
 async function handleLeaveRoom() {
     if (!currentRoom.id || currentRoom.isPrivate) return;
+    
+    showConfirmationModal(
+        "Are you sure you want to leave this room?",
+        "Leave Room",
+        async () => {
+            try {
+                const response = await fetch("/leave-room", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Session-ID": currentUser.sessionId,
+                    },
+                    body: JSON.stringify({
+                        roomId: currentRoom.id,
+                        username: currentUser.username,
+                    }),
+                });
 
-    if (confirm("Are you sure you want to leave this room?")) {
-        try {
-            const response = await fetch("/leave-room", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Session-ID": currentUser.sessionId,
-                },
-                body: JSON.stringify({
-                    roomId: currentRoom.id,
-                    username: currentUser.username,
-                }),
-            });
+                if (!response.ok) {
+                    throw new Error("Session expired");
+                }
 
-            if (!response.ok) {
-                throw new Error("Session expired");
-            }
+                const data = await response.json();
 
-            const data = await response.json();
-
-            if (data.success) {
-                showNotification("Left room successfully!", "info", "Room Left");
-                showPage("rooms-page");
-                loadUserRooms();
-                
-                // Reset current room
-                currentRoom = { id: null, name: null, inviteCode: null };
-            } else {
-                showNotification(data.error || "Failed to leave room", "error", "Action Failed");
-            }
-        } catch (error) {
-            if (error.message === "Session expired") {
-                handleSessionExpired();
-            } else {
-                showNotification("Error leaving room: " + error.message, "error", "Connection Error");
+                if (data.success) {
+                    showNotification("Left room successfully!", "info", "Room Left");
+                    showPage("rooms-page");
+                    loadUserRooms();
+                    
+                    // Reset current room
+                    currentRoom = { id: null, name: null, inviteCode: null };
+                } else {
+                    showNotification(data.error || "Failed to leave room", "error", "Action Failed");
+                }
+            } catch (error) {
+                if (error.message === "Session expired") {
+                    handleSessionExpired();
+                } else {
+                    showNotification("Error leaving room: " + error.message, "error", "Connection Error");
+                }
             }
         }
-    }
+    );
 }
 
 // 🔥 FIXED: Το κύριο πρόβλημα - remove duplicate addMessageToChat call
@@ -1747,9 +1806,10 @@ function initializeEventListeners() {
     document.getElementById("leave-room-btn").addEventListener("click", handleLeaveRoom);
 
     document.getElementById("clear-messages-btn").addEventListener("click", () => {
-        if (confirm("Clear all messages in this room?")) {
+        showConfirmationModal("Clear all messages in this room?", "Clear Messages", () => {
             document.getElementById("messages-container").innerHTML = "";
-        }
+            showNotification("Messages cleared", "info", "Cleared");
+        });
     });
 
     document.querySelectorAll(".input-action-btn").forEach((btn) => {
