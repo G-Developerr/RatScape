@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION WITH MONGODB
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -106,6 +106,134 @@ app.get("/debug-users", async (req, res) => {
     });
   }
 });
+
+// ===== ΝΕΟ ENDPOINT: OFFLINE NOTIFICATIONS =====
+app.get("/offline-notifications/:username", validateSession, async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    // Φόρτωση unread messages
+    const unreads = await dbHelpers.getUnreadMessages(username);
+    
+    // Φόρτωση pending friend requests
+    const pendingRequests = await dbHelpers.getPendingRequests(username);
+    
+    // Δημιουργία notifications array
+    const notifications = [];
+    
+    // Προσθήκη unread private messages
+    const privateUnreads = unreads.filter(u => u.type === 'private');
+    for (const unread of privateUnreads) {
+      notifications.push({
+        id: `unread_${unread._id}`,
+        type: 'offline_private_message',
+        sender: unread.sender,
+        message: unread.last_message || "New message",
+        timestamp: unread.last_message_time,
+        count: unread.count,
+        action: {
+          type: 'private_message',
+          sender: unread.sender
+        }
+      });
+    }
+    
+    // Προσθήκη unread group messages
+    const groupUnreads = unreads.filter(u => u.type === 'group');
+    for (const unread of groupUnreads) {
+      const room = await dbHelpers.getRoomById(unread.room_id);
+      notifications.push({
+        id: `unread_${unread._id}`,
+        type: 'offline_group_message',
+        sender: unread.sender,
+        roomId: unread.room_id,
+        roomName: room ? room.name : 'Unknown Room',
+        message: unread.last_message || "New message",
+        timestamp: unread.last_message_time,
+        count: unread.count,
+        action: {
+          type: 'room_message',
+          roomId: unread.room_id,
+          sender: unread.sender
+        }
+      });
+    }
+    
+    // Προσθήκη pending friend requests
+    for (const request of pendingRequests) {
+      notifications.push({
+        id: `request_${request._id}`,
+        type: 'offline_friend_request',
+        sender: request.friend_username,
+        timestamp: request.created_at,
+        action: {
+          type: 'friend_request',
+          from: request.friend_username
+        }
+      });
+    }
+    
+    // Ταξινόμηση κατά timestamp (νέα πρώτα)
+    notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Συνολικό count
+    const totalUnread = unreads.reduce((sum, u) => sum + u.count, 0);
+    
+    res.json({
+      success: true,
+      notifications: notifications,
+      total: notifications.length,
+      unread_count: totalUnread,
+      summary: await dbHelpers.getUnreadSummary(username)
+    });
+    
+  } catch (error) {
+    console.error("Error getting offline notifications:", error);
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
+  }
+});
+
+// ===== ΝΕΟ ENDPOINT: MARK AS READ =====
+app.post("/mark-as-read", validateSession, async (req, res) => {
+  try {
+    const { username, sender, type, room_id } = req.body;
+    
+    if (!username) {
+      return res.status(400).json({ success: false, error: "Username required" });
+    }
+    
+    const success = await dbHelpers.markAsRead(username, sender, type, room_id);
+    
+    res.json({
+      success: success,
+      message: "Marked as read"
+    });
+    
+  } catch (error) {
+    console.error("Error marking as read:", error);
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
+  }
+});
+
+// ===== ΝΕΟ ENDPOINT: GET UNREAD SUMMARY =====
+app.get("/unread-summary/:username", validateSession, async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const summary = await dbHelpers.getUnreadSummary(username);
+    
+    res.json({
+      success: true,
+      summary: summary
+    });
+    
+  } catch (error) {
+    console.error("Error getting unread summary:", error);
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
+  }
+});
+
+// ===== ΥΠΑΡΧΟΝΤΑ ENDPOINTS (ΜΕΝΟΥΝ ΑΚΛΑΔΑ) =====
 
 // Authentication routes
 app.post("/register", async (req, res) => {
@@ -485,7 +613,8 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
   }
 });
 
-// Socket.IO connection with session validation
+// ===== SOCKET.IO CONNECTION WITH ENHANCED UNREAD SYSTEM =====
+
 io.on("connection", async (socket) => {
   console.log("🔗 User connected:", socket.id);
 
@@ -513,6 +642,11 @@ io.on("connection", async (socket) => {
 
       await dbHelpers.saveUser({ username, status: "Online" });
       console.log("✅ User authenticated:", username);
+      
+      // Στέλνουμε unread summary μόλις συνδεθεί ο χρήστης
+      const unreadSummary = await dbHelpers.getUnreadSummary(username);
+      socket.emit("unread_summary", unreadSummary);
+      
     } catch (error) {
       console.error("❌ Error during authentication:", error);
       socket.emit("session_expired");
@@ -570,6 +704,10 @@ io.on("connection", async (socket) => {
       const userJoinedAt = members.find((m) => m.username === username)?.joined_at;
       const messages = await dbHelpers.getRoomMessages(roomId, userJoinedAt);
 
+      // 🔥 Mark group messages as read όταν μπαίνεις στο room
+      await dbHelpers.markAsRead(username, null, 'group', roomId);
+      socket.emit("unread_cleared", { type: 'group', roomId: roomId });
+
       socket.emit("load messages", messages);
       socket.emit("room members", members);
       socket.emit("room info", room);
@@ -607,6 +745,54 @@ io.on("connection", async (socket) => {
       io.to(currentRoomId).emit("chat message", messageData);
 
       console.log(`💬 Message in ${currentRoomId} from ${currentUsername}`);
+
+      // 🔥 UNREAD SYSTEM: Προσθήκη unread για όλους εκτός από τον αποστολέα
+      const roomMembers = await dbHelpers.getRoomMembers(currentRoomId);
+      const messageId = `gm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      
+      for (const member of roomMembers) {
+        if (member.username !== currentUsername) {
+          await dbHelpers.addUnreadMessage(
+            member.username, 
+            currentUsername, 
+            'group', 
+            currentRoomId, 
+            {
+              text: data.text,
+              message_id: messageId
+            }
+          );
+          
+          const memberData = onlineUsers.get(member.username);
+          if (memberData) {
+            // Στέλνουμε real-time notification μόνο αν δεν είναι στο ίδιο room
+            if (memberData.currentRoom !== currentRoomId) {
+              io.to(memberData.socketId).emit("notification", {
+                type: "group_message",
+                sender: currentUsername,
+                roomId: currentRoomId,
+                roomName: (await dbHelpers.getRoomById(currentRoomId))?.name || "Room",
+                message: data.text.substring(0, 50) + (data.text.length > 50 ? "..." : ""),
+                timestamp: Date.now(),
+                action: {
+                  type: 'room_message',
+                  roomId: currentRoomId,
+                  sender: currentUsername
+                }
+              });
+            }
+            
+            // Στέλνουμε unread update
+            io.to(memberData.socketId).emit("unread_update", {
+              type: 'group',
+              roomId: currentRoomId,
+              sender: currentUsername,
+              count: await dbHelpers.getUnreadCountForUser(member.username, currentUsername, 'group', currentRoomId)
+            });
+          }
+        }
+      }
+
     } catch (error) {
       console.error("❌ Error saving message:", getErrorMessage(error));
     }
@@ -634,16 +820,73 @@ io.on("connection", async (socket) => {
       }
 
       await dbHelpers.savePrivateMessage({ sender, receiver, text, time });
+      
+      // 🔥 UNREAD SYSTEM: Προσθήκη unread για τον receiver
+      const messageId = `pm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      await dbHelpers.addUnreadMessage(receiver, sender, 'private', null, {
+        text,
+        message_id: messageId
+      });
 
       const receiverData = onlineUsers.get(receiver);
       if (receiverData) {
         io.to(receiverData.socketId).emit("private message", data);
+        
+        // Στέλνουμε notification
+        io.to(receiverData.socketId).emit("notification", {
+          type: "private_message",
+          sender: sender,
+          message: text.substring(0, 50) + (text.length > 50 ? "..." : ""),
+          timestamp: Date.now(),
+          action: {
+            type: 'private_message',
+            sender: sender
+          }
+        });
+        
+        // Στέλνουμε unread update
+        io.to(receiverData.socketId).emit("unread_update", {
+          type: 'private',
+          sender: sender,
+          count: await dbHelpers.getUnreadCountForUser(receiver, sender, 'private')
+        });
       }
 
       socket.emit("private message", data);
       console.log("🔒 Private message from:", sender, "to:", receiver);
+      
     } catch (error) {
       console.error("❌ Error saving private message:", getErrorMessage(error));
+    }
+  });
+
+  // 🔥 ΝΕΟ EVENT: Mark messages as read
+  socket.on("mark_as_read", async (data) => {
+    try {
+      const { type, sender, roomId } = data;
+      
+      if (!currentUsername) return;
+      
+      await dbHelpers.markAsRead(currentUsername, sender, type, roomId);
+      
+      // Ενημέρωση client
+      socket.emit("unread_cleared", { type, sender, roomId });
+      
+    } catch (error) {
+      console.error("Error marking as read:", error);
+    }
+  });
+
+  // 🔥 ΝΕΟ EVENT: Get unread summary
+  socket.on("get_unread_summary", async () => {
+    try {
+      if (!currentUsername) return;
+      
+      const summary = await dbHelpers.getUnreadSummary(currentUsername);
+      socket.emit("unread_summary", summary);
+      
+    } catch (error) {
+      console.error("Error getting unread summary:", error);
     }
   });
 
@@ -726,6 +969,7 @@ async function startServer() {
       console.log(`🚀 RatScape Server running on port ${PORT}`);
       console.log(`📱 Available at: http://localhost:${PORT}`);
       console.log(`💬 Enhanced security with session management`);
+      console.log(`📬 UNREAD MESSAGES SYSTEM: ENABLED`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
     });
   } catch (error) {
