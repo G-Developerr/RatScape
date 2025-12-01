@@ -422,6 +422,30 @@ app.post("/logout", async (req, res) => {
   }
 });
 
+// ===== ΝΕΟ ENDPOINT: LEAVE ROOM =====
+app.post("/leave-room", validateSession, async (req, res) => {
+  try {
+    const { roomId, username } = req.body;
+
+    if (!roomId || !username) {
+      return res.status(400).json({ success: false, error: "Room ID and username required" });
+    }
+
+    // Αφαίρεση χρήστη από το δωμάτιο
+    await dbHelpers.removeUserFromRoom(roomId, username);
+    
+    console.log(`✅ ${username} left room ${roomId}`);
+
+    res.json({
+      success: true,
+      message: "Left room successfully",
+    });
+  } catch (error) {
+    console.error("❌ Error leaving room:", error);
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
+  }
+});
+
 // Protected routes with session validation
 app.post("/create-room", validateSession, async (req, res) => {
   try {
