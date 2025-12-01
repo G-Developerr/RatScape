@@ -18,7 +18,7 @@ let currentRoom = {
 
 // ===== BEAUTIFUL NOTIFICATION SYSTEM =====
 
-function showNotification(message, type = "info", title = null) {
+function showNotification(message, type = "info", title = null, clickAction = null) {
     const container = document.getElementById("notification-container");
     if (!container) {
         createNotificationContainer();
@@ -26,6 +26,12 @@ function showNotification(message, type = "info", title = null) {
 
     const notification = document.createElement("div");
     notification.className = `notification ${type}`;
+    
+    // Add clickable class if there's a click action
+    if (clickAction) {
+        notification.classList.add("clickable");
+        notification.style.cursor = "pointer";
+    }
 
     // Set icon based on type
     let icon, notificationTitle;
@@ -42,6 +48,14 @@ function showNotification(message, type = "info", title = null) {
             icon = "⚠";
             notificationTitle = title || "Warning";
             break;
+        case "friend_request":
+            icon = "👤";
+            notificationTitle = title || "Friend Request";
+            break;
+        case "message":
+            icon = "💬";
+            notificationTitle = title || "New Message";
+            break;
         default:
             icon = "ℹ";
             notificationTitle = title || "Info";
@@ -52,29 +66,39 @@ function showNotification(message, type = "info", title = null) {
         <div class="notification-content">
             <div class="notification-title">${notificationTitle}</div>
             <div class="notification-message">${message}</div>
+            ${clickAction ? '<div class="notification-hint">Click to view</div>' : ''}
         </div>
         <button class="notification-close">×</button>
     `;
 
     document.getElementById("notification-container").appendChild(notification);
 
-    // Animate in
     setTimeout(() => {
         notification.classList.add("active");
     }, 10);
 
-    // Add close event
-    notification.querySelector(".notification-close").addEventListener("click", () => {
+    // Add click action if provided
+    if (clickAction) {
+        notification.addEventListener("click", (e) => {
+            if (!e.target.classList.contains("notification-close")) {
+                clickAction();
+                hideNotification(notification);
+            }
+        });
+    }
+
+    notification.querySelector(".notification-close").addEventListener("click", (e) => {
+        e.stopPropagation();
         hideNotification(notification);
     });
 
-    // Auto hide after 5 seconds for non-error messages
+    const autoHideTime = clickAction ? 7000 : 5000;
     if (type !== "error") {
         setTimeout(() => {
             if (notification.parentElement) {
                 hideNotification(notification);
             }
-        }, 5000);
+        }, autoHideTime);
     }
 
     return notification;
@@ -1274,3 +1298,4 @@ socket.on("disconnect", (reason) => {
 socket.on("connect_error", (error) => {
   console.error("🔌 Connection error:", error);
 });
+
