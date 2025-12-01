@@ -970,15 +970,54 @@ socket.on("friend_request", (data) => {
   }
 });
 
+socket.on("friend_request", (data) => {
+    showNotification(
+        `${data.from} wants to be your friend!`,
+        "friend_request",
+        "New Friend Request",
+        () => {
+            loadUserFriends();
+            showPage("friends-page");
+        }
+    );
+    
+    if (document.getElementById("friends-page").classList.contains("active")) {
+        loadUserFriends();
+    }
+});
+
 socket.on("friend_request_accepted", (data) => {
-  showNotification(
-    `${data.by} accepted your friend request!`,
-    "success",
-    "Friend Request Accepted"
-  );
-  if (document.getElementById("friends-page").classList.contains("active")) {
-    loadUserFriends();
-  }
+    showNotification(
+        `${data.by} accepted your friend request!`,
+        "success",
+        "Friend Request Accepted",
+        () => {
+            loadUserFriends();
+            showPage("friends-page");
+        }
+    );
+    
+    if (document.getElementById("friends-page").classList.contains("active")) {
+        loadUserFriends();
+    }
+});
+
+socket.on("private message", (message) => {
+    const isFromCurrentFriend =
+        message.sender === currentRoom.name || message.receiver === currentRoom.name;
+    
+    if (currentRoom.isPrivate && isFromCurrentFriend) {
+        addMessageToChat(message);
+    } else if (message.sender !== currentUser.username) {
+        showNotification(
+            `${message.sender}: ${message.text.substring(0, 50)}${message.text.length > 50 ? '...' : ''}`,
+            "message",
+            "New Private Message",
+            () => {
+                startPrivateChatWithFriend(message.sender);
+            }
+        );
+    }
 });
 
 socket.on("session_expired", () => {
@@ -1298,4 +1337,5 @@ socket.on("disconnect", (reason) => {
 socket.on("connect_error", (error) => {
   console.error("🔌 Connection error:", error);
 });
+
 
