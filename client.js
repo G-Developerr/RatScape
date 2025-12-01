@@ -1092,16 +1092,20 @@ async function handleRemoveFriend(friendUsername) {
 }
 
 function startPrivateChatWithFriend(friendUsername) {
+    // Δημιουργία μοναδικού κωδικού για το private chat
+    const privateChatId = `private_${currentUser.username}_${friendUsername}_${Date.now()}`;
+    const privateInviteCode = `PRV_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    
     currentRoom = {
-        id: `private_${friendUsername}`,
+        id: privateChatId,
         name: friendUsername,
-        inviteCode: null,
+        inviteCode: privateInviteCode,
         isPrivate: true,
     };
 
     document.getElementById("room-name-sidebar").textContent = friendUsername;
     document.getElementById("room-name-header").textContent = `Private Chat with ${friendUsername}`;
-    document.getElementById("room-invite-code").textContent = "Private";
+    document.getElementById("room-invite-code").textContent = privateInviteCode;
     document.getElementById("sidebar-username").textContent = currentUser.username;
     document.getElementById("sidebar-avatar").textContent = currentUser.username
         .substring(0, 2)
@@ -1342,6 +1346,50 @@ async function handleJoinRoom(inviteCode) {
             handleSessionExpired();
         } else {
             showNotification("Error joining room: " + error.message, "error", "Connection Error");
+        }
+    }
+}
+
+// 🔥 FIXED: LEAVE ROOM FUNCTION
+async function handleLeaveRoom() {
+    if (!currentRoom.id || currentRoom.isPrivate) return;
+
+    if (confirm("Are you sure you want to leave this room?")) {
+        try {
+            const response = await fetch("/leave-room", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Session-ID": currentUser.sessionId,
+                },
+                body: JSON.stringify({
+                    roomId: currentRoom.id,
+                    username: currentUser.username,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Session expired");
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification("Left room successfully!", "info", "Room Left");
+                showPage("rooms-page");
+                loadUserRooms();
+                
+                // Reset current room
+                currentRoom = { id: null, name: null, inviteCode: null };
+            } else {
+                showNotification(data.error || "Failed to leave room", "error", "Action Failed");
+            }
+        } catch (error) {
+            if (error.message === "Session expired") {
+                handleSessionExpired();
+            } else {
+                showNotification("Error leaving room: " + error.message, "error", "Connection Error");
+            }
         }
     }
 }
@@ -1695,12 +1743,8 @@ function initializeEventListeners() {
         });
     });
 
-    document.getElementById("leave-room-btn").addEventListener("click", () => {
-        if (confirm("Leave this room?")) {
-            showPage("rooms-page");
-            loadUserRooms();
-        }
-    });
+    // 🔥 FIXED: Leave room button
+    document.getElementById("leave-room-btn").addEventListener("click", handleLeaveRoom);
 
     document.getElementById("clear-messages-btn").addEventListener("click", () => {
         if (confirm("Clear all messages in this room?")) {
