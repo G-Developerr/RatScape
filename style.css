@@ -1475,53 +1475,7 @@ body {
         font-size: 0.8rem;
     }
 }
-/* Enhanced Clickable Notifications */
-.notification.clickable {
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
 
-.notification.clickable:hover {
-    transform: translateX(-5px) scale(1.02);
-    box-shadow: 0 12px 35px rgba(139, 0, 0, 0.5);
-    background: rgba(38, 38, 38, 0.95);
-}
-
-.notification-hint {
-    font-size: 0.75rem;
-    color: var(--accent-red);
-    margin-top: 4px;
-    font-weight: 600;
-    opacity: 0.9;
-}
-
-.notification.clickable .notification-hint {
-    animation: pulseHint 2s ease-in-out infinite;
-}
-
-@keyframes pulseHint {
-    0%, 100% { opacity: 0.9; }
-    50% { opacity: 1; }
-}
-
-.notification.friend_request {
-    border-left: 4px solid #4285F4;
-}
-
-.notification.friend_request .notification-icon {
-    background: #4285F4;
-    color: white;
-}
-
-.notification.message {
-    border-left: 4px solid var(--primary);
-}
-
-.notification.message .notification-icon {
-    background: var(--primary);
-    color: white;
-}
-    
 /* Extra small devices */
 @media (max-width: 480px) {
     .nav-brand .nav-btn {
@@ -2002,7 +1956,6 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 }
-
 
 
 
