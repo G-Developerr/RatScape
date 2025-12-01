@@ -1415,7 +1415,7 @@ body {
     bottom: 30px;
     right: 30px;
     z-index: 9999;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%;
     color: white;
     border: none;
     padding: 16px 24px;
@@ -1519,6 +1519,71 @@ body {
 
 body.pwa-mode .pwa-floating-install-button {
     display: none !important;
+}
+
+/* ========================================
+   CONFIRMATION MODAL STYLING
+   ======================================== */
+
+#confirmation-modal .modal-content {
+    max-width: 400px;
+    text-align: center;
+}
+
+#confirmation-modal .form-group {
+    padding: 20px 0;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#confirmation-modal #confirmation-message {
+    font-size: 1rem;
+    color: var(--text-color);
+    line-height: 1.5;
+    margin: 0;
+}
+
+#confirmation-modal .modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#confirmation-modal .modal-buttons .btn {
+    flex: 1;
+    padding: 12px 24px;
+    font-weight: 600;
+}
+
+#confirmation-modal .btn-primary {
+    background: var(--accent-red);
+    border-color: var(--accent-red);
+}
+
+#confirmation-modal .btn-primary:hover {
+    background: #CC0000;
+}
+
+#confirmation-modal .btn-secondary:hover {
+    background: rgba(77, 77, 77, 0.8);
+}
+
+/* Mobile responsive για confirmation modal */
+@media (max-width: 768px) {
+    #confirmation-modal .modal-content {
+        max-width: 90%;
+        margin: 0 10px;
+    }
+    
+    #confirmation-modal .modal-buttons {
+        flex-direction: column;
+    }
+    
+    #confirmation-modal .modal-buttons .btn {
+        width: 100%;
+    }
 }
 
 /* ========================================
