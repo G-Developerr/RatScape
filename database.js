@@ -159,6 +159,12 @@ const dbHelpers = {
     }
   },
 
+  // 🔥 ΝΕΟ: Αφαίρεση χρήστη από δωμάτιο
+  removeUserFromRoom: async function(roomId, username) {
+    await RoomMember.deleteOne({ room_id: roomId, username });
+    console.log(`✅ ${username} removed from room ${roomId}`);
+  },
+
   isUserInRoom: async function(roomId, username) {
     const member = await RoomMember.findOne({ room_id: roomId, username });
     return !!member;
