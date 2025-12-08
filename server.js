@@ -5,6 +5,7 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
 const { dbHelpers, initializeDatabase } = require("./database.js");
+const multer = require('multer');
 
 const app = express();
 const server = createServer(app);
@@ -26,8 +27,35 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/');
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: function (req, file, cb) {
+        const filetypes = /jpeg|jpg|png|gif/;
+        const mimetype = filetypes.test(file.mimetype);
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        }
+        cb(new Error('Only image files are allowed'));
+    }
+});
+
 // Serve static files correctly for Render
 app.use(express.static(path.join(__dirname)));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.get("/", (req, res) => {
@@ -233,68 +261,250 @@ app.get("/unread-summary/:username", validateSession, async (req, res) => {
   }
 });
 
+// ===== ΝΕΑ ENDPOINTS: PROFILE SYSTEM =====
+
+// User profile endpoint
+app.get("/user-profile/:username", validateSession, async (req, res) => {
+    try {
+        const { username } = req.params;
+        
+        const user = await dbHelpers.findUserByUsername(username);
+        if (!user) {
+            return res.status(404).json({ success: false, error: "User not found" });
+        }
+        
+        // Get user statistics
+        const friends = await dbHelpers.getFriends(username);
+        const rooms = await dbHelpers.getUserRooms(username);
+        
+        // Get messages count (simplified)
+        const messages = await dbHelpers.getUserStats(username);
+        
+        const profile = {
+            username: user.username,
+            email: user.email,
+            status: user.status,
+            created_at: user.created_at,
+            profile_picture: user.profile_picture || null
+        };
+        
+        const stats = {
+            friends: friends.length,
+            rooms: rooms.length,
+            messages: messages || 0
+        };
+        
+        res.json({
+            success: true,
+            profile: profile,
+            stats: stats
+        });
+        
+    } catch (error) {
+        console.error("Error getting user profile:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// User info endpoint (for viewing other users)
+app.get("/user-info/:username", validateSession, async (req, res) => {
+    try {
+        const { username } = req.params;
+        
+        const user = await dbHelpers.findUserByUsername(username);
+        if (!user) {
+            return res.status(404).json({ success: false, error: "User not found" });
+        }
+        
+        const userInfo = {
+            username: user.username,
+            status: user.status,
+            created_at: user.created_at,
+            profile_picture: user.profile_picture || null
+        };
+        
+        res.json({
+            success: true,
+            user: userInfo
+        });
+        
+    } catch (error) {
+        console.error("Error getting user info:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Update profile endpoint
+app.post("/update-profile", validateSession, async (req, res) => {
+    try {
+        const { username, updates } = req.body;
+        
+        // Check if new username is taken
+        if (updates.username) {
+            const existingUser = await dbHelpers.findUserByUsername(updates.username);
+            if (existingUser && existingUser.username !== username) {
+                return res.status(400).json({ success: false, error: "Username already taken" });
+            }
+        }
+        
+        // Check if new email is taken
+        if (updates.email) {
+            const existingEmail = await dbHelpers.findUserByEmail(updates.email);
+            if (existingEmail && existingEmail.username !== username) {
+                return res.status(400).json({ success: false, error: "Email already registered" });
+            }
+        }
+        
+        // Update user in database
+        const updated = await dbHelpers.updateUser(username, updates);
+        
+        if (updated) {
+            res.json({
+                success: true,
+                message: "Profile updated successfully",
+                user: {
+                    username: updates.username || username,
+                    email: updates.email
+                }
+            });
+        } else {
+            res.status(500).json({ success: false, error: "Failed to update profile" });
+        }
+        
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Change password endpoint
+app.post("/change-password", validateSession, async (req, res) => {
+    try {
+        const { username, currentPassword, newPassword } = req.body;
+        
+        const user = await dbHelpers.findUserByUsername(username);
+        if (!user) {
+            return res.status(404).json({ success: false, error: "User not found" });
+        }
+        
+        // Check current password
+        if (user.password !== currentPassword) {
+            return res.status(401).json({ success: false, error: "Current password is incorrect" });
+        }
+        
+        // Update password
+        const updated = await dbHelpers.updateUserPassword(username, newPassword);
+        
+        if (updated) {
+            res.json({
+                success: true,
+                message: "Password changed successfully"
+            });
+        } else {
+            res.status(500).json({ success: false, error: "Failed to change password" });
+        }
+        
+    } catch (error) {
+        console.error("Error changing password:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Upload profile picture endpoint
+app.post("/upload-profile-picture", validateSession, upload.single('profile_picture'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: "No file uploaded" });
+        }
+        
+        const { username } = req.body;
+        const profilePicture = `/uploads/${req.file.filename}`;
+        
+        // Save to database
+        await dbHelpers.updateUser(username, { profile_picture: profilePicture });
+        
+        res.json({
+            success: true,
+            profile_picture: profilePicture,
+            message: "Profile picture updated successfully"
+        });
+        
+    } catch (error) {
+        console.error("Error uploading profile picture:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Updated registration endpoint with avatar
+app.post("/register", upload.single('avatar'), async (req, res) => {
+    try {
+        const { email, username, password } = req.body;
+
+        console.log("🔍 Registration attempt:", { email, username });
+
+        if (!email || !username || !password) {
+            return res.status(400).json({ success: false, error: "All fields are required" });
+        }
+
+        if (password.length < 3) {
+            return res.status(400).json({ success: false, error: "Password must be at least 3 characters" });
+        }
+
+        let existingEmail, existingUsername;
+        try {
+            existingEmail = await dbHelpers.findUserByEmail(email);
+            existingUsername = await dbHelpers.findUserByUsername(username);
+        } catch (dbError) {
+            console.error("❌ Database error during user check:", dbError);
+            return res.status(500).json({
+                success: false,
+                error: "Database error during registration",
+            });
+        }
+
+        if (existingEmail) {
+            return res.status(400).json({ success: false, error: "Email already registered" });
+        }
+
+        if (existingUsername) {
+            return res.status(400).json({ success: false, error: "Username already taken" });
+        }
+
+        try {
+            await dbHelpers.createUser(email, username, password);
+            console.log("✅ User created successfully:", username);
+
+            // Handle avatar if provided
+            if (req.file) {
+                const profilePicture = `/uploads/${req.file.filename}`;
+                await dbHelpers.updateUser(username, { 
+                    profile_picture: profilePicture 
+                });
+            }
+
+            res.json({
+                success: true,
+                message: "Account created successfully! You can now login.",
+            });
+        } catch (createError) {
+            console.error("❌ Error creating user in database:", createError);
+            return res.status(500).json({
+                success: false,
+                error: "Failed to create user account. Please try again.",
+            });
+        }
+    } catch (error) {
+        console.error("❌ Unexpected error during registration:", error);
+        res.status(500).json({
+            success: false,
+            error: "Internal server error during registration",
+        });
+    }
+});
+
 // ===== ΥΠΑΡΧΟΝΤΑ ENDPOINTS (ΜΕΝΟΥΝ ΑΚΛΑΔΑ) =====
 
 // Authentication routes
-app.post("/register", async (req, res) => {
-  try {
-    const { email, username, password } = req.body;
-
-    console.log("🔍 Registration attempt:", { email, username });
-
-    if (!email || !username || !password) {
-      return res.status(400).json({ success: false, error: "All fields are required" });
-    }
-
-    if (password.length < 3) {
-      return res.status(400).json({ success: false, error: "Password must be at least 3 characters" });
-    }
-
-    let existingEmail, existingUsername;
-    try {
-      existingEmail = await dbHelpers.findUserByEmail(email);
-      existingUsername = await dbHelpers.findUserByUsername(username);
-    } catch (dbError) {
-      console.error("❌ Database error during user check:", dbError);
-      return res.status(500).json({
-        success: false,
-        error: "Database error during registration",
-      });
-    }
-
-    if (existingEmail) {
-      return res.status(400).json({ success: false, error: "Email already registered" });
-    }
-
-    if (existingUsername) {
-      return res.status(400).json({ success: false, error: "Username already taken" });
-    }
-
-    try {
-      await dbHelpers.createUser(email, username, password);
-      console.log("✅ User created successfully:", username);
-
-      res.json({
-        success: true,
-        message: "Account created successfully! You can now login.",
-      });
-    } catch (createError) {
-      console.error("❌ Error creating user in database:", createError);
-      return res.status(500).json({
-        success: false,
-        error: "Failed to create user account. Please try again.",
-      });
-    }
-  } catch (error) {
-    console.error("❌ Unexpected error during registration:", error);
-    res.status(500).json({
-      success: false,
-      error: "Internal server error during registration",
-    });
-  }
-});
-
-// FIXED login endpoint with database sessions
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -994,6 +1204,7 @@ async function startServer() {
       console.log(`📱 Available at: http://localhost:${PORT}`);
       console.log(`💬 Enhanced security with session management`);
       console.log(`📬 UNREAD MESSAGES SYSTEM: ENABLED`);
+      console.log(`👤 PROFILE SYSTEM: ENABLED`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
     });
   } catch (error) {
