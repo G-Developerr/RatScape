@@ -2,8 +2,7 @@
 const mongoose = require('mongoose');
 
 // MongoDB Connection String - ΧΡΗΣΙΜΟΠΟΙΗΣΕ ΤΟ ΔΙΚΟ ΣΟΥ!
-const MONGODB_URI = process.env.MONGODB_URI || MONGODB_URI = mongodb+srv://mitsosjinavos_db_user:81dUjNKxRBiwQ2R5@ratscape.zgvlxzs.mongodb.net/ratscape?retryWrites=true&w=majority
-PORT = 10000;
+const MONGODB_URI = process.env.MONGODB_URI || mongodb+srv://mitsosjinavos_db_user:<db_password>@ratscape.zgvlxzs.mongodb.net/?appName=RatScape;
 
 // ===== SCHEMAS =====
 
