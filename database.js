@@ -1,8 +1,8 @@
-// database.js - FIXED MongoDB Version
+// database.js - RatScape MongoDB Database
 const mongoose = require('mongoose');
 
-// MongoDB Connection String - ΧΡΗΣΙΜΟΠΟΙΗΣΕ ΤΟ ΔΙΚΟ ΣΟΥ!
-const MONGODB_URI = process.env.MONGODB_URI || mongodb+srv://mitsosjinavos_db_user:<db_password>@ratscape.zgvlxzs.mongodb.net/?appName=RatScape;
+// Χρησιμοποιεί environment variable από το Render, αλλιώς local
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ratscape';
 
 // ===== SCHEMAS =====
 
@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   status: { type: String, default: 'Online' },
-  profile_picture: { type: String, default: null }, // ΠΡΟΣΘΗΚΗ: profile picture field
+  profile_picture: { type: String, default: null },
   created_at: { type: Date, default: Date.now }
 });
 
@@ -59,7 +59,6 @@ const sessionSchema = new mongoose.Schema({
   last_accessed: { type: Date, default: Date.now }
 });
 
-// ===== ΝΕΟ SCHEMA: UNREAD MESSAGES =====
 const unreadMessageSchema = new mongoose.Schema({
   user: { type: String, required: true, index: true },
   sender: { type: String, required: true },
@@ -108,7 +107,6 @@ const dbHelpers = {
     return await User.find({});
   },
 
-  // ΠΡΟΣΘΗΚΗ: Update user method
   updateUser: async function(username, updates) {
     const user = await User.findOne({ username });
     if (!user) return false;
@@ -123,7 +121,6 @@ const dbHelpers = {
     return true;
   },
 
-  // ΠΡΟΣΘΗΚΗ: Update user password
   updateUserPassword: async function(username, newPassword) {
     const user = await User.findOne({ username });
     if (!user) return false;
@@ -133,7 +130,6 @@ const dbHelpers = {
     return true;
   },
 
-  // ΠΡΟΣΘΗΚΗ: Get user statistics
   getUserStats: async function(username) {
     const user = await User.findOne({ username });
     if (!user) return null;
@@ -141,7 +137,6 @@ const dbHelpers = {
     const friends = await this.getFriends(username);
     const rooms = await this.getUserRooms(username);
     
-    // Count messages (simplified)
     const messages = await Message.countDocuments({ 
       $or: [
         { sender: username },
@@ -204,7 +199,6 @@ const dbHelpers = {
     }
   },
 
-  // 🔥 ΝΕΟ: Αφαίρεση χρήστη από δωμάτιο
   removeUserFromRoom: async function(roomId, username) {
     await RoomMember.deleteOne({ room_id: roomId, username });
     console.log(`✅ ${username} removed from room ${roomId}`);
@@ -385,8 +379,7 @@ const dbHelpers = {
     await Session.deleteMany({ last_accessed: { $lt: expiredDate } });
   },
 
-  // ===== ΝΕΕΣ ΜΕΘΟΔΟΙ: UNREAD MESSAGES =====
-  
+  // Unread Messages methods
   addUnreadMessage: async function(user, sender, type, room_id = null, message_data = null) {
     try {
       const query = { 
@@ -510,19 +503,20 @@ const dbHelpers = {
 // Initialize database connection
 async function initializeDatabase() {
   try {
-    console.log("🔄 Connecting to MongoDB Atlas...");
+    console.log("🔄 Connecting to MongoDB...");
     
     await mongoose.connect(MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     });
     
-    console.log('✅ Connected to MongoDB Atlas');
-    console.log('✅ Database ready (MongoDB)');
+    console.log('✅ Database connected successfully');
     
-    // Set up connection event handlers
+    // Connection event handlers
     mongoose.connection.on('error', (err) => {
-      console.error("❌ MongoDB connection error:", err);
+      console.error("❌ MongoDB connection error:", err.message);
     });
     
     mongoose.connection.on('disconnected', () => {
@@ -535,8 +529,7 @@ async function initializeDatabase() {
     
     return mongoose.connection;
   } catch (error) {
-    console.error("❌ Failed to connect to MongoDB:", error);
-    console.error("Connection string used:", MONGODB_URI.replace(/:[^:@]+@/, ':****@'));
+    console.error("❌ Failed to connect to database:", error.message);
     throw error;
   }
 }
