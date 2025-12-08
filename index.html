@@ -58,6 +58,8 @@
             <span id="nav-username" class="nav-username"></span>
             <button id="my-friends-btn" class="nav-btn"><i class="fas fa-users"></i> Friends</button>
             <button id="my-rooms-btn" class="nav-btn"><i class="fas fa-comments"></i> My Rooms</button>
+            <!-- ΠΡΟΣΘΗΚΗ: PROFILE BUTTON -->
+            <button id="my-profile-btn" class="nav-btn"><i class="fas fa-user-circle"></i> Profile</button>
             <button id="logout-btn" class="nav-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
     </nav>
@@ -136,6 +138,90 @@
 
             <div id="friends-list" class="friends-list-page">
                 <!-- Friends will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ΜΥ PROFILE PAGE -->
+    <div id="profile-page" class="page">
+        <div class="rooms-container">
+            <div class="rooms-header">
+                <h2>My Profile</h2>
+                <button id="back-from-profile-btn" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+            </div>
+
+            <div class="profile-container">
+                <!-- Profile Picture Section -->
+                <div class="profile-picture-section">
+                    <div class="profile-picture-container">
+                        <div class="profile-image-wrapper">
+                            <img id="profile-image" src="" alt="Profile Picture" 
+                                 class="profile-image" onerror="this.src='default-avatar.png'">
+                            <div class="profile-image-overlay">
+                                <button id="change-profile-pic-btn" class="btn-icon">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <input type="file" id="profile-image-input" accept="image/*" style="display: none;">
+                    </div>
+                    <h3 id="profile-username">Username</h3>
+                    <p class="profile-email" id="profile-email">Email will appear here</p>
+                </div>
+
+                <!-- Profile Information -->
+                <div class="profile-info-section">
+                    <div class="info-card">
+                        <h3>Account Information</h3>
+                        <div class="info-item">
+                            <label>Username:</label>
+                            <span id="info-username" class="info-value">username</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Email:</label>
+                            <span id="info-email" class="info-value">email@example.com</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Member since:</label>
+                            <span id="info-joined" class="info-value">Loading...</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Status:</label>
+                            <span id="info-status" class="info-value status-online">Online</span>
+                        </div>
+                    </div>
+
+                    <!-- Statistics Card -->
+                    <div class="stats-card">
+                        <h3>Your Statistics</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-friends">0</div>
+                                <div class="stat-label">Friends</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-rooms">0</div>
+                                <div class="stat-label">Rooms</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-messages">0</div>
+                                <div class="stat-label">Messages</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profile Actions -->
+                    <div class="profile-actions">
+                        <button id="edit-profile-btn" class="btn btn-primary">
+                            <i class="fas fa-edit"></i> Edit Profile
+                        </button>
+                        <button id="change-password-btn" class="btn btn-secondary">
+                            <i class="fas fa-key"></i> Change Password
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -278,6 +364,26 @@
                     <input type="password" id="register-confirm" placeholder="Confirm your password">
                 </div>
 
+                <!-- ΠΡΟΣΘΗΚΗ: PROFILE PICTURE UPLOAD -->
+                <div class="form-group">
+                    <label>Profile Picture (Optional)</label>
+                    <div class="registration-avatar-section">
+                        <div class="registration-avatar-preview">
+                            <img id="register-avatar-preview" src="" alt="Avatar Preview" style="display: none;">
+                            <div id="register-avatar-placeholder" class="registration-avatar-placeholder">
+                                <i class="fas fa-user-circle"></i>
+                                <p>No image selected</p>
+                            </div>
+                        </div>
+                        <div class="registration-avatar-buttons">
+                            <button type="button" class="btn btn-secondary" id="register-browse-btn">
+                                <i class="fas fa-folder-open"></i> Browse
+                            </button>
+                            <input type="file" id="register-avatar-input" accept="image/*" style="display: none;">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="modal-buttons">
                     <button class="btn btn-primary" id="register-submit"><i class="fas fa-user-plus"></i> Create Account</button>
                     <button class="btn btn-secondary" id="register-cancel">Cancel</button>
@@ -352,6 +458,137 @@
                 <div class="modal-buttons">
                     <button class="btn btn-primary" id="add-friend-submit"><i class="fas fa-user-plus"></i> Add Friend</button>
                     <button class="btn btn-secondary" id="add-friend-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT PROFILE MODAL -->
+    <div class="modal" id="edit-profile-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Profile</h3>
+                <button class="close-modal-btn" id="close-edit-profile-modal">×</button>
+            </div>
+
+            <div class="form-container active">
+                <div class="form-group">
+                    <label for="edit-username">Username</label>
+                    <input type="text" id="edit-username" placeholder="Enter new username">
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-email">Email</label>
+                    <input type="email" id="edit-email" placeholder="Enter new email">
+                </div>
+
+                <div class="form-group">
+                    <label>Profile Picture</label>
+                    <div class="profile-picture-upload">
+                        <div class="upload-preview">
+                            <img id="profile-preview" src="" alt="Preview" style="display: none;">
+                            <div id="upload-placeholder">
+                                <i class="fas fa-user-circle"></i>
+                                <p>No image selected</p>
+                            </div>
+                        </div>
+                        <div class="upload-buttons">
+                            <button type="button" class="btn btn-secondary" id="browse-image-btn">
+                                <i class="fas fa-folder-open"></i> Browse
+                            </button>
+                            <input type="file" id="profile-upload-input" accept="image/*" style="display: none;">
+                            <button type="button" class="btn btn-danger" id="remove-image-btn" style="display: none;">
+                                <i class="fas fa-trash"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="save-profile-btn">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <button class="btn btn-secondary" id="cancel-edit-profile-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHANGE PASSWORD MODAL -->
+    <div class="modal" id="change-password-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Change Password</h3>
+                <button class="close-modal-btn" id="close-change-password-modal">×</button>
+            </div>
+
+            <div class="form-container active">
+                <div class="form-group">
+                    <label for="current-password">Current Password</label>
+                    <input type="password" id="current-password" placeholder="Enter current password">
+                </div>
+
+                <div class="form-group">
+                    <label for="new-password">New Password</label>
+                    <input type="password" id="new-password" placeholder="Enter new password">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm-new-password">Confirm New Password</label>
+                    <input type="password" id="confirm-new-password" placeholder="Confirm new password">
+                </div>
+
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="save-password-btn">
+                        <i class="fas fa-save"></i> Change Password
+                    </button>
+                    <button class="btn btn-secondary" id="cancel-password-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- USER INFO MODAL (για όταν κλικάρεις σε user στο sidebar) -->
+    <div class="modal" id="user-info-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="user-info-title">User Profile</h3>
+                <button class="close-modal-btn" id="close-user-info-modal">×</button>
+            </div>
+
+            <div class="form-container active">
+                <div class="user-info-container">
+                    <div class="user-info-picture">
+                        <img id="user-info-image" src="" alt="User Picture" 
+                             class="user-info-image" onerror="this.src='default-avatar.png'">
+                    </div>
+                    
+                    <div class="user-info-details">
+                        <div class="info-item">
+                            <label>Username:</label>
+                            <span id="user-info-username" class="info-value">username</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Status:</label>
+                            <span id="user-info-status" class="info-value status-online">Online</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Joined:</label>
+                            <span id="user-info-joined" class="info-value">Loading...</span>
+                        </div>
+                    </div>
+
+                    <div class="user-info-actions">
+                        <button id="send-private-message-btn" class="btn btn-primary">
+                            <i class="fas fa-comment"></i> Send Message
+                        </button>
+                        <button id="add-as-friend-btn" class="btn btn-secondary" style="display: none;">
+                            <i class="fas fa-user-plus"></i> Add Friend
+                        </button>
+                        <button id="view-mutual-rooms-btn" class="btn btn-secondary">
+                            <i class="fas fa-door-open"></i> Mutual Rooms
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
