@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   status: { type: String, default: 'Online' },
+  profile_picture: { type: String, default: null }, // ΠΡΟΣΘΗΚΗ: profile picture field
   created_at: { type: Date, default: Date.now }
 });
 
@@ -105,6 +106,50 @@ const dbHelpers = {
 
   getAllUsers: async function() {
     return await User.find({});
+  },
+
+  // ΠΡΟΣΘΗΚΗ: Update user method
+  updateUser: async function(username, updates) {
+    const user = await User.findOne({ username });
+    if (!user) return false;
+    
+    Object.keys(updates).forEach(key => {
+      if (updates[key] !== undefined) {
+        user[key] = updates[key];
+      }
+    });
+    
+    await user.save();
+    return true;
+  },
+
+  // ΠΡΟΣΘΗΚΗ: Update user password
+  updateUserPassword: async function(username, newPassword) {
+    const user = await User.findOne({ username });
+    if (!user) return false;
+    
+    user.password = newPassword;
+    await user.save();
+    return true;
+  },
+
+  // ΠΡΟΣΘΗΚΗ: Get user statistics
+  getUserStats: async function(username) {
+    const user = await User.findOne({ username });
+    if (!user) return null;
+    
+    const friends = await this.getFriends(username);
+    const rooms = await this.getUserRooms(username);
+    
+    // Count messages (simplified)
+    const messages = await Message.countDocuments({ 
+      $or: [
+        { sender: username },
+        { room_id: { $in: rooms.map(r => r.id) } }
+      ]
+    });
+    
+    return messages;
   },
 
   // Room methods
