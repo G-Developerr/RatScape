@@ -1266,10 +1266,19 @@ async function handleRegister(email, username, password, confirmPassword) {
     }
 
     try {
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("username", username);
+        formData.append("password", password);
+        
+        const avatarInput = document.getElementById("register-avatar-input");
+        if (avatarInput.files[0]) {
+            formData.append("avatar", avatarInput.files[0]);
+        }
+        
         const response = await fetch("/register", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, username, password }),
+            body: formData,
         });
 
         const data = await response.json();
@@ -1479,6 +1488,243 @@ function handleSendMessage() {
     input.style.height = "auto";
 }
 
+// ===== PROFILE SYSTEM FUNCTIONS =====
+
+async function loadUserProfile() {
+    if (!currentUser.authenticated) return;
+    
+    try {
+        const response = await fetch(`/user-profile/${currentUser.username}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (!response.ok) {
+            throw new Error("Failed to load profile");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateProfileUI(data.profile);
+            updateProfileStats(data.stats);
+        }
+    } catch (error) {
+        console.error("Error loading profile:", error);
+        showNotification("Could not load profile information", "error", "Profile Error");
+    }
+}
+
+function updateProfileUI(profile) {
+    // Basic info
+    document.getElementById("profile-username").textContent = profile.username || currentUser.username;
+    document.getElementById("profile-email").textContent = profile.email || currentUser.email;
+    document.getElementById("info-username").textContent = profile.username || currentUser.username;
+    document.getElementById("info-email").textContent = profile.email || currentUser.email;
+    document.getElementById("info-status").textContent = profile.status || "Online";
+    document.getElementById("info-status").className = `info-value status-${profile.status?.toLowerCase() || 'online'}`;
+    
+    // Joined date
+    if (profile.created_at) {
+        const joinedDate = new Date(profile.created_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        document.getElementById("info-joined").textContent = joinedDate;
+    }
+    
+    // Profile picture
+    if (profile.profile_picture) {
+        document.getElementById("profile-image").src = profile.profile_picture;
+        document.getElementById("profile-image").style.display = 'block';
+    } else {
+        document.getElementById("profile-image").src = 'default-avatar.png';
+    }
+}
+
+function updateProfileStats(stats) {
+    document.getElementById("stat-friends").textContent = stats.friends || 0;
+    document.getElementById("stat-rooms").textContent = stats.rooms || 0;
+    document.getElementById("stat-messages").textContent = stats.messages || 0;
+}
+
+function showProfilePage() {
+    loadUserProfile();
+    showPage("profile-page");
+}
+
+// Profile picture upload
+async function uploadProfilePicture(file) {
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append("profile_picture", file);
+    formData.append("username", currentUser.username);
+    
+    try {
+        const response = await fetch("/upload-profile-picture", {
+            method: "POST",
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: formData,
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showNotification("Profile picture updated!", "success", "Profile Updated");
+                document.getElementById("profile-image").src = data.profile_picture + "?t=" + Date.now();
+            }
+        }
+    } catch (error) {
+        console.error("Error uploading profile picture:", error);
+        showNotification("Failed to upload profile picture", "error", "Upload Error");
+    }
+}
+
+// Edit profile
+async function saveProfileChanges(username, email, profilePicture) {
+    try {
+        const updateData = {};
+        if (username && username !== currentUser.username) {
+            updateData.username = username;
+        }
+        if (email && email !== currentUser.email) {
+            updateData.email = email;
+        }
+        
+        if (Object.keys(updateData).length === 0 && !profilePicture) {
+            showNotification("No changes to save", "info", "No Changes");
+            return;
+        }
+        
+        const response = await fetch("/update-profile", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username,
+                updates: updateData
+            }),
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                // Update current user if username changed
+                if (data.user) {
+                    currentUser.username = data.user.username;
+                    currentUser.email = data.user.email;
+                    updateUIForAuthState();
+                }
+                
+                showNotification("Profile updated successfully!", "success", "Profile Updated");
+                hideAllModals();
+                loadUserProfile();
+            }
+        }
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        showNotification("Failed to update profile", "error", "Update Error");
+    }
+}
+
+// Change password
+async function changePassword(currentPassword, newPassword, confirmPassword) {
+    if (newPassword !== confirmPassword) {
+        showNotification("Passwords do not match!", "error", "Password Error");
+        return;
+    }
+    
+    try {
+        const response = await fetch("/change-password", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username,
+                currentPassword: currentPassword,
+                newPassword: newPassword
+            }),
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showNotification("Password changed successfully!", "success", "Password Changed");
+                hideAllModals();
+            } else {
+                showNotification(data.error || "Failed to change password", "error", "Password Error");
+            }
+        }
+    } catch (error) {
+        console.error("Error changing password:", error);
+        showNotification("Failed to change password", "error", "Connection Error");
+    }
+}
+
+// User info modal
+let currentViewedUser = null;
+
+async function showUserInfo(username) {
+    if (!username || username === currentUser.username) return;
+    
+    currentViewedUser = username;
+    
+    try {
+        const response = await fetch(`/user-info/${username}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                updateUserInfoModal(data.user);
+                showModal("user-info-modal");
+            }
+        }
+    } catch (error) {
+        console.error("Error loading user info:", error);
+    }
+}
+
+function updateUserInfoModal(user) {
+    document.getElementById("user-info-title").textContent = `${user.username}'s Profile`;
+    document.getElementById("user-info-username").textContent = user.username;
+    document.getElementById("user-info-status").textContent = user.status || "Offline";
+    document.getElementById("user-info-status").className = `info-value status-${user.status?.toLowerCase() || 'offline'}`;
+    
+    if (user.created_at) {
+        const joinedDate = new Date(user.created_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        document.getElementById("user-info-joined").textContent = joinedDate;
+    }
+    
+    if (user.profile_picture) {
+        document.getElementById("user-info-image").src = user.profile_picture;
+    } else {
+        document.getElementById("user-info-image").src = "default-avatar.png";
+    }
+    
+    // Check if already friends
+    const addFriendBtn = document.getElementById("add-as-friend-btn");
+    // This would need additional API endpoint to check friendship status
+    // For now, hide it
+    addFriendBtn.style.display = 'none';
+}
+
 // ===== SOCKET EVENT HANDLERS =====
 
 socket.on("connect", () => {
@@ -1612,6 +1858,9 @@ socket.on("room members", (members) => {
     if (!currentRoom.isPrivate) {
         updateRoomMembers(members);
         document.getElementById("room-status").textContent = `${members.length} members`;
+        
+        // Make member items clickable
+        setTimeout(makeMemberItemsClickable, 100);
     }
 });
 
@@ -1686,6 +1935,9 @@ function initializeEventListeners() {
         loadUserFriends();
         showPage("friends-page");
     });
+
+    // ΠΡΟΣΘΗΚΗ: Profile button listener
+    document.getElementById("my-profile-btn").addEventListener("click", showProfilePage);
 
     document.getElementById("logout-btn").addEventListener("click", handleLogout);
 
@@ -1818,6 +2070,111 @@ function initializeEventListeners() {
             const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
             messageInput.value += randomEmoji;
             messageInput.focus();
+        });
+    });
+
+    // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
+    initializeProfileEventListeners();
+}
+
+// ===== PROFILE EVENT LISTENERS =====
+
+function initializeProfileEventListeners() {
+    // Back from profile button
+    document.getElementById("back-from-profile-btn").addEventListener("click", () => {
+        showPage("home-page");
+    });
+    
+    // Change profile picture button
+    document.getElementById("change-profile-pic-btn").addEventListener("click", () => {
+        document.getElementById("profile-image-input").click();
+    });
+    
+    // Profile image input
+    document.getElementById("profile-image-input").addEventListener("change", function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            uploadProfilePicture(file);
+        }
+    });
+    
+    // Edit profile button
+    document.getElementById("edit-profile-btn").addEventListener("click", () => {
+        showModal("edit-profile-modal");
+        document.getElementById("edit-username").value = currentUser.username;
+        document.getElementById("edit-email").value = currentUser.email;
+    });
+    
+    // Change password button
+    document.getElementById("change-password-btn").addEventListener("click", () => {
+        showModal("change-password-modal");
+    });
+    
+    // Save profile changes
+    document.getElementById("save-profile-btn").addEventListener("click", () => {
+        const username = document.getElementById("edit-username").value;
+        const email = document.getElementById("edit-email").value;
+        saveProfileChanges(username, email);
+    });
+    
+    // Save password
+    document.getElementById("save-password-btn").addEventListener("click", () => {
+        const currentPassword = document.getElementById("current-password").value;
+        const newPassword = document.getElementById("new-password").value;
+        const confirmPassword = document.getElementById("confirm-new-password").value;
+        changePassword(currentPassword, newPassword, confirmPassword);
+    });
+    
+    // Cancel buttons
+    document.getElementById("cancel-edit-profile-btn").addEventListener("click", hideAllModals);
+    document.getElementById("cancel-password-btn").addEventListener("click", hideAllModals);
+    document.getElementById("close-edit-profile-modal").addEventListener("click", hideAllModals);
+    document.getElementById("close-change-password-modal").addEventListener("click", hideAllModals);
+    document.getElementById("close-user-info-modal").addEventListener("click", hideAllModals);
+    
+    // User info modal actions
+    document.getElementById("send-private-message-btn").addEventListener("click", () => {
+        if (currentViewedUser) {
+            hideAllModals();
+            startPrivateChatWithFriend(currentViewedUser);
+        }
+    });
+    
+    document.getElementById("view-mutual-rooms-btn").addEventListener("click", () => {
+        // This would load mutual rooms - needs additional API endpoint
+        showNotification("Feature coming soon!", "info", "Coming Soon");
+    });
+    
+    // Avatar preview for registration
+    document.getElementById("register-browse-btn").addEventListener("click", () => {
+        document.getElementById("register-avatar-input").click();
+    });
+    
+    document.getElementById("register-avatar-input").addEventListener("change", function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const preview = document.getElementById("register-avatar-preview");
+                preview.src = event.target.result;
+                preview.style.display = 'block';
+                document.getElementById("register-avatar-placeholder").style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+// Make member items clickable for user info
+function makeMemberItemsClickable() {
+    const memberItems = document.querySelectorAll(".member-item");
+    memberItems.forEach(item => {
+        item.style.cursor = "pointer";
+        item.addEventListener("click", function() {
+            const nameElement = this.querySelector(".member-name");
+            if (nameElement) {
+                showUserInfo(nameElement.textContent);
+            }
         });
     });
 }
