@@ -1,8 +1,11 @@
-// database.js - RatScape MongoDB Database
+// database.js - RatScape MongoDB Database - FIXED CONNECTION
 const mongoose = require('mongoose');
 
-// Χρησιμοποιεί environment variable από το Render, αλλιώς local
+// 🔥 ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιεί το MONGODB_URI από το Render Environment
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ratscape';
+
+console.log('🔍 Attempting to connect to MongoDB...');
+console.log('📍 Connection string exists:', !!process.env.MONGODB_URI);
 
 // ===== SCHEMAS =====
 
@@ -500,19 +503,30 @@ const dbHelpers = {
   }
 };
 
-// Initialize database connection
+// 🔥 FIXED: Initialize database connection με καλύτερο error handling
 async function initializeDatabase() {
   try {
     console.log("🔄 Connecting to MongoDB...");
     
+    // Έλεγχος αν υπάρχει MONGODB_URI
+    if (!process.env.MONGODB_URI) {
+      console.warn("⚠️ WARNING: MONGODB_URI not found in environment variables!");
+      console.warn("⚠️ Using local MongoDB. This will NOT work on Render!");
+    }
+    
     await mongoose.connect(MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000, // 10 seconds timeout
       socketTimeoutMS: 45000,
+      // 🔥 ΠΡΟΣΘΗΚΗ: Retry configuration
+      retryWrites: true,
+      retryReads: true,
+      maxPoolSize: 10
     });
     
-    console.log('✅ Database connected successfully');
+    console.log('✅ Database connected successfully to:', mongoose.connection.host);
+    console.log('📊 Database name:', mongoose.connection.name);
     
     // Connection event handlers
     mongoose.connection.on('error', (err) => {
@@ -520,16 +534,32 @@ async function initializeDatabase() {
     });
     
     mongoose.connection.on('disconnected', () => {
-      console.log("⚠️ MongoDB disconnected");
+      console.log("⚠️ MongoDB disconnected. Attempting to reconnect...");
     });
     
     mongoose.connection.on('reconnected', () => {
-      console.log("✅ MongoDB reconnected");
+      console.log("✅ MongoDB reconnected successfully");
+    });
+    
+    mongoose.connection.on('connected', () => {
+      console.log("🔗 MongoDB connection established");
     });
     
     return mongoose.connection;
   } catch (error) {
-    console.error("❌ Failed to connect to database:", error.message);
+    console.error("❌ Failed to connect to database:");
+    console.error("Error message:", error.message);
+    console.error("Error name:", error.name);
+    
+    // 🔥 Πιο χρήσιμα error messages
+    if (error.name === 'MongooseServerSelectionError') {
+      console.error("❌ Cannot reach MongoDB server. Check:");
+      console.error("   1. Is MONGODB_URI environment variable set correctly in Render?");
+      console.error("   2. Is MongoDB Atlas cluster running?");
+      console.error("   3. Is the IP address whitelisted in MongoDB Atlas (0.0.0.0/0)?");
+      console.error("   4. Is the database user password correct?");
+    }
+    
     throw error;
   }
 }
