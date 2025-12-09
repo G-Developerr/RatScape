@@ -1,12 +1,11 @@
-// server.js - COMPLETE FIXED VERSION
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
-const { dbHelpers } = require("./database.js");
+const { dbHelpers, initializeDatabase } = require("./database.js");
 const multer = require('multer');
-const fs = require('fs');
 
 const app = express();
 const server = createServer(app);
@@ -27,11 +26,6 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-
-// Create uploads directory if it doesn't exist
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
-}
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -125,24 +119,6 @@ function getErrorMessage(error) {
 
 // Debug endpoint
 app.get("/debug-users", async (req, res) => {
-  try {
-    const users = await dbHelpers.getAllUsers();
-    res.json({
-      success: true,
-      users: users,
-      total: users.length,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: getErrorMessage(error),
-      message: "Cannot access users table",
-    });
-  }
-});
-
-// ===== ΑΥΤΟ ΕΙΝΑΙ ΠΟΛΥ ΣΗΜΑΝΤΙΚΟ: Βοηθητικό endpoint για debug =====
-app.get("/debug-all-users", async (req, res) => {
   try {
     const users = await dbHelpers.getAllUsers();
     res.json({
@@ -302,12 +278,12 @@ app.get("/user-profile/:username", validateSession, async (req, res) => {
         const rooms = await dbHelpers.getUserRooms(username);
         
         // Get messages count (simplified)
-        const messagesCount = await dbHelpers.getUserMessagesCount(username);
+        const messages = await dbHelpers.getUserStats(username);
         
         const profile = {
             username: user.username,
             email: user.email,
-            status: user.status || "Online",
+            status: user.status,
             created_at: user.created_at,
             profile_picture: user.profile_picture || null
         };
@@ -315,7 +291,7 @@ app.get("/user-profile/:username", validateSession, async (req, res) => {
         const stats = {
             friends: friends.length,
             rooms: rooms.length,
-            messages: messagesCount || 0
+            messages: messages || 0
         };
         
         res.json({
@@ -527,8 +503,8 @@ app.post("/upload-profile-picture", validateSession, upload.single('profile_pict
     }
 });
 
-// ===== ΑΠΛΟΠΟΙΗΜΕΝΟ REGISTRATION ENDPOINT (ΧΩΡΙΣ MULTER ΠΡΟΒΛΗΜΑΤΑ) =====
-app.post("/register", async (req, res) => {
+// Updated registration endpoint with avatar
+app.post("/register", upload.single('avatar'), async (req, res) => {
     try {
         const { email, username, password } = req.body;
 
@@ -566,6 +542,14 @@ app.post("/register", async (req, res) => {
             await dbHelpers.createUser(email, username, password);
             console.log("✅ User created successfully:", username);
 
+            // Handle avatar if provided
+            if (req.file) {
+                const profilePicture = `/uploads/${req.file.filename}`;
+                await dbHelpers.updateUser(username, { 
+                    profile_picture: profilePicture 
+                });
+            }
+
             res.json({
                 success: true,
                 message: "Account created successfully! You can now login.",
@@ -586,7 +570,9 @@ app.post("/register", async (req, res) => {
     }
 });
 
-// ===== ΑΥΤΟ ΕΙΝΑΙ ΚΡΙΤΙΚΑ ΣΗΜΑΝΤΙΚΟ: FIXED LOGIN ENDPOINT =====
+// ===== ΥΠΑΡΧΟΝΤΑ ENDPOINTS (ΜΕΝΟΥΝ ΑΚΛΑΔΑ) =====
+
+// Authentication routes
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -594,15 +580,13 @@ app.post("/login", async (req, res) => {
     console.log("🔍 Login attempt for email:", email);
 
     if (!email || !password) {
-      console.log("❌ Missing email or password");
       return res.status(400).json({ success: false, error: "Email and password required" });
     }
 
     let user;
     try {
       user = await dbHelpers.findUserByEmail(email);
-      console.log("📊 User lookup result:", user ? `User found: ${user.username}` : "User not found");
-      
+      console.log("📊 User lookup result:", user ? "User found" : "User not found");
     } catch (dbError) {
       console.error("❌ Database error during login:", dbError);
       return res.status(500).json({
@@ -616,21 +600,20 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ success: false, error: "Invalid email or password" });
     }
 
-    console.log("🔑 Checking password. Input:", password, "Stored:", user.password);
-    
     if (user.password !== password) {
       console.log("❌ Invalid password for user:", user.username);
       return res.status(401).json({ success: false, error: "Invalid email or password" });
     }
 
-    // Create session
+    // Create session - SAVE TO DATABASE
     const sessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
     const sessionData = {
       username: user.username,
       createdAt: Date.now(),
     };
 
-    // Save to memory (απλοποιημένο για τώρα)
+    // Save to both database and memory (fallback)
+    await dbHelpers.saveSession(sessionId, sessionData);
     userSessions.set(sessionId, sessionData);
 
     try {
@@ -669,8 +652,8 @@ app.get("/verify-session/:username", async (req, res) => {
       return res.status(401).json({ success: false, error: "Session ID required" });
     }
 
-    // Check memory
-    const session = userSessions.get(sessionId);
+    // Check both database and memory
+    const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     const user = await dbHelpers.findUserByUsername(username);
 
     if (session && session.username === username && user) {
@@ -685,6 +668,7 @@ app.get("/verify-session/:username", async (req, res) => {
     } else {
       console.log("❌ Invalid session for:", username);
       // Clean up invalid session
+      await dbHelpers.deleteSession(sessionId);
       userSessions.delete(sessionId);
       res.status(401).json({ success: false, error: "Invalid session" });
     }
@@ -701,6 +685,7 @@ app.post("/logout", async (req, res) => {
     const sessionId = req.headers["x-session-id"];
 
     if (sessionId) {
+      await dbHelpers.deleteSession(sessionId);
       userSessions.delete(sessionId);
     }
 
@@ -930,25 +915,7 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
   }
 });
 
-// Get user messages count
-app.get("/user-messages-count/:username", validateSession, async (req, res) => {
-  try {
-    const { username } = req.params;
-    
-    // Simplified: count messages where user is sender
-    const count = await dbHelpers.getUserMessagesCount(username);
-    
-    res.json({
-      success: true,
-      count: count || 0
-    });
-  } catch (error) {
-    console.error("Error getting user messages count:", error);
-    res.status(500).json({ success: false, error: getErrorMessage(error) });
-  }
-});
-
-// ===== SOCKET.IO CONNECTION =====
+// ===== SOCKET.IO CONNECTION WITH ENHANCED UNREAD SYSTEM =====
 
 io.on("connection", async (socket) => {
   console.log("🔗 User connected:", socket.id);
@@ -961,7 +928,7 @@ io.on("connection", async (socket) => {
     try {
       const { username, sessionId } = data;
 
-      const session = userSessions.get(sessionId);
+      const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
       if (!session || session.username !== username) {
         socket.emit("session_expired");
         return;
@@ -978,7 +945,7 @@ io.on("connection", async (socket) => {
       await dbHelpers.saveUser({ username, status: "Online" });
       console.log("✅ User authenticated:", username);
       
-      // Στέλνουμε unread summary
+      // Στέλνουμε unread summary μόλις συνδεθεί ο χρήστης
       const unreadSummary = await dbHelpers.getUnreadSummary(username);
       socket.emit("unread_summary", unreadSummary);
       
@@ -993,7 +960,7 @@ io.on("connection", async (socket) => {
       const { roomId, username, sessionId } = data;
       console.log("🚀 Attempting to join room:", { roomId, username });
 
-      const session = userSessions.get(sessionId);
+      const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
       if (!session || session.username !== username) {
         socket.emit("session_expired");
         return;
@@ -1039,7 +1006,7 @@ io.on("connection", async (socket) => {
       const userJoinedAt = members.find((m) => m.username === username)?.joined_at;
       const messages = await dbHelpers.getRoomMessages(roomId, userJoinedAt);
 
-      // Mark group messages as read
+      // 🔥 Mark group messages as read όταν μπαίνεις στο room
       await dbHelpers.markAsRead(username, null, 'group', roomId);
       socket.emit("unread_cleared", { type: 'group', roomId: roomId });
 
@@ -1064,7 +1031,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const session = userSessions.get(currentSessionId);
+      const session = await dbHelpers.getSession(currentSessionId) || userSessions.get(currentSessionId);
       if (!session || session.username !== currentUsername) {
         socket.emit("session_expired");
         return;
@@ -1081,8 +1048,9 @@ io.on("connection", async (socket) => {
 
       console.log(`💬 Message in ${currentRoomId} from ${currentUsername}`);
 
-      // UNREAD SYSTEM
+      // 🔥 UNREAD SYSTEM: Προσθήκη unread για όλους εκτός από τον αποστολέα
       const roomMembers = await dbHelpers.getRoomMembers(currentRoomId);
+      const messageId = `gm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
       for (const member of roomMembers) {
         if (member.username !== currentUsername) {
@@ -1092,24 +1060,36 @@ io.on("connection", async (socket) => {
             'group', 
             currentRoomId, 
             {
-              text: data.text
+              text: data.text,
+              message_id: messageId
             }
           );
           
           const memberData = onlineUsers.get(member.username);
-          if (memberData && memberData.currentRoom !== currentRoomId) {
-            io.to(memberData.socketId).emit("notification", {
-              type: "group_message",
-              sender: currentUsername,
-              roomId: currentRoomId,
-              roomName: (await dbHelpers.getRoomById(currentRoomId))?.name || "Room",
-              message: data.text.substring(0, 50) + (data.text.length > 50 ? "..." : ""),
-              timestamp: Date.now(),
-              action: {
-                type: 'room_message',
+          if (memberData) {
+            // Στέλνουμε real-time notification μόνο αν δεν είναι στο ίδιο room
+            if (memberData.currentRoom !== currentRoomId) {
+              io.to(memberData.socketId).emit("notification", {
+                type: "group_message",
+                sender: currentUsername,
                 roomId: currentRoomId,
-                sender: currentUsername
-              }
+                roomName: (await dbHelpers.getRoomById(currentRoomId))?.name || "Room",
+                message: data.text.substring(0, 50) + (data.text.length > 50 ? "..." : ""),
+                timestamp: Date.now(),
+                action: {
+                  type: 'room_message',
+                  roomId: currentRoomId,
+                  sender: currentUsername
+                }
+              });
+            }
+            
+            // Στέλνουμε unread update
+            io.to(memberData.socketId).emit("unread_update", {
+              type: 'group',
+              roomId: currentRoomId,
+              sender: currentUsername,
+              count: await dbHelpers.getUnreadCountForUser(member.username, currentUsername, 'group', currentRoomId)
             });
           }
         }
@@ -1129,7 +1109,7 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      const session = userSessions.get(currentSessionId);
+      const session = await dbHelpers.getSession(currentSessionId) || userSessions.get(currentSessionId);
       if (!session || session.username !== sender) {
         socket.emit("session_expired");
         return;
@@ -1143,15 +1123,18 @@ io.on("connection", async (socket) => {
 
       await dbHelpers.savePrivateMessage({ sender, receiver, text, time });
       
-      // UNREAD SYSTEM
+      // 🔥 UNREAD SYSTEM: Προσθήκη unread για τον receiver
+      const messageId = `pm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       await dbHelpers.addUnreadMessage(receiver, sender, 'private', null, {
-        text
+        text,
+        message_id: messageId
       });
 
       const receiverData = onlineUsers.get(receiver);
       if (receiverData) {
         io.to(receiverData.socketId).emit("private message", data);
         
+        // Στέλνουμε notification
         io.to(receiverData.socketId).emit("notification", {
           type: "private_message",
           sender: sender,
@@ -1161,6 +1144,13 @@ io.on("connection", async (socket) => {
             type: 'private_message',
             sender: sender
           }
+        });
+        
+        // Στέλνουμε unread update
+        io.to(receiverData.socketId).emit("unread_update", {
+          type: 'private',
+          sender: sender,
+          count: await dbHelpers.getUnreadCountForUser(receiver, sender, 'private')
         });
       }
 
@@ -1172,7 +1162,7 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // Mark messages as read
+  // 🔥 ΝΕΟ EVENT: Mark messages as read
   socket.on("mark_as_read", async (data) => {
     try {
       const { type, sender, roomId } = data;
@@ -1181,6 +1171,7 @@ io.on("connection", async (socket) => {
       
       await dbHelpers.markAsRead(currentUsername, sender, type, roomId);
       
+      // Ενημέρωση client - μόνο στον συγκεκριμένο χρήστη
       socket.emit("unread_cleared", { type, sender, roomId });
       
     } catch (error) {
@@ -1188,7 +1179,7 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // Get unread summary
+  // 🔥 ΝΕΟ EVENT: Get unread summary
   socket.on("get_unread_summary", async () => {
     try {
       if (!currentUsername) return;
@@ -1254,6 +1245,9 @@ io.on("connection", async (socket) => {
 // Clean up expired sessions periodically
 setInterval(async () => {
   try {
+    await dbHelpers.cleanupExpiredSessions();
+    console.log("🧹 Cleaned expired sessions from database");
+    
     const oneWeek = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
     for (const [sessionId, session] of userSessions.entries()) {
@@ -1261,15 +1255,17 @@ setInterval(async () => {
         userSessions.delete(sessionId);
       }
     }
-    console.log("🧹 Cleaned expired sessions from memory");
   } catch (error) {
     console.error("Error cleaning expired sessions:", error);
   }
 }, 60 * 60 * 1000);
 
-// 🔥 FIXED: Start server
+// 🔥 FIXED: Start server ONLY after database connection
 async function startServer() {
   try {
+    // Wait for database to connect
+    await initializeDatabase();
+    
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 RatScape Server running on port ${PORT}`);
@@ -1278,8 +1274,8 @@ async function startServer() {
       console.log(`📬 UNREAD MESSAGES SYSTEM: ENABLED`);
       console.log(`👤 PROFILE SYSTEM: ENABLED`);
       console.log(`👤 USER INFO SYSTEM: ENABLED`);
+      console.log(`🔔 NOTIFICATION TIMEOUT: 5 SECONDS`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
-      console.log(`🔧 DEBUG: /debug-all-users endpoint available`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
