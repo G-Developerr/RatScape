@@ -308,59 +308,98 @@ app.get("/user-profile/:username", validateSession, async (req, res) => {
 
 // ===== ΝΕΑ ENDPOINTS: USER INFO SYSTEM =====
 
-// User info endpoint (για άλλους χρήστες)
-app.get("/user-info/:username", validateSession, async (req, res) => {
-    try {
-        const { username } = req.params;
-        
-        const user = await dbHelpers.findUserByUsername(username);
-        if (!user) {
-            return res.status(404).json({ success: false, error: "User not found" });
-        }
-        
-        const userInfo = {
-            username: user.username,
-            status: user.status,
-            created_at: user.created_at,
-            profile_picture: user.profile_picture || null
-        };
-        
-        res.json({
-            success: true,
-            user: userInfo
-        });
-        
-    } catch (error) {
-        console.error("Error getting user info:", error);
-        res.status(500).json({ success: false, error: getErrorMessage(error) });
+// User info endpoint (για άλλους χρήστες) - FIXED VERSION
+app.get("/user-info/:targetUsername", async (req, res) => {
+  try {
+    const { targetUsername } = req.params;
+    const sessionId = req.headers["x-session-id"];
+
+    console.log("🔍 User info request for:", targetUsername, "session:", sessionId);
+
+    // Check session
+    if (!sessionId) {
+      return res.status(401).json({ success: false, error: "Session required" });
     }
+
+    // Get session from database or memory
+    const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
+    if (!session) {
+      return res.status(401).json({ success: false, error: "Invalid session" });
+    }
+
+    // Get the user making the request
+    const requestingUser = await dbHelpers.findUserByUsername(session.username);
+    if (!requestingUser) {
+      return res.status(401).json({ success: false, error: "Requesting user not found" });
+    }
+
+    // Get the target user
+    const targetUser = await dbHelpers.findUserByUsername(targetUsername);
+    if (!targetUser) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Create user info response
+    const userInfo = {
+      username: targetUser.username,
+      status: targetUser.status || "Offline",
+      created_at: targetUser.created_at,
+      profile_picture: targetUser.profile_picture || null
+    };
+
+    console.log("✅ User info retrieved for:", targetUsername);
+
+    res.json({
+      success: true,
+      user: userInfo
+    });
+    
+  } catch (error) {
+    console.error("❌ Error getting user info:", error);
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
+  }
 });
 
 // ===== ΝΕΟ ENDPOINT: CHECK FRIENDSHIP STATUS =====
-app.get("/check-friendship/:username/:friendUsername", validateSession, async (req, res) => {
-    try {
-        const { username, friendUsername } = req.params;
-        
-        if (!username || !friendUsername) {
-            return res.status(400).json({ success: false, error: "Both usernames required" });
-        }
-        
-        const areFriends = await dbHelpers.areFriends(username, friendUsername);
-        const hasPendingRequest = await dbHelpers.hasPendingRequest(username, friendUsername);
-        
-        res.json({
-            success: true,
-            areFriends: areFriends,
-            hasPendingRequest: hasPendingRequest
-        });
-        
-    } catch (error) {
-        console.error("Error checking friendship:", error);
-        res.status(500).json({ 
-            success: false, 
-            error: getErrorMessage(error) 
-        });
+app.get("/check-friendship/:username/:friendUsername", async (req, res) => {
+  try {
+    const { username, friendUsername } = req.params;
+    const sessionId = req.headers["x-session-id"];
+
+    console.log("🔍 Checking friendship between:", username, "and", friendUsername);
+
+    if (!sessionId) {
+      return res.status(401).json({ success: false, error: "Session required" });
     }
+
+    // Validate session
+    const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
+    if (!session || session.username !== username) {
+      return res.status(401).json({ success: false, error: "Invalid session" });
+    }
+
+    if (!username || !friendUsername) {
+      return res.status(400).json({ success: false, error: "Both usernames required" });
+    }
+
+    const areFriends = await dbHelpers.areFriends(username, friendUsername);
+    const hasPendingRequest = await dbHelpers.hasPendingRequest(username, friendUsername);
+
+    console.log("✅ Friendship check result:", { areFriends, hasPendingRequest });
+
+    res.json({
+      success: true,
+      areFriends: areFriends,
+      hasPendingRequest: hasPendingRequest
+    });
+    
+  } catch (error) {
+    console.error("❌ Error checking friendship:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: getErrorMessage(error) 
+    });
+  }
 });
 
 // Update profile endpoint
