@@ -219,6 +219,38 @@ function hideConfirmationModal() {
 
 // ===== UNREAD SYSTEM FUNCTIONS =====
 
+let lastClearTime = 0;
+const CLEAR_DEBOUNCE_TIME = 1000; // 1 δευτερόλεπτο
+
+// Καθαρισμός unread messages - FIXED για console spam
+function clearUnread(type, sender, roomId = null) {
+    const now = Date.now();
+    
+    // Debounce για να αποφύγουμε πολλαπλά calls
+    if (now - lastClearTime < CLEAR_DEBOUNCE_TIME) {
+        return;
+    }
+    
+    lastClearTime = now;
+    
+    if (type === 'private') {
+        if (unreadMessages.private[sender]) {
+            delete unreadMessages.private[sender];
+        }
+    } else if (type === 'group') {
+        if (unreadMessages.groups[roomId]) {
+            delete unreadMessages.groups[roomId];
+        }
+    }
+    
+    updateUnreadBadges();
+    
+    // Ενημέρωση server μόνο αν υπάρχουν όντως δεδομένα
+    if (type || sender || roomId) {
+        socket.emit('mark_as_read', { type, sender, roomId });
+    }
+}
+
 // Προσθήκη unread message
 function addUnreadMessage(type, sender, roomId = null) {
     const key = roomId || sender;
@@ -240,24 +272,6 @@ function addUnreadMessage(type, sender, roomId = null) {
     // Ενημέρωση UI αν είμαστε στη σωστή σελίδα
     updateFriendsListBadges();
     updateRoomsListBadges();
-}
-
-// Καθαρισμός unread messages
-function clearUnread(type, sender, roomId = null) {
-    if (type === 'private') {
-        if (unreadMessages.private[sender]) {
-            delete unreadMessages.private[sender];
-        }
-    } else if (type === 'group') {
-        if (unreadMessages.groups[roomId]) {
-            delete unreadMessages.groups[roomId];
-        }
-    }
-    
-    updateUnreadBadges();
-    
-    // Ενημέρωση server
-    socket.emit('mark_as_read', { type, sender, roomId });
 }
 
 // Ενημέρωση όλων των badges
@@ -1232,6 +1246,19 @@ async function loadPrivateMessages(friendUsername) {
 
 // ===== USER INFO SYSTEM FUNCTIONS =====
 
+// Βοηθητική συνάρτηση για avatar colors
+function getAvatarColor(username) {
+    const colors = [
+        "#8B0000", "#1A1A1A", "#228B22", "#FFA500", "#4285F4",
+        "#9932CC", "#20B2AA", "#FF4500", "#4682B4", "#32CD32"
+    ];
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+}
+
 async function showUserInfo(username) {
     if (!username || username === currentUser.username) return;
     
@@ -1246,6 +1273,10 @@ async function showUserInfo(username) {
         });
         
         if (!response.ok) {
+            if (response.status === 401) {
+                handleSessionExpired();
+                return;
+            }
             throw new Error(`Server returned ${response.status}`);
         }
         
@@ -1313,12 +1344,22 @@ function updateUserInfoModal(user) {
             day: 'numeric'
         });
         document.getElementById("user-info-joined").textContent = joinedDate;
+    } else {
+        document.getElementById("user-info-joined").textContent = "Unknown";
     }
     
+    // Profile picture
     if (user.profile_picture) {
         document.getElementById("user-info-image").src = user.profile_picture;
     } else {
-        document.getElementById("user-info-image").src = "default-avatar.png";
+        // Default avatar αν δεν έχει εικόνα
+        const initials = user.username.substring(0, 2).toUpperCase();
+        const color = getAvatarColor(user.username);
+        const avatarElement = document.getElementById("user-info-image");
+        if (avatarElement) {
+            // Δημιουργία SVG avatar αν λείπει η εικόνα
+            avatarElement.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" fill="${color}" rx="60"/><text x="50%" y="50%" font-family="Arial, sans-serif" font-size="40" fill="white" text-anchor="middle" dy=".3em">${initials}</text></svg>`;
+        }
     }
     
     const addFriendBtn = document.getElementById("add-as-friend-btn");
@@ -1900,11 +1941,13 @@ socket.on("unread_update", (data) => {
     }
 });
 
-// 🔥 ΝΕΟ: Unread cleared confirmation
+// 🔥 ΝΕΟ: Unread cleared confirmation - FIXED για console spam
 socket.on("unread_cleared", (data) => {
-    console.log("✅ Unread cleared:", data);
-    
-    clearUnread(data.type, data.sender, data.roomId);
+    // Μόνο αν έχουμε πραγματικά δεδομένα
+    if (data && (data.type || data.sender || data.roomId)) {
+        console.log("✅ Unread cleared:", data);
+        clearUnread(data.type, data.sender, data.roomId);
+    }
 });
 
 // 🔥 ΝΕΟ: Server notifications με actions
