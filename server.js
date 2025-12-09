@@ -306,7 +306,9 @@ app.get("/user-profile/:username", validateSession, async (req, res) => {
     }
 });
 
-// User info endpoint (for viewing other users)
+// ===== ΝΕΑ ENDPOINTS: USER INFO SYSTEM =====
+
+// User info endpoint (για άλλους χρήστες)
 app.get("/user-info/:username", validateSession, async (req, res) => {
     try {
         const { username } = req.params;
@@ -330,6 +332,26 @@ app.get("/user-info/:username", validateSession, async (req, res) => {
         
     } catch (error) {
         console.error("Error getting user info:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Check friendship status endpoint
+app.get("/check-friendship/:username/:friendUsername", validateSession, async (req, res) => {
+    try {
+        const { username, friendUsername } = req.params;
+        
+        const areFriends = await dbHelpers.areFriends(username, friendUsername);
+        const hasPendingRequest = await dbHelpers.hasPendingRequest(username, friendUsername);
+        
+        res.json({
+            success: true,
+            areFriends: areFriends,
+            hasPendingRequest: hasPendingRequest
+        });
+        
+    } catch (error) {
+        console.error("Error checking friendship:", error);
         res.status(500).json({ success: false, error: getErrorMessage(error) });
     }
 });
@@ -1205,6 +1227,7 @@ async function startServer() {
       console.log(`💬 Enhanced security with session management`);
       console.log(`📬 UNREAD MESSAGES SYSTEM: ENABLED`);
       console.log(`👤 PROFILE SYSTEM: ENABLED`);
+      console.log(`👤 USER INFO SYSTEM: ENABLED`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
     });
   } catch (error) {
