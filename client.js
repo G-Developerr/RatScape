@@ -23,6 +23,9 @@ let unreadMessages = {
     total: 0
 };
 
+// ===== USER INFO SYSTEM =====
+let currentViewedUser = null;
+
 // ===== BEAUTIFUL NOTIFICATION SYSTEM WITH CLICKABLE =====
 
 function showNotification(message, type = "info", title = null, action = null, unreadCount = 1) {
@@ -754,6 +757,13 @@ function updateRoomMembers(members) {
         <span class="member-joined">${new Date(member.joined_at).toLocaleDateString()}</span>
       </div>
     `;
+        
+        // Προσθήκη click event για να ανοίγει το user info modal
+        memberDiv.addEventListener("click", (e) => {
+            e.stopPropagation();
+            showUserInfo(member.username);
+        });
+        
         membersList.appendChild(memberDiv);
     });
 }
@@ -1220,6 +1230,135 @@ async function loadPrivateMessages(friendUsername) {
     }
 }
 
+// ===== USER INFO SYSTEM FUNCTIONS =====
+
+async function showUserInfo(username) {
+    if (!username || username === currentUser.username) return;
+    
+    currentViewedUser = username;
+    
+    try {
+        const response = await fetch(`/user-info/${username}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateUserInfoModal(data.user);
+            showModal("user-info-modal");
+            
+            // Check friendship status
+            await checkFriendshipStatus(username);
+        } else {
+            showNotification(data.error || "Could not load user information", "error", "Error");
+        }
+    } catch (error) {
+        console.error("Error loading user info:", error);
+        showNotification("Could not load user information", "error", "Error");
+    }
+}
+
+async function checkFriendshipStatus(friendUsername) {
+    try {
+        const response = await fetch(`/check-friendship/${currentUser.username}/${friendUsername}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const addFriendBtn = document.getElementById("add-as-friend-btn");
+            
+            if (data.areFriends) {
+                addFriendBtn.style.display = 'none';
+            } else if (data.hasPendingRequest) {
+                addFriendBtn.innerHTML = '<i class="fas fa-clock"></i> Request Pending';
+                addFriendBtn.disabled = true;
+                addFriendBtn.style.display = 'block';
+            } else {
+                addFriendBtn.innerHTML = '<i class="fas fa-user-plus"></i> Add Friend';
+                addFriendBtn.disabled = false;
+                addFriendBtn.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error("Error checking friendship status:", error);
+    }
+}
+
+function updateUserInfoModal(user) {
+    document.getElementById("user-info-title").textContent = `${user.username}'s Profile`;
+    document.getElementById("user-info-username").textContent = user.username;
+    document.getElementById("user-info-status").textContent = user.status || "Offline";
+    document.getElementById("user-info-status").className = `info-value status-${user.status?.toLowerCase() || 'offline'}`;
+    
+    if (user.created_at) {
+        const joinedDate = new Date(user.created_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        document.getElementById("user-info-joined").textContent = joinedDate;
+    }
+    
+    if (user.profile_picture) {
+        document.getElementById("user-info-image").src = user.profile_picture;
+    } else {
+        document.getElementById("user-info-image").src = "default-avatar.png";
+    }
+    
+    const addFriendBtn = document.getElementById("add-as-friend-btn");
+    const sendMessageBtn = document.getElementById("send-private-message-btn");
+    
+    if (user.username === currentUser.username) {
+        addFriendBtn.style.display = 'none';
+        sendMessageBtn.disabled = true;
+        sendMessageBtn.innerHTML = '<i class="fas fa-user"></i> This is you';
+        sendMessageBtn.classList.remove("btn-primary");
+        sendMessageBtn.classList.add("btn-secondary");
+    } else {
+        addFriendBtn.style.display = 'block';
+        sendMessageBtn.disabled = false;
+        sendMessageBtn.innerHTML = '<i class="fas fa-comment"></i> Send Message';
+        sendMessageBtn.classList.remove("btn-secondary");
+        sendMessageBtn.classList.add("btn-primary");
+    }
+}
+
+// Make member items clickable for user info
+function makeMemberItemsClickable() {
+    const memberItems = document.querySelectorAll(".member-item");
+    memberItems.forEach(item => {
+        item.style.cursor = "pointer";
+        
+        item.addEventListener("mouseenter", function() {
+            this.style.backgroundColor = "rgba(51, 51, 51, 0.5)";
+            this.style.transform = "translateX(5px)";
+        });
+        
+        item.addEventListener("mouseleave", function() {
+            this.style.backgroundColor = "";
+            this.style.transform = "";
+        });
+        
+        item.addEventListener("click", function(e) {
+            e.stopPropagation();
+            const nameElement = this.querySelector(".member-name");
+            if (nameElement) {
+                showUserInfo(nameElement.textContent);
+            }
+        });
+    });
+}
+
 // ===== AUTHENTICATION FUNCTIONS =====
 
 async function handleLogin(email, password) {
@@ -1670,61 +1809,6 @@ async function changePassword(currentPassword, newPassword, confirmPassword) {
     }
 }
 
-// User info modal
-let currentViewedUser = null;
-
-async function showUserInfo(username) {
-    if (!username || username === currentUser.username) return;
-    
-    currentViewedUser = username;
-    
-    try {
-        const response = await fetch(`/user-info/${username}`, {
-            headers: {
-                "X-Session-ID": currentUser.sessionId,
-            },
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                updateUserInfoModal(data.user);
-                showModal("user-info-modal");
-            }
-        }
-    } catch (error) {
-        console.error("Error loading user info:", error);
-    }
-}
-
-function updateUserInfoModal(user) {
-    document.getElementById("user-info-title").textContent = `${user.username}'s Profile`;
-    document.getElementById("user-info-username").textContent = user.username;
-    document.getElementById("user-info-status").textContent = user.status || "Offline";
-    document.getElementById("user-info-status").className = `info-value status-${user.status?.toLowerCase() || 'offline'}`;
-    
-    if (user.created_at) {
-        const joinedDate = new Date(user.created_at).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-        document.getElementById("user-info-joined").textContent = joinedDate;
-    }
-    
-    if (user.profile_picture) {
-        document.getElementById("user-info-image").src = user.profile_picture;
-    } else {
-        document.getElementById("user-info-image").src = "default-avatar.png";
-    }
-    
-    // Check if already friends
-    const addFriendBtn = document.getElementById("add-as-friend-btn");
-    // This would need additional API endpoint to check friendship status
-    // For now, hide it
-    addFriendBtn.style.display = 'none';
-}
-
 // ===== SOCKET EVENT HANDLERS =====
 
 socket.on("connect", () => {
@@ -1859,7 +1943,7 @@ socket.on("room members", (members) => {
         updateRoomMembers(members);
         document.getElementById("room-status").textContent = `${members.length} members`;
         
-        // Make member items clickable
+        // Make member items clickable για το user info modal
         setTimeout(makeMemberItemsClickable, 100);
     }
 });
@@ -2130,9 +2214,10 @@ function initializeProfileEventListeners() {
     document.getElementById("cancel-password-btn").addEventListener("click", hideAllModals);
     document.getElementById("close-edit-profile-modal").addEventListener("click", hideAllModals);
     document.getElementById("close-change-password-modal").addEventListener("click", hideAllModals);
-    document.getElementById("close-user-info-modal").addEventListener("click", hideAllModals);
     
     // User info modal actions
+    document.getElementById("close-user-info-modal").addEventListener("click", hideAllModals);
+    
     document.getElementById("send-private-message-btn").addEventListener("click", () => {
         if (currentViewedUser) {
             hideAllModals();
@@ -2140,8 +2225,14 @@ function initializeProfileEventListeners() {
         }
     });
     
+    document.getElementById("add-as-friend-btn").addEventListener("click", () => {
+        if (currentViewedUser) {
+            handleAddFriend(currentViewedUser);
+            hideAllModals();
+        }
+    });
+    
     document.getElementById("view-mutual-rooms-btn").addEventListener("click", () => {
-        // This would load mutual rooms - needs additional API endpoint
         showNotification("Feature coming soon!", "info", "Coming Soon");
     });
     
@@ -2162,20 +2253,6 @@ function initializeProfileEventListeners() {
             };
             reader.readAsDataURL(file);
         }
-    });
-}
-
-// Make member items clickable for user info
-function makeMemberItemsClickable() {
-    const memberItems = document.querySelectorAll(".member-item");
-    memberItems.forEach(item => {
-        item.style.cursor = "pointer";
-        item.addEventListener("click", function() {
-            const nameElement = this.querySelector(".member-name");
-            if (nameElement) {
-                showUserInfo(nameElement.textContent);
-            }
-        });
     });
 }
 
