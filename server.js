@@ -336,7 +336,7 @@ app.get("/user-info/:username", validateSession, async (req, res) => {
     }
 });
 
-// Check friendship status endpoint - ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΛΕΙΠΟΝ ENDPOINT
+// ===== ΝΕΟ ENDPOINT: CHECK FRIENDSHIP STATUS =====
 app.get("/check-friendship/:username/:friendUsername", validateSession, async (req, res) => {
     try {
         const { username, friendUsername } = req.params;
@@ -1132,7 +1132,7 @@ io.on("connection", async (socket) => {
       
       await dbHelpers.markAsRead(currentUsername, sender, type, roomId);
       
-      // Ενημέρωση client
+      // Ενημέρωση client - μόνο στον συγκεκριμένο χρήστη
       socket.emit("unread_cleared", { type, sender, roomId });
       
     } catch (error) {
