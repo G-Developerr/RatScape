@@ -1230,7 +1230,7 @@ async function loadPrivateMessages(friendUsername) {
     }
 }
 
-// ===== USER INFO SYSTEM FUNCTIONS =====
+// client.js - Διορθωμένη συνάρτηση showUserInfo
 
 async function showUserInfo(username) {
     if (!username || username === currentUser.username) return;
@@ -1238,6 +1238,7 @@ async function showUserInfo(username) {
     currentViewedUser = username;
     
     try {
+        // Φόρτωση βασικών στοιχείων χρήστη
         const response = await fetch(`/user-info/${username}`, {
             headers: {
                 "X-Session-ID": currentUser.sessionId,
@@ -1261,7 +1262,7 @@ async function showUserInfo(username) {
         }
     } catch (error) {
         console.error("Error loading user info:", error);
-        showNotification("Could not load user information", "error", "Error");
+        showNotification("Could not load user information. Please try again.", "error", "Error");
     }
 }
 
@@ -1277,20 +1278,25 @@ async function checkFriendshipStatus(friendUsername) {
             const data = await response.json();
             const addFriendBtn = document.getElementById("add-as-friend-btn");
             
-            if (data.areFriends) {
-                addFriendBtn.style.display = 'none';
-            } else if (data.hasPendingRequest) {
-                addFriendBtn.innerHTML = '<i class="fas fa-clock"></i> Request Pending';
-                addFriendBtn.disabled = true;
-                addFriendBtn.style.display = 'block';
-            } else {
-                addFriendBtn.innerHTML = '<i class="fas fa-user-plus"></i> Add Friend';
-                addFriendBtn.disabled = false;
-                addFriendBtn.style.display = 'block';
+            if (data.success) {
+                if (data.areFriends) {
+                    addFriendBtn.style.display = 'none';
+                } else if (data.hasPendingRequest) {
+                    addFriendBtn.innerHTML = '<i class="fas fa-clock"></i> Request Pending';
+                    addFriendBtn.disabled = true;
+                    addFriendBtn.style.display = 'block';
+                } else {
+                    addFriendBtn.innerHTML = '<i class="fas fa-user-plus"></i> Add Friend';
+                    addFriendBtn.disabled = false;
+                    addFriendBtn.style.display = 'block';
+                }
             }
         }
     } catch (error) {
         console.error("Error checking friendship status:", error);
+        // Μην εμφανίσεις error, απλά μην δείξεις το κουμπί
+        const addFriendBtn = document.getElementById("add-as-friend-btn");
+        addFriendBtn.style.display = 'none';
     }
 }
 
@@ -1325,13 +1331,15 @@ function updateUserInfoModal(user) {
         sendMessageBtn.classList.remove("btn-primary");
         sendMessageBtn.classList.add("btn-secondary");
     } else {
-        addFriendBtn.style.display = 'block';
+        // Αρχικά κρύψε το κουμπί μέχρι να ελεγχθεί η φιλία
+        addFriendBtn.style.display = 'none';
         sendMessageBtn.disabled = false;
         sendMessageBtn.innerHTML = '<i class="fas fa-comment"></i> Send Message';
         sendMessageBtn.classList.remove("btn-secondary");
         sendMessageBtn.classList.add("btn-primary");
     }
 }
+
 
 // Make member items clickable for user info
 function makeMemberItemsClickable() {
@@ -2435,3 +2443,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("✅ Ready to chat!");
 });
+
