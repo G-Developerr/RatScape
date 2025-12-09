@@ -1230,7 +1230,7 @@ async function loadPrivateMessages(friendUsername) {
     }
 }
 
-// client.js - Διορθωμένη συνάρτηση showUserInfo
+// ===== USER INFO SYSTEM FUNCTIONS =====
 
 async function showUserInfo(username) {
     if (!username || username === currentUser.username) return;
@@ -1339,7 +1339,6 @@ function updateUserInfoModal(user) {
         sendMessageBtn.classList.add("btn-primary");
     }
 }
-
 
 // Make member items clickable for user info
 function makeMemberItemsClickable() {
@@ -2443,4 +2442,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("✅ Ready to chat!");
 });
-
