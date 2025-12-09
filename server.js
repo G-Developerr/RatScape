@@ -4,8 +4,9 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
-const { dbHelpers, initializeDatabase } = require("./database.js");
+const { dbHelpers } = require("./database.js");
 const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 const server = createServer(app);
@@ -26,6 +27,11 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads');
+}
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -277,13 +283,13 @@ app.get("/user-profile/:username", validateSession, async (req, res) => {
         const friends = await dbHelpers.getFriends(username);
         const rooms = await dbHelpers.getUserRooms(username);
         
-        // Get messages count (simplified)
-        const messages = await dbHelpers.getUserStats(username);
+        // Get messages count (simplified - you might want to add proper method)
+        const messagesCount = await dbHelpers.getUserMessagesCount(username);
         
         const profile = {
             username: user.username,
             email: user.email,
-            status: user.status,
+            status: user.status || "Online",
             created_at: user.created_at,
             profile_picture: user.profile_picture || null
         };
@@ -291,7 +297,7 @@ app.get("/user-profile/:username", validateSession, async (req, res) => {
         const stats = {
             friends: friends.length,
             rooms: rooms.length,
-            messages: messages || 0
+            messages: messagesCount || 0
         };
         
         res.json({
@@ -543,8 +549,9 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
             console.log("✅ User created successfully:", username);
 
             // Handle avatar if provided
+            let profilePicture = null;
             if (req.file) {
-                const profilePicture = `/uploads/${req.file.filename}`;
+                profilePicture = `/uploads/${req.file.filename}`;
                 await dbHelpers.updateUser(username, { 
                     profile_picture: profilePicture 
                 });
@@ -553,6 +560,7 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
             res.json({
                 success: true,
                 message: "Account created successfully! You can now login.",
+                profile_picture: profilePicture
             });
         } catch (createError) {
             console.error("❌ Error creating user in database:", createError);
@@ -915,6 +923,23 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
   }
 });
 
+// Get user messages count
+app.get("/user-messages-count/:username", validateSession, async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const count = await dbHelpers.getUserMessagesCount(username);
+    
+    res.json({
+      success: true,
+      count: count
+    });
+  } catch (error) {
+    console.error("Error getting user messages count:", error);
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
+  }
+});
+
 // ===== SOCKET.IO CONNECTION WITH ENHANCED UNREAD SYSTEM =====
 
 io.on("connection", async (socket) => {
@@ -1263,9 +1288,6 @@ setInterval(async () => {
 // 🔥 FIXED: Start server ONLY after database connection
 async function startServer() {
   try {
-    // Wait for database to connect
-    await initializeDatabase();
-    
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 RatScape Server running on port ${PORT}`);
