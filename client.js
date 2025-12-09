@@ -1171,6 +1171,8 @@ async function handleRemoveFriend(friendUsername) {
 }
 
 function startPrivateChatWithFriend(friendUsername) {
+    console.log("💬 Starting private chat with:", friendUsername);
+    
     // Δημιουργία μοναδικού κωδικού για το private chat
     const privateChatId = `private_${currentUser.username}_${friendUsername}_${Date.now()}`;
     const privateInviteCode = `PRV_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
@@ -1181,6 +1183,8 @@ function startPrivateChatWithFriend(friendUsername) {
         inviteCode: privateInviteCode,
         isPrivate: true,
     };
+
+    console.log("🏠 Created private chat:", currentRoom);
 
     document.getElementById("room-name-sidebar").textContent = friendUsername;
     document.getElementById("room-name-header").textContent = `Private Chat with ${friendUsername}`;
@@ -1264,6 +1268,8 @@ async function showUserInfo(username) {
     
     currentViewedUser = username;
     
+    console.log("🔍 Showing user info for:", username);
+    
     try {
         // Φόρτωση βασικών στοιχείων χρήστη
         const response = await fetch(`/user-info/${username}`, {
@@ -1271,6 +1277,8 @@ async function showUserInfo(username) {
                 "X-Session-ID": currentUser.sessionId,
             },
         });
+        
+        console.log("📊 User info response status:", response.status);
         
         if (!response.ok) {
             if (response.status === 401) {
@@ -1281,6 +1289,7 @@ async function showUserInfo(username) {
         }
         
         const data = await response.json();
+        console.log("📋 User info data:", data);
         
         if (data.success) {
             updateUserInfoModal(data.user);
@@ -1292,7 +1301,7 @@ async function showUserInfo(username) {
             showNotification(data.error || "Could not load user information", "error", "Error");
         }
     } catch (error) {
-        console.error("Error loading user info:", error);
+        console.error("❌ Error loading user info:", error);
         showNotification("Could not load user information. Please try again.", "error", "Error");
     }
 }
@@ -1680,6 +1689,8 @@ function handleSendMessage() {
 async function loadUserProfile() {
     if (!currentUser.authenticated) return;
     
+    console.log("🔍 Loading profile for:", currentUser.username);
+    
     try {
         const response = await fetch(`/user-profile/${currentUser.username}`, {
             headers: {
@@ -1692,10 +1703,13 @@ async function loadUserProfile() {
         }
         
         const data = await response.json();
+        console.log("📋 Profile data:", data);
         
         if (data.success) {
             updateProfileUI(data.profile);
             updateProfileStats(data.stats);
+        } else {
+            showNotification("Could not load profile", "error", "Profile Error");
         }
     } catch (error) {
         console.error("Error loading profile:", error);
@@ -1705,12 +1719,20 @@ async function loadUserProfile() {
 
 function updateProfileUI(profile) {
     // Basic info
-    document.getElementById("profile-username").textContent = profile.username || currentUser.username;
-    document.getElementById("profile-email").textContent = profile.email || currentUser.email;
-    document.getElementById("info-username").textContent = profile.username || currentUser.username;
-    document.getElementById("info-email").textContent = profile.email || currentUser.email;
-    document.getElementById("info-status").textContent = profile.status || "Online";
-    document.getElementById("info-status").className = `info-value status-${profile.status?.toLowerCase() || 'online'}`;
+    if (profile.username) {
+        document.getElementById("profile-username").textContent = profile.username;
+        document.getElementById("info-username").textContent = profile.username;
+    }
+    
+    if (profile.email) {
+        document.getElementById("profile-email").textContent = profile.email;
+        document.getElementById("info-email").textContent = profile.email;
+    }
+    
+    if (profile.status) {
+        document.getElementById("info-status").textContent = profile.status;
+        document.getElementById("info-status").className = `info-value status-${profile.status.toLowerCase()}`;
+    }
     
     // Joined date
     if (profile.created_at) {
@@ -1727,14 +1749,26 @@ function updateProfileUI(profile) {
         document.getElementById("profile-image").src = profile.profile_picture;
         document.getElementById("profile-image").style.display = 'block';
     } else {
-        document.getElementById("profile-image").src = 'default-avatar.png';
+        // Default avatar
+        const initials = profile.username.substring(0, 2).toUpperCase();
+        const color = getAvatarColor(profile.username);
+        const avatarElement = document.getElementById("profile-image");
+        if (avatarElement) {
+            avatarElement.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" fill="${color}" rx="60"/><text x="50%" y="50%" font-family="Arial, sans-serif" font-size="40" fill="white" text-anchor="middle" dy=".3em">${initials}</text></svg>`;
+        }
     }
 }
 
 function updateProfileStats(stats) {
-    document.getElementById("stat-friends").textContent = stats.friends || 0;
-    document.getElementById("stat-rooms").textContent = stats.rooms || 0;
-    document.getElementById("stat-messages").textContent = stats.messages || 0;
+    if (stats.friends !== undefined) {
+        document.getElementById("stat-friends").textContent = stats.friends;
+    }
+    if (stats.rooms !== undefined) {
+        document.getElementById("stat-rooms").textContent = stats.rooms;
+    }
+    if (stats.messages !== undefined) {
+        document.getElementById("stat-messages").textContent = stats.messages;
+    }
 }
 
 function showProfilePage() {
@@ -2209,6 +2243,27 @@ function initializeEventListeners() {
 
     // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
     initializeProfileEventListeners();
+    
+    // User info modal actions
+    document.getElementById("send-private-message-btn").addEventListener("click", () => {
+        if (currentViewedUser) {
+            console.log("💬 Sending message to:", currentViewedUser);
+            hideAllModals();
+            startPrivateChatWithFriend(currentViewedUser);
+        }
+    });
+    
+    document.getElementById("add-as-friend-btn").addEventListener("click", () => {
+        if (currentViewedUser) {
+            console.log("➕ Adding friend:", currentViewedUser);
+            handleAddFriend(currentViewedUser);
+            hideAllModals();
+        }
+    });
+    
+    document.getElementById("view-mutual-rooms-btn").addEventListener("click", () => {
+        showNotification("Feature coming soon!", "info", "Coming Soon");
+    });
 }
 
 // ===== PROFILE EVENT LISTENERS =====
@@ -2265,26 +2320,7 @@ function initializeProfileEventListeners() {
     document.getElementById("close-edit-profile-modal").addEventListener("click", hideAllModals);
     document.getElementById("close-change-password-modal").addEventListener("click", hideAllModals);
     
-    // User info modal actions
-    document.getElementById("close-user-info-modal").addEventListener("click", hideAllModals);
-    
-    document.getElementById("send-private-message-btn").addEventListener("click", () => {
-        if (currentViewedUser) {
-            hideAllModals();
-            startPrivateChatWithFriend(currentViewedUser);
-        }
-    });
-    
-    document.getElementById("add-as-friend-btn").addEventListener("click", () => {
-        if (currentViewedUser) {
-            handleAddFriend(currentViewedUser);
-            hideAllModals();
-        }
-    });
-    
-    document.getElementById("view-mutual-rooms-btn").addEventListener("click", () => {
-        showNotification("Feature coming soon!", "info", "Coming Soon");
-    });
+    // User info modal actions (ΕΔΩ ΤΑ ΕΧΟΥΜΕ ΗΔΗ ΑΝΤΙΓΡΑΜΜΕΝΑ ΠΑΝΩ)
     
     // Avatar preview for registration
     document.getElementById("register-browse-btn").addEventListener("click", () => {
