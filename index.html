@@ -18,25 +18,18 @@
     <link rel="manifest" href="/manifest.json">
     
     <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" sizes="72x72" href="/icon-72x72.png">
-    <link rel="apple-touch-icon" sizes="96x96" href="/icon-96x96.png">
-    <link rel="apple-touch-icon" sizes="128x128" href="/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="/icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/icon-152x152.png">
     <link rel="apple-touch-icon" sizes="192x192" href="/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="384x384" href="/icon-384x384.png">
     <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png">
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/icon-16x16.png">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <!-- 🔥 PWA FLOATING INSTALL BUTTON - ΚΑΤΩ ΔΕΞΙΑ, ΜΟΝΟ ΣΤΟ HOME PAGE -->
+    <!-- PWA FLOATING INSTALL BUTTON -->
     <button id="pwa-install-btn" class="pwa-floating-install-button" style="display: none;" onclick="installPWA()">
         <i class="fas fa-download"></i>
         <span class="install-text">Download RatScape</span>
@@ -58,7 +51,6 @@
             <span id="nav-username" class="nav-username"></span>
             <button id="my-friends-btn" class="nav-btn"><i class="fas fa-users"></i> Friends</button>
             <button id="my-rooms-btn" class="nav-btn"><i class="fas fa-comments"></i> My Rooms</button>
-            <!-- ΠΡΟΣΘΗΚΗ: PROFILE BUTTON -->
             <button id="my-profile-btn" class="nav-btn"><i class="fas fa-user-circle"></i> Profile</button>
             <button id="logout-btn" class="nav-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
@@ -142,7 +134,7 @@
         </div>
     </div>
 
-    <!-- ΜΥ PROFILE PAGE -->
+    <!-- MY PROFILE PAGE -->
     <div id="profile-page" class="page">
         <div class="rooms-container">
             <div class="rooms-header">
@@ -153,12 +145,11 @@
             </div>
 
             <div class="profile-container">
-                <!-- Profile Picture Section -->
+                <!-- Profile content here -->
                 <div class="profile-picture-section">
                     <div class="profile-picture-container">
                         <div class="profile-image-wrapper">
-                            <img id="profile-image" src="" alt="Profile Picture" 
-                                 class="profile-image" onerror="this.src='default-avatar.png'">
+                            <img id="profile-image" src="" alt="Profile Picture" class="profile-image">
                             <div class="profile-image-overlay">
                                 <button id="change-profile-pic-btn" class="btn-icon">
                                     <i class="fas fa-camera"></i>
@@ -168,59 +159,7 @@
                         <input type="file" id="profile-image-input" accept="image/*" style="display: none;">
                     </div>
                     <h3 id="profile-username">Username</h3>
-                    <p class="profile-email" id="profile-email">Email will appear here</p>
-                </div>
-
-                <!-- Profile Information -->
-                <div class="profile-info-section">
-                    <div class="info-card">
-                        <h3>Account Information</h3>
-                        <div class="info-item">
-                            <label>Username:</label>
-                            <span id="info-username" class="info-value">username</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Email:</label>
-                            <span id="info-email" class="info-value">email@example.com</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Member since:</label>
-                            <span id="info-joined" class="info-value">Loading...</span>
-                        </div>
-                        <div class="info-item">
-                            <label>Status:</label>
-                            <span id="info-status" class="info-value status-online">Online</span>
-                        </div>
-                    </div>
-
-                    <!-- Statistics Card -->
-                    <div class="stats-card">
-                        <h3>Your Statistics</h3>
-                        <div class="stats-grid">
-                            <div class="stat-item">
-                                <div class="stat-value" id="stat-friends">0</div>
-                                <div class="stat-label">Friends</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="stat-rooms">0</div>
-                                <div class="stat-label">Rooms</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="stat-messages">0</div>
-                                <div class="stat-label">Messages</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Profile Actions -->
-                    <div class="profile-actions">
-                        <button id="edit-profile-btn" class="btn btn-primary">
-                            <i class="fas fa-edit"></i> Edit Profile
-                        </button>
-                        <button id="change-password-btn" class="btn btn-secondary">
-                            <i class="fas fa-key"></i> Change Password
-                        </button>
-                    </div>
+                    <p class="profile-email" id="profile-email">Email</p>
                 </div>
             </div>
         </div>
@@ -310,23 +249,19 @@
                 <h3>Login to RatScape</h3>
                 <button class="close-modal-btn" id="close-login-modal">×</button>
             </div>
-
             <div class="form-container active">
                 <div class="form-group">
                     <label for="login-email">Email</label>
                     <input type="email" id="login-email" placeholder="your@email.com">
                 </div>
-
                 <div class="form-group">
                     <label for="login-password">Password</label>
                     <input type="password" id="login-password" placeholder="Enter your password">
                 </div>
-
                 <div class="modal-buttons">
                     <button class="btn btn-primary" id="login-submit"><i class="fas fa-sign-in-alt"></i> Login</button>
                     <button class="btn btn-secondary" id="login-cancel">Cancel</button>
                 </div>
-
                 <div class="guest-section">
                     <p>Don't have an account?</p>
                     <button class="btn btn-guest" id="switch-to-register"><i class="fas fa-user-plus"></i> Create Account</button>
@@ -342,53 +277,27 @@
                 <h3>Join RatScape</h3>
                 <button class="close-modal-btn" id="close-register-modal">×</button>
             </div>
-
             <div class="form-container active">
                 <div class="form-group">
                     <label for="register-email">Email</label>
                     <input type="email" id="register-email" placeholder="your@email.com">
                 </div>
-
                 <div class="form-group">
                     <label for="register-username">Username</label>
                     <input type="text" id="register-username" placeholder="Choose a username">
                 </div>
-
                 <div class="form-group">
                     <label for="register-password">Password</label>
                     <input type="password" id="register-password" placeholder="Create a password">
                 </div>
-
                 <div class="form-group">
                     <label for="register-confirm">Confirm Password</label>
                     <input type="password" id="register-confirm" placeholder="Confirm your password">
                 </div>
-
-                <!-- ΠΡΟΣΘΗΚΗ: PROFILE PICTURE UPLOAD -->
-                <div class="form-group">
-                    <label>Profile Picture (Optional)</label>
-                    <div class="registration-avatar-section">
-                        <div class="registration-avatar-preview">
-                            <img id="register-avatar-preview" src="" alt="Avatar Preview" style="display: none;">
-                            <div id="register-avatar-placeholder" class="registration-avatar-placeholder">
-                                <i class="fas fa-user-circle"></i>
-                                <p>No image selected</p>
-                            </div>
-                        </div>
-                        <div class="registration-avatar-buttons">
-                            <button type="button" class="btn btn-secondary" id="register-browse-btn">
-                                <i class="fas fa-folder-open"></i> Browse
-                            </button>
-                            <input type="file" id="register-avatar-input" accept="image/*" style="display: none;">
-                        </div>
-                    </div>
-                </div>
-
                 <div class="modal-buttons">
                     <button class="btn btn-primary" id="register-submit"><i class="fas fa-user-plus"></i> Create Account</button>
                     <button class="btn btn-secondary" id="register-cancel">Cancel</button>
                 </div>
-
                 <div class="guest-section">
                     <p>Already have an account?</p>
                     <button class="btn btn-guest" id="switch-to-login"><i class="fas fa-sign-in-alt"></i> Sign In</button>
@@ -404,13 +313,11 @@
                 <h3>Create New Room</h3>
                 <button class="close-modal-btn" id="close-create-room-modal">×</button>
             </div>
-
             <div class="form-container active">
                 <div class="form-group">
                     <label for="room-name-input">Room Name</label>
                     <input type="text" id="room-name-input" placeholder="Enter room name">
                 </div>
-
                 <div class="modal-buttons">
                     <button class="btn btn-primary" id="create-room-submit"><i class="fas fa-plus-circle"></i> Create Room</button>
                     <button class="btn btn-secondary" id="create-room-cancel">Cancel</button>
@@ -426,13 +333,11 @@
                 <h3>Join Room with Code</h3>
                 <button class="close-modal-btn" id="close-join-room-modal">×</button>
             </div>
-
             <div class="form-container active">
                 <div class="form-group">
                     <label for="invite-code-input">Invite Code</label>
                     <input type="text" id="invite-code-input" placeholder="Enter invite code" style="text-transform: uppercase;">
                 </div>
-
                 <div class="modal-buttons">
                     <button class="btn btn-primary" id="join-room-submit"><i class="fas fa-key"></i> Join Room</button>
                     <button class="btn btn-secondary" id="join-room-cancel">Cancel</button>
@@ -448,13 +353,11 @@
                 <h3>Add Friend</h3>
                 <button class="close-modal-btn" id="close-add-friend-modal">×</button>
             </div>
-
             <div class="form-container active">
                 <div class="form-group">
                     <label for="friend-username-input">Friend's Username</label>
                     <input type="text" id="friend-username-input" placeholder="Enter username">
                 </div>
-
                 <div class="modal-buttons">
                     <button class="btn btn-primary" id="add-friend-submit"><i class="fas fa-user-plus"></i> Add Friend</button>
                     <button class="btn btn-secondary" id="add-friend-cancel">Cancel</button>
@@ -463,92 +366,7 @@
         </div>
     </div>
 
-    <!-- EDIT PROFILE MODAL -->
-    <div class="modal" id="edit-profile-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Edit Profile</h3>
-                <button class="close-modal-btn" id="close-edit-profile-modal">×</button>
-            </div>
-
-            <div class="form-container active">
-                <div class="form-group">
-                    <label for="edit-username">Username</label>
-                    <input type="text" id="edit-username" placeholder="Enter new username">
-                </div>
-
-                <div class="form-group">
-                    <label for="edit-email">Email</label>
-                    <input type="email" id="edit-email" placeholder="Enter new email">
-                </div>
-
-                <div class="form-group">
-                    <label>Profile Picture</label>
-                    <div class="profile-picture-upload">
-                        <div class="upload-preview">
-                            <img id="profile-preview" src="" alt="Preview" style="display: none;">
-                            <div id="upload-placeholder">
-                                <i class="fas fa-user-circle"></i>
-                                <p>No image selected</p>
-                            </div>
-                        </div>
-                        <div class="upload-buttons">
-                            <button type="button" class="btn btn-secondary" id="browse-image-btn">
-                                <i class="fas fa-folder-open"></i> Browse
-                            </button>
-                            <input type="file" id="profile-upload-input" accept="image/*" style="display: none;">
-                            <button type="button" class="btn btn-danger" id="remove-image-btn" style="display: none;">
-                                <i class="fas fa-trash"></i> Remove
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="modal-buttons">
-                    <button class="btn btn-primary" id="save-profile-btn">
-                        <i class="fas fa-save"></i> Save Changes
-                    </button>
-                    <button class="btn btn-secondary" id="cancel-edit-profile-btn">Cancel</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- CHANGE PASSWORD MODAL -->
-    <div class="modal" id="change-password-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Change Password</h3>
-                <button class="close-modal-btn" id="close-change-password-modal">×</button>
-            </div>
-
-            <div class="form-container active">
-                <div class="form-group">
-                    <label for="current-password">Current Password</label>
-                    <input type="password" id="current-password" placeholder="Enter current password">
-                </div>
-
-                <div class="form-group">
-                    <label for="new-password">New Password</label>
-                    <input type="password" id="new-password" placeholder="Enter new password">
-                </div>
-
-                <div class="form-group">
-                    <label for="confirm-new-password">Confirm New Password</label>
-                    <input type="password" id="confirm-new-password" placeholder="Confirm new password">
-                </div>
-
-                <div class="modal-buttons">
-                    <button class="btn btn-primary" id="save-password-btn">
-                        <i class="fas fa-save"></i> Change Password
-                    </button>
-                    <button class="btn btn-secondary" id="cancel-password-btn">Cancel</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- USER INFO MODAL (για όταν κλικάρεις σε user στο sidebar) -->
+    <!-- 🔥 NEW: USER INFO MODAL -->
     <div class="modal" id="user-info-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -559,8 +377,7 @@
             <div class="form-container active">
                 <div class="user-info-container">
                     <div class="user-info-picture">
-                        <img id="user-info-image" src="" alt="User Picture" 
-                             class="user-info-image" onerror="this.src='default-avatar.png'">
+                        <img id="user-info-image" src="" alt="User Picture" class="user-info-image" onerror="this.src='default-avatar.png'">
                     </div>
                     
                     <div class="user-info-details">
@@ -597,7 +414,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
     
-    <!-- 🔥 ENHANCED PWA SCRIPT -->
+    <!-- PWA SCRIPT -->
     <script>
     // Register Service Worker for PWA
     if ('serviceWorker' in navigator) {
@@ -616,25 +433,20 @@
     let deferredPrompt;
     let installButton = document.getElementById('pwa-install-btn');
 
-    // Function για να εμφανίζει το install button (ΜΟΝΟ στο home page)
     function showInstallButton() {
       const homePageActive = document.getElementById('home-page').classList.contains('active');
       const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
                     window.navigator.standalone === true;
       
-      console.log('🔍 Checking install button:', { homePageActive, isPWA, deferredPrompt: !!deferredPrompt });
-      
       if (installButton && homePageActive && !isPWA) {
         installButton.style.display = 'flex';
         installButton.classList.add('fade-in');
-        console.log('🔄 Install button shown on home page');
       } else {
         installButton.style.display = 'none';
         installButton.classList.remove('fade-in');
       }
     }
 
-    // Function για να κρύβει το install button
     function hideInstallButton() {
       if (installButton) {
         installButton.style.display = 'none';
@@ -642,7 +454,6 @@
       }
     }
 
-    // Event listener για install prompt
     window.addEventListener('beforeinstallprompt', (e) => {
       console.log('📱 PWA Install Prompt triggered');
       e.preventDefault();
@@ -650,9 +461,7 @@
       showInstallButton();
     });
 
-    // Enhanced install function
     window.installPWA = async () => {
-      // Αν υπάρχει deferredPrompt (Chrome/Edge στα desktop)
       if (deferredPrompt) {
         console.log('📲 Starting PWA installation with browser prompt...');
         
@@ -670,7 +479,6 @@
         
         deferredPrompt = null;
       } else {
-        // Fallback για browsers που δεν έχουν deferredPrompt
         console.log('ℹ️ No install prompt available, showing instructions');
         if (typeof showNotification === 'function') {
           showNotification('Look for the install option in your browser menu!', 'info', 'Install RatScape');
@@ -678,7 +486,6 @@
       }
     };
 
-    // Έλεγχος αν τρέχει ως PWA
     window.addEventListener('load', () => {
       const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
                     window.navigator.standalone === true;
@@ -690,17 +497,14 @@
       } else {
         console.log('🌐 Running in browser');
         document.body.classList.remove('pwa-mode');
-        // Στα desktop, δείξε το κουμπί ακόμα και χωρίς deferredPrompt
         setTimeout(showInstallButton, 1000);
       }
     });
 
-    // Παρακολούθηση αλλαγών σελίδας για το install button
     const observer = new MutationObserver(() => {
       showInstallButton();
     });
 
-    // Παρακολούθησε όλες τις σελίδες για αλλαγές
     document.querySelectorAll('.page').forEach(page => {
       observer.observe(page, { 
         attributes: true, 
@@ -708,235 +512,10 @@
       });
     });
 
-    // Έλεγξε κατά το load
     document.addEventListener('DOMContentLoaded', () => {
       setTimeout(showInstallButton, 1500);
     });
-
-    // Debug function
-    window.debugPWA = () => {
-      console.log('🔍 PWA Debug Info:');
-      console.log('- deferredPrompt:', deferredPrompt ? 'Available' : 'Not available');
-      console.log('- Home page active:', document.getElementById('home-page').classList.contains('active'));
-      console.log('- Is PWA:', window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true);
-      console.log('- Install button visible:', installButton ? getComputedStyle(installButton).display !== 'none' : 'N/A');
-      console.log('- Current page:', document.querySelector('.page.active')?.id);
-    };
     </script>
-
-    <style>
-    /* Additional CSS for PWA Floating Button */
-    .pwa-floating-install-button {
-        /* Position - Fixed κάτω δεξιά */
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        z-index: 9999;
-        
-        /* Styling με τα χρώματα του RatScape */
-        background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%);
-        color: white;
-        border: none;
-        padding: 16px 24px;
-        border-radius: 50px;
-        cursor: pointer;
-        font-weight: 700;
-        font-size: 1rem;
-        
-        /* Layout */
-        display: none;
-        align-items: center;
-        gap: 10px;
-        
-        /* Shadows & Effects */
-        box-shadow: 0 8px 25px rgba(139, 0, 0, 0.5),
-                    0 4px 10px rgba(0, 0, 0, 0.3);
-        transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        
-        /* Animation ready */
-        transform: scale(1);
-        animation: floatPulse 3s ease-in-out infinite;
-        
-        /* Border για emphasis */
-        border: 2px solid rgba(255, 255, 255, 0.1);
-    }
-
-    /* Shine effect */
-    .pwa-floating-install-button::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-        transition: left 0.6s ease;
-        border-radius: 50px;
-    }
-
-    .pwa-floating-install-button:hover::before {
-        left: 100%;
-    }
-
-    /* Hover effects */
-    .pwa-floating-install-button:hover {
-        transform: scale(1.1) translateY(-3px);
-        box-shadow: 0 12px 35px rgba(255, 0, 0, 0.6),
-                    0 6px 15px rgba(0, 0, 0, 0.4);
-        animation: none;
-        background: linear-gradient(135deg, var(--accent-red) 0%, #CC0000 100%);
-    }
-
-    .pwa-floating-install-button:active {
-        transform: scale(0.95);
-    }
-
-    /* Icon styling */
-    .pwa-floating-install-button i {
-        font-size: 1.3rem;
-        animation: downloadBounce 2s ease-in-out infinite;
-    }
-
-    .pwa-floating-install-button:hover i {
-        animation: none;
-        transform: translateY(-2px);
-    }
-
-    /* Text styling */
-    .pwa-floating-install-button .install-text {
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        font-size: 0.9rem;
-    }
-
-    /* Pulse animation */
-    @keyframes floatPulse {
-        0%, 100% {
-            transform: scale(1) translateY(0);
-            box-shadow: 0 8px 25px rgba(139, 0, 0, 0.5),
-                        0 4px 10px rgba(0, 0, 0, 0.3);
-        }
-        50% {
-            transform: scale(1.05) translateY(-5px);
-            box-shadow: 0 12px 35px rgba(139, 0, 0, 0.6),
-                        0 6px 15px rgba(0, 0, 0, 0.4);
-        }
-    }
-
-    /* Download icon bounce */
-    @keyframes downloadBounce {
-        0%, 100% { 
-            transform: translateY(0); 
-        }
-        50% { 
-            transform: translateY(-5px); 
-        }
-    }
-
-    /* Εγγυημένη εμφάνιση του install button */
-    .pwa-floating-install-button.fade-in {
-        display: flex !important;
-        animation: fadeInSlideUp 0.5s ease-out forwards;
-    }
-
-    @keyframes fadeInSlideUp {
-        from {
-            opacity: 0;
-            transform: translateY(50px) scale(0.8);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-
-    /* Hide button when running as PWA */
-    body.pwa-mode .pwa-floating-install-button {
-        display: none !important;
-    }
-
-    /* Tablet responsive (landscape) */
-    @media (max-width: 1024px) {
-        .pwa-floating-install-button {
-            bottom: 25px;
-            right: 25px;
-            padding: 14px 20px;
-            font-size: 0.95rem;
-        }
-        
-        .pwa-floating-install-button i {
-            font-size: 1.2rem;
-        }
-    }
-
-    /* Mobile responsive */
-    @media (max-width: 768px) {
-        .pwa-floating-install-button {
-            bottom: 20px;
-            right: 20px;
-            padding: 14px 18px;
-            font-size: 0.9rem;
-            border-radius: 45px;
-        }
-        
-        .pwa-floating-install-button .install-text {
-            font-size: 0.85rem;
-        }
-        
-        .pwa-floating-install-button i {
-            font-size: 1.1rem;
-        }
-    }
-
-    /* Small mobile */
-    @media (max-width: 480px) {
-        .pwa-floating-install-button {
-            bottom: 15px;
-            right: 15px;
-            padding: 12px 16px;
-            font-size: 0.85rem;
-        }
-        
-        .pwa-floating-install-button .install-text {
-            display: none;
-        }
-        
-        .pwa-floating-install-button i {
-            font-size: 1.3rem;
-            margin: 0;
-        }
-        
-        .pwa-floating-install-button {
-            width: 56px;
-            height: 56px;
-            padding: 0;
-            border-radius: 50%;
-            display: none;
-            justify-content: center;
-            align-items: center;
-        }
-    }
-
-    /* Extra small devices */
-    @media (max-width: 360px) {
-        .pwa-floating-install-button {
-            bottom: 10px;
-            right: 10px;
-            width: 50px;
-            height: 50px;
-        }
-        
-        .pwa-floating-install-button i {
-            font-size: 1.2rem;
-        }
-    }
-
-    /* Special case: Avoid overlap with notification container */
-    .notification-container ~ .pwa-floating-install-button {
-        bottom: 30px;
-    }
-    </style>
 </body>
 
 </html>
