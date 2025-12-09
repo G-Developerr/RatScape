@@ -336,10 +336,14 @@ app.get("/user-info/:username", validateSession, async (req, res) => {
     }
 });
 
-// Check friendship status endpoint
+// Check friendship status endpoint - ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΛΕΙΠΟΝ ENDPOINT
 app.get("/check-friendship/:username/:friendUsername", validateSession, async (req, res) => {
     try {
         const { username, friendUsername } = req.params;
+        
+        if (!username || !friendUsername) {
+            return res.status(400).json({ success: false, error: "Both usernames required" });
+        }
         
         const areFriends = await dbHelpers.areFriends(username, friendUsername);
         const hasPendingRequest = await dbHelpers.hasPendingRequest(username, friendUsername);
@@ -352,7 +356,10 @@ app.get("/check-friendship/:username/:friendUsername", validateSession, async (r
         
     } catch (error) {
         console.error("Error checking friendship:", error);
-        res.status(500).json({ success: false, error: getErrorMessage(error) });
+        res.status(500).json({ 
+            success: false, 
+            error: getErrorMessage(error) 
+        });
     }
 });
 
@@ -1228,6 +1235,7 @@ async function startServer() {
       console.log(`📬 UNREAD MESSAGES SYSTEM: ENABLED`);
       console.log(`👤 PROFILE SYSTEM: ENABLED`);
       console.log(`👤 USER INFO SYSTEM: ENABLED`);
+      console.log(`🔔 NOTIFICATION TIMEOUT: 5 SECONDS`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
     });
   } catch (error) {
