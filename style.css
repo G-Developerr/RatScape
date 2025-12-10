@@ -2465,6 +2465,75 @@ body.pwa-mode .pwa-floating-install-button {
     transform: scale(0.95);
 }
 
+/* ========================================
+   PRIVATE CHAT AVATAR STYLING
+   ======================================== */
+
+.message.other {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.clickable-avatar {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: 20px;
+}
+
+.clickable-avatar:hover {
+    background-color: rgba(139, 0, 0, 0.2) !important;
+    transform: translateX(3px);
+}
+
+.clickable-avatar:active {
+    background-color: rgba(139, 0, 0, 0.3) !important;
+    transform: scale(0.98);
+}
+
+.message-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+/* Ensure message text has proper spacing */
+.message.other .message-text {
+    margin-top: 4px;
+    margin-left: 38px; /* Αντίστοιχο με avatar width + gap */
+}
+
+/* Mobile adjustments for private chat avatars */
+@media (max-width: 768px) {
+    .clickable-avatar {
+        padding: 3px 6px;
+        gap: 6px;
+    }
+    
+    .message-avatar {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+    }
+    
+    .message.other .message-text {
+        margin-left: 32px;
+    }
+}
+
+
 /* Animations for user info modal */
 @keyframes slideInUp {
     from {
@@ -2798,6 +2867,7 @@ body.pwa-mode .pwa-floating-install-button {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
+
 
 
 
