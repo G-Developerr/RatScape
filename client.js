@@ -911,9 +911,15 @@ function enterRoom(roomId, roomName, inviteCode) {
     // Update UI
     document.getElementById("room-name-sidebar").textContent = roomName;
     document.getElementById("room-name-header").textContent = roomName;
+    
+    // 🔥 ΓΙΑ ΚΑΝΟΝΙΚΑ ROOMS - ΕΜΦΑΝΙΖΟΥΜΕ ΝΟΡΜΑΛ ΤΟ INVITE CODE
     document.getElementById("room-invite-code").textContent = inviteCode;
     
+    // Εμφάνιση του invite code section
+    document.getElementById("invite-code-container").classList.remove("hide-for-private");
+    
     // Ενεργοποιούμε το copy button για κανονικά rooms
+    document.getElementById("copy-invite-btn").style.display = "flex";
     document.getElementById("copy-invite-btn").disabled = false;
     document.getElementById("copy-invite-btn").title = "Copy invite code";
     document.getElementById("copy-invite-btn").style.opacity = "1";
@@ -1237,21 +1243,19 @@ function startPrivateChatWithFriend(friendUsername) {
     currentRoom = {
         id: privateChatId,
         name: friendUsername,
-        inviteCode: null, // ΑΦΑΙΡΕΣΑΜΕ το invite code
+        inviteCode: null,
         isPrivate: true,
     };
 
     document.getElementById("room-name-sidebar").textContent = friendUsername;
     document.getElementById("room-name-header").textContent = `Private Chat with ${friendUsername}`;
     
-    // Αντί για invite code, δείχνουμε "Private Chat"
-    document.getElementById("room-invite-code").textContent = "Private Chat";
+    // 🔥 ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΚΥΡΙΟ ΦΙΞ - ΚΡΥΒΟΥΜΕ ΟΛΟΚΛΗΡΟ ΤΟ INVITE CODE SECTION
+    document.getElementById("room-invite-code").textContent = "";
+    document.getElementById("invite-code-container").classList.add("hide-for-private");
     
-    // Απενεργοποιούμε το copy button για private chats
-    document.getElementById("copy-invite-btn").disabled = true;
-    document.getElementById("copy-invite-btn").title = "Not available for private chats";
-    document.getElementById("copy-invite-btn").style.opacity = "0.5";
-    document.getElementById("copy-invite-btn").style.cursor = "not-allowed";
+    // Απενεργοποιούμε εντελώς το copy button για private chats
+    document.getElementById("copy-invite-btn").style.display = "none";
     
     document.getElementById("sidebar-username").textContent = currentUser.username;
     document.getElementById("sidebar-avatar").textContent = currentUser.username
@@ -1261,6 +1265,7 @@ function startPrivateChatWithFriend(friendUsername) {
     document.getElementById("room-description").textContent =
         `Private conversation with ${friendUsername}`;
     document.getElementById("room-status").textContent = "Private chat";
+    document.getElementById("room-status").classList.add("private-chat");
 
     // Make the private chat members clickable too
     document.getElementById("room-members-list").innerHTML = `
@@ -1707,6 +1712,9 @@ async function handleLeaveRoom() {
                     
                     // Reset current room
                     currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
+                    // Επαναφορά του invite code section
+                    document.getElementById("invite-code-container").classList.remove("hide-for-private");
+                    document.getElementById("copy-invite-btn").style.display = "flex";
                 } else {
                     showNotification(data.error || "Failed to leave room", "error", "Action Failed");
                 }
