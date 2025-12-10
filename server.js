@@ -205,52 +205,6 @@ app.get("/debug-users", async (req, res) => {
   }
 });
 
-// ===== ΝΕΟ ENDPOINT: GET USER AVATAR =====
-app.get("/user-avatar/:username", validateSession, async (req, res) => {
-  try {
-    const { username } = req.params;
-    
-    const user = await dbHelpers.findUserByUsername(username);
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-    
-    // Αν ο χρήστης έχει profile picture
-    if (user.profile_picture) {
-      res.json({
-        success: true,
-        avatar_url: user.profile_picture + "?t=" + Date.now() // Προσθήκη timestamp για cache busting
-      });
-    } else {
-      // Δημιουργία default avatar με χρώμα βάσει username
-      const colors = [
-        "#8B0000", "#1A1A1A", "#228B22", "#FFA500", "#4285F4",
-        "#9932CC", "#20B2AA", "#FF4500", "#4682B4", "#32CD32"
-      ];
-      
-      let hash = 0;
-      for (let i = 0; i < username.length; i++) {
-        hash = username.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      const color = colors[Math.abs(hash) % colors.length];
-      const initials = username.substring(0, 2).toUpperCase();
-      
-      // Δημιουργία SVG avatar
-      const svgAvatar = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect width="40" height="40" fill="${color}" rx="20"/><text x="50%" y="50%" font-family="Arial, sans-serif" font-size="16" fill="white" text-anchor="middle" dy=".3em">${initials}</text></svg>`;
-      
-      res.json({
-        success: true,
-        avatar_url: svgAvatar,
-        is_default: true
-      });
-    }
-    
-  } catch (error) {
-    console.error("Error getting user avatar:", error);
-    res.status(500).json({ success: false, error: getErrorMessage(error) });
-  }
-});
-
 // ===== ΝΕΟ ENDPOINT: OFFLINE NOTIFICATIONS =====
 app.get("/offline-notifications/:username", validateSession, async (req, res) => {
   try {
