@@ -747,62 +747,17 @@ function addMessageToChat(message) {
 
     messageDiv.className = `message ${isOwn ? "own" : "other"}`;
     
-    // Δημιουργία clickable avatar για private chats
-    if (currentRoom.isPrivate && !isOwn) {
-        const avatarColor = getAvatarColor(message.sender);
-        const avatarInitials = message.sender.substring(0, 2).toUpperCase();
-        
-        messageDiv.innerHTML = `
-            <div class="message-header">
-                <div class="message-sender clickable-avatar" 
-                     data-username="${message.sender}"
-                     style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 20px; transition: background-color 0.2s;">
-                    <div class="message-avatar" 
-                         style="width: 28px; height: 28px; border-radius: 50%; background: ${avatarColor}; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.75rem;">
-                        ${avatarInitials}
-                    </div>
-                    <span>${message.sender}</span>
-                </div>
-                <span class="message-time">${message.time || getCurrentTime()}</span>
-            </div>
-            <div class="message-text">${message.text}</div>
-        `;
-    } else {
-        messageDiv.innerHTML = `
-            <div class="message-header">
-                <span class="message-sender">${message.sender}</span>
-                <span class="message-time">${message.time || getCurrentTime()}</span>
-            </div>
-            <div class="message-text">${message.text}</div>
-        `;
-    }
+    // ΑΠΛΟ STYLING - ΧΩΡΙΣ AVATARS για private chats
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-sender">${message.sender}</span>
+            <span class="message-time">${message.time || getCurrentTime()}</span>
+        </div>
+        <div class="message-text">${message.text}</div>
+    `;
 
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    
-    // Προσθήκη click event στα avatars αν πρόκειται για private chat
-    if (currentRoom.isPrivate && !isOwn) {
-        const avatarElement = messageDiv.querySelector('.clickable-avatar');
-        if (avatarElement) {
-            avatarElement.addEventListener('mouseenter', function() {
-                this.style.backgroundColor = 'rgba(139, 0, 0, 0.2)';
-                this.style.transform = 'translateX(3px)';
-            });
-            
-            avatarElement.addEventListener('mouseleave', function() {
-                this.style.backgroundColor = '';
-                this.style.transform = '';
-            });
-            
-            avatarElement.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const username = avatarElement.dataset.username;
-                if (username && username !== currentUser.username) {
-                    showUserInfo(username);
-                }
-            });
-        }
-    }
 }
 
 function updateRoomMembers(members) {
@@ -912,6 +867,9 @@ function enterRoom(roomId, roomName, inviteCode) {
     document.getElementById("room-name-sidebar").textContent = roomName;
     document.getElementById("room-name-header").textContent = roomName;
     document.getElementById("room-invite-code").textContent = inviteCode;
+    
+    // Εμφάνιση invite code section ΜΟΝΟ για rooms
+    document.getElementById("invite-code-section").style.display = "block";
 
     // Clear messages
     document.getElementById("messages-container").innerHTML = "";
@@ -1227,18 +1185,20 @@ async function handleRemoveFriend(friendUsername) {
 function startPrivateChatWithFriend(friendUsername) {
     // Δημιουργία μοναδικού κωδικού για το private chat
     const privateChatId = `private_${currentUser.username}_${friendUsername}_${Date.now()}`;
-    const privateInviteCode = `PRV_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     
     currentRoom = {
         id: privateChatId,
         name: friendUsername,
-        inviteCode: privateInviteCode,
+        inviteCode: null, // ΔΕΝ ΕΧΟΥΜΕ INVITE CODE ΣΤΑ PRIVATE CHATS
         isPrivate: true,
     };
 
     document.getElementById("room-name-sidebar").textContent = friendUsername;
     document.getElementById("room-name-header").textContent = `Private Chat with ${friendUsername}`;
-    document.getElementById("room-invite-code").textContent = privateInviteCode;
+    
+    // ΑΠΟΚΡΥΨΗ invite code section για private chats
+    document.getElementById("invite-code-section").style.display = "none";
+    
     document.getElementById("sidebar-username").textContent = currentUser.username;
     document.getElementById("sidebar-avatar").textContent = currentUser.username
         .substring(0, 2)
@@ -2232,11 +2192,13 @@ function initializeEventListeners() {
         this.style.height = this.scrollHeight + "px";
     });
 
+    // ΜΟΝΟ για rooms εμφανίζουμε το copy invite button
     document.getElementById("copy-invite-btn").addEventListener("click", () => {
-        const inviteCode = document.getElementById("room-invite-code").textContent;
-        navigator.clipboard.writeText(inviteCode).then(() => {
-            showNotification("Invite code copied!", "success", "Copied!");
-        });
+        if (!currentRoom.isPrivate && currentRoom.inviteCode) {
+            navigator.clipboard.writeText(currentRoom.inviteCode).then(() => {
+                showNotification("Invite code copied!", "success", "Copied!");
+            });
+        }
     });
 
     document.getElementById("copy-username-btn").addEventListener("click", () => {
