@@ -615,7 +615,7 @@ body {
     background: #CC0000;
 }
 
-/* Messages */
+/* Messages - FIXED: ΚΟΙΝΟ STYLING ΓΙΑ ΟΛΑ */
 #messages-container {
     flex: 1;
     overflow-y: auto;
@@ -631,6 +631,8 @@ body {
     border-radius: var(--radius);
     max-width: 65%;
     animation: messageAppear 0.2s ease;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 @keyframes messageAppear {
@@ -656,6 +658,7 @@ body {
     background: rgba(38, 38, 38, 0.9);
     border: 1px solid var(--border-color);
     border-bottom-left-radius: 8px;
+    padding: 12px 16px;
 }
 
 .message-header {
@@ -1986,8 +1989,15 @@ body.pwa-mode .pwa-floating-install-button {
     gap: 8px;
 }
 
-/* Message avatars - Clickable */
-.message-avatar {
+/* ========================================
+   FIX: ΚΟΙΝΟ STYLING ΓΙΑ ΟΛΑ ΤΑ ΜΗΝΥΜΑΤΑ
+   ======================================== */
+
+/* ΑΦΑΙΡΕΣΗ ΟΛΩΝ ΤΩΝ CLICKABLE AVATAR STYLES */
+/* Τα μηνύματα στα private θα είναι ΤΑ ΙΔΙΑ με τα rooms */
+
+/* Message avatars - ΜΟΝΟ ΓΙΑ MEMBER LIST, ΟΧΙ ΓΙΑ MESSAGES */
+.member-avatar {
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -2001,200 +2011,43 @@ body.pwa-mode .pwa-floating-install-button {
     flex-shrink: 0;
 }
 
+/* ΜΟΝΟ για member items, όχι για messages */
+.member-item .member-avatar {
+    display: flex;
+}
+
+/* ΒΕΒΑΙΩΣΟΥ ότι τα messages δεν έχουν avatars */
+.message .message-avatar,
+.message .clickable-avatar {
+    display: none !important;
+}
+
+/* Βεβαιώσου ότι όλα τα μηνύματα είναι ίδια */
 .message.other {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
+    display: block !important;
 }
 
-.message-content {
-    flex: 1;
+.message.other .message-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 8px !important;
+    flex-direction: row !important;
 }
 
-.clickable-avatar {
-    cursor: pointer;
-    transition: all 0.2s ease;
+.message.other .message-sender {
+    display: inline !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    color: var(--accent-red) !important;
 }
 
-.clickable-avatar:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.3);
+.message.other .message-text {
+    margin-left: 0 !important;
+    margin-top: 0 !important;
+    line-height: 1.4 !important;
+    font-size: 0.95rem !important;
 }
-
-.clickable-avatar:active {
-    transform: scale(0.95);
-}
-
-/* ========================================
-   FIXED MESSAGE LAYOUT FOR ALL CHATS
-   ======================================== */
-
-/* ΠΡΟΣΟΧΗ: Αυτά τα στυλ διορθώνουν το πρόβλημα στα rooms και στα private chats */
-
-/* Βασικό στυλ για όλα τα μηνύματα */
-.message {
-    padding: 12px 16px;
-    border-radius: var(--radius);
-    max-width: 65%;
-    animation: messageAppear 0.2s ease;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-/* Μηνύματα άλλων χρηστών - FIXED */
-.message.other {
-    align-self: flex-start;
-    background: rgba(38, 38, 38, 0.9);
-    border: 1px solid var(--border-color);
-    border-bottom-left-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 8px;
-}
-
-/* Header των μηνυμάτων - βελτιωμένο */
-.message-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    width: 100%;
-}
-
-.message-sender {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: var(--accent-red);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-/* Clickable avatar - βελτιωμένο */
-.clickable-avatar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 2px 6px;
-    border-radius: 16px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    background: transparent !important;
-}
-
-.clickable-avatar:hover {
-    background-color: rgba(139, 0, 0, 0.15) !important;
-}
-
-.clickable-avatar:active {
-    background-color: rgba(139, 0, 0, 0.25) !important;
-    transform: scale(0.98);
-}
-
-.message-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    font-size: 0.75rem;
-    flex-shrink: 0;
-}
-
-/* Κείμενο μηνύματος - σωστό */
-.message-text {
-    line-height: 1.4;
-    font-size: 0.95rem;
-    margin-top: 4px;
-    width: 100%;
-}
-
-/* Χρόνος μηνύματος */
-.message-time {
-    font-size: 0.7rem;
-    opacity: 0.8;
-    margin-left: 8px;
-    white-space: nowrap;
-}
-
-/* Διορθωμένο layout για private chat avatars */
-.message.private .message-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-}
-
-/* Room messages styling */
-.message.room {
-    background: rgba(38, 38, 38, 0.9);
-    border: 1px solid var(--border-color);
-}
-
-/* Ensure text doesn't overflow */
-.message-text {
-    max-width: 100%;
-    overflow: hidden;
-}
-
-/* Mobile adjustments για όλα τα μηνύματα */
-@media (max-width: 768px) {
-    .message {
-        max-width: 85%;
-    }
-    
-    .clickable-avatar {
-        padding: 2px 4px;
-        gap: 6px;
-    }
-    
-    .message-avatar {
-        width: 24px;
-        height: 24px;
-        font-size: 0.7rem;
-    }
-    
-    .message-sender {
-        font-size: 0.8rem;
-    }
-    
-    .message-text {
-        font-size: 0.9rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .message {
-        max-width: 90%;
-        padding: 10px 12px;
-    }
-    
-    .clickable-avatar {
-        padding: 1px 3px;
-        gap: 4px;
-    }
-    
-    .message-avatar {
-        width: 20px;
-        height: 20px;
-        font-size: 0.6rem;
-    }
-    
-    .message-sender span:not(.message-avatar) {
-        font-size: 0.75rem;
-    }
-}
-
-/* ========================================
-   FIX: Αφαίρεση προβληματικού CSS
-   ======================================== */
-
-/* ΑΦΑΙΡΕΣΑ ΑΥΤΟ ΤΟ ΠΡΟΒΛΗΜΑΤΙΚΟ CSS: */
-/* .message.other .message-text {
-    margin-left: 38px;
-} */
 
 /* Animations for user info modal */
 @keyframes slideInUp {
@@ -2529,280 +2382,6 @@ body.pwa-mode .pwa-floating-install-button {
     
     .sidebar-overlay.active {
         display: block;
-    }
-}
-/* ========================================
-   USER INFO MODAL STYLING
-   ======================================== */
-
-/* Member item styling for clickable user info */
-.member-item {
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.member-item:hover {
-    background: rgba(139, 0, 0, 0.15) !important;
-    transform: translateX(5px);
-}
-
-.member-item:active {
-    background: rgba(139, 0, 0, 0.25) !important;
-}
-
-/* User info modal specific styles */
-#user-info-modal .modal-content {
-    max-width: 420px;
-    padding: 25px;
-}
-
-.user-info-container {
-    text-align: center;
-    padding: 10px 0;
-}
-
-.user-info-picture {
-    width: 120px;
-    height: 120px;
-    margin: 0 auto 20px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 4px solid var(--primary);
-    background: var(--card-bg);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-}
-
-.user-info-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.user-info-details {
-    margin-bottom: 25px;
-    background: rgba(26, 26, 26, 0.5);
-    border-radius: var(--radius);
-    padding: 15px;
-    border: 1px solid var(--border-color);
-}
-
-.user-info-details .info-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(51, 51, 51, 0.3);
-}
-
-.user-info-details .info-item:last-child {
-    border-bottom: none;
-}
-
-.user-info-details .info-item label {
-    font-weight: 600;
-    color: var(--text-light);
-    font-size: 0.9rem;
-    text-align: left;
-}
-
-.user-info-details .info-value {
-    color: var(--text);
-    font-weight: 500;
-    text-align: right;
-}
-
-.status-online {
-    color: var(--success);
-}
-
-.status-offline {
-    color: var(--text-light);
-}
-
-.user-info-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-top: 20px;
-}
-
-.user-info-actions .btn {
-    flex: 1;
-    min-width: 120px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-/* Message avatars - Clickable */
-.message-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.75rem;
-    color: white;
-    flex-shrink: 0;
-}
-
-.message.other {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-}
-
-.message-content {
-    flex: 1;
-}
-
-.clickable-avatar {
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.clickable-avatar:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.3);
-}
-
-.clickable-avatar:active {
-    transform: scale(0.95);
-}
-
-/* ========================================
-   PRIVATE CHAT AVATAR STYLING - FIXED
-   ======================================== */
-
-.message.other {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-start;
-}
-
-.clickable-avatar {
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 2px 6px;
-    border-radius: 16px;
-    background: transparent !important;
-}
-
-.clickable-avatar:hover {
-    background-color: rgba(139, 0, 0, 0.2) !important;
-    transform: translateX(3px);
-}
-
-.clickable-avatar:active {
-    background-color: rgba(139, 0, 0, 0.3) !important;
-    transform: scale(0.98);
-}
-
-.message-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    font-size: 0.75rem;
-    flex-shrink: 0;
-}
-
-/* Ensure message text has proper spacing */
-.message.other .message-text {
-    margin-top: 4px;
-    width: 100%;
-}
-
-/* Mobile adjustments for private chat avatars */
-@media (max-width: 768px) {
-    .clickable-avatar {
-        padding: 2px 4px;
-        gap: 6px;
-    }
-    
-    .message-avatar {
-        width: 24px;
-        height: 24px;
-        font-size: 0.7rem;
-    }
-}
-
-/* Animations for user info modal */
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-#user-info-modal.active .modal-content {
-    animation: slideInUp 0.3s ease-out;
-}
-
-/* Mobile responsive για user info modal */
-@media (max-width: 768px) {
-    #user-info-modal .modal-content {
-        max-width: 90%;
-        margin: 0 10px;
-        padding: 20px;
-    }
-    
-    .user-info-picture {
-        width: 100px;
-        height: 100px;
-    }
-    
-    .user-info-actions {
-        flex-direction: column;
-    }
-    
-    .user-info-actions .btn {
-        width: 100%;
-        min-width: auto;
-    }
-}
-
-@media (max-width: 480px) {
-    .user-info-picture {
-        width: 80px;
-        height: 80px;
-    }
-    
-    .user-info-details {
-        padding: 10px;
-    }
-    
-    .user-info-details .info-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-    }
-    
-    .user-info-details .info-item label {
-        font-size: 0.85rem;
-    }
-    
-    .user-info-details .info-value {
-        text-align: left;
-        font-size: 0.95rem;
     }
 }
 
