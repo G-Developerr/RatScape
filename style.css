@@ -2385,6 +2385,39 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
+/* ========================================
+   PRIVATE CHAT STYLING - NO INVITE CODES
+   ======================================== */
+
+/* Disabled copy button for private chats */
+.btn-icon:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+}
+
+.btn-icon:disabled:hover {
+    background: transparent !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Private chat indicator */
+.invite-code-display.private-chat {
+    background: rgba(139, 0, 0, 0.2) !important;
+    border: 1px solid rgba(139, 0, 0, 0.3) !important;
+}
+
+.invite-code-display.private-chat span {
+    color: var(--text-light) !important;
+    font-style: italic;
+}
+
+/* Hide copy button tooltip for private chats */
+.btn-icon:disabled::after {
+    content: "Not available for private chats" !important;
+}
+
+
 /* Extra small devices */
 @media (max-width: 480px) {
     .nav-brand .nav-btn {
@@ -2653,3 +2686,4 @@ body.pwa-mode .pwa-floating-install-button {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
+
