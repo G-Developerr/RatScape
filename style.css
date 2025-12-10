@@ -2115,6 +2115,32 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 /* ========================================
+   PRIVATE CHAT - NO INVITE CODES
+   ======================================== */
+
+/* Hide entire invite code section for private chats */
+#invite-code-container.hide-for-private {
+    display: none !important;
+}
+
+/* Adjust layout when invite code section is hidden */
+#sidebar:has(#invite-code-container.hide-for-private) .room-members-section {
+    border-top: none;
+    padding-top: 20px;
+}
+
+/* Hide copy button for private chats */
+#copy-invite-btn.hidden-for-private {
+    display: none !important;
+}
+
+/* Private chat indicator in sidebar */
+#room-status.private-chat {
+    color: var(--accent-red);
+    font-weight: 600;
+}
+
+/* ========================================
    MOBILE RESPONSIVE
    ======================================== */
 
@@ -2383,40 +2409,12 @@ body.pwa-mode .pwa-floating-install-button {
     .sidebar-overlay.active {
         display: block;
     }
+    
+    /* Private chat mobile */
+    #invite-code-container.hide-for-private {
+        display: none !important;
+    }
 }
-
-/* ========================================
-   PRIVATE CHAT STYLING - NO INVITE CODES
-   ======================================== */
-
-/* Disabled copy button for private chats */
-.btn-icon:disabled {
-    opacity: 0.5 !important;
-    cursor: not-allowed !important;
-}
-
-.btn-icon:disabled:hover {
-    background: transparent !important;
-    transform: none !important;
-    box-shadow: none !important;
-}
-
-/* Private chat indicator */
-.invite-code-display.private-chat {
-    background: rgba(139, 0, 0, 0.2) !important;
-    border: 1px solid rgba(139, 0, 0, 0.3) !important;
-}
-
-.invite-code-display.private-chat span {
-    color: var(--text-light) !important;
-    font-style: italic;
-}
-
-/* Hide copy button tooltip for private chats */
-.btn-icon:disabled::after {
-    content: "Not available for private chats" !important;
-}
-
 
 /* Extra small devices */
 @media (max-width: 480px) {
@@ -2686,4 +2684,3 @@ body.pwa-mode .pwa-floating-install-button {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
-
