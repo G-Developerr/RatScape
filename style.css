@@ -490,6 +490,34 @@ body {
     transform: translateX(5px);
 }
 
+/* Member avatars with images */
+.member-avatar-img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.member-avatar-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.member-avatar-img .avatar-fallback {
+    width: 100%;
+    height: 100%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
 .member-avatar {
     width: 32px;
     height: 32px;
@@ -501,6 +529,7 @@ body {
     font-weight: 600;
     font-size: 0.75rem;
     color: white;
+    flex-shrink: 0;
 }
 
 .member-info {
@@ -542,6 +571,13 @@ body {
     color: white;
     font-weight: 600;
     font-size: 0.9rem;
+    overflow: hidden;
+}
+
+.profile-avatar .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .profile-info {
@@ -668,16 +704,63 @@ body {
     margin-bottom: 4px;
 }
 
-.message-sender {
+/* Message avatars with images */
+.message-sender-with-avatar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.message-avatar-img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.message-avatar-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.message-avatar-img .avatar-fallback {
+    width: 100%;
+    height: 100%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    font-size: 0.7rem;
+}
+
+.message-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.7rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.message-sender-text {
     font-weight: 600;
     font-size: 0.85rem;
 }
 
-.message.own .message-sender {
+.message.own .message-sender-text {
     color: rgba(255, 255, 255, 0.9);
 }
 
-.message.other .message-sender {
+.message.other .message-sender-text {
     color: var(--accent-red);
 }
 
@@ -1009,6 +1092,14 @@ body {
     color: white;
     font-weight: 600;
     font-size: 0.9rem;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.friend-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .friend-details {
@@ -1990,128 +2081,25 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 /* ========================================
-   FIX: ΚΟΙΝΟ STYLING ΓΙΑ ΟΛΑ ΤΑ ΜΗΝΥΜΑΤΑ
+   AVATAR CLICKABLE HOVER EFFECTS
    ======================================== */
 
-/* ΑΦΑΙΡΕΣΗ ΟΛΩΝ ΤΩΝ CLICKABLE AVATAR STYLES */
-/* Τα μηνύματα στα private θα είναι ΤΑ ΙΔΙΑ με τα rooms */
-
-/* Message avatars - ΜΟΝΟ ΓΙΑ MEMBER LIST, ΟΧΙ ΓΙΑ MESSAGES */
-.member-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.75rem;
-    color: white;
-    flex-shrink: 0;
+.member-avatar-img,
+.member-avatar,
+.message-avatar-img,
+.message-avatar,
+.friend-avatar {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
 }
 
-/* ΜΟΝΟ για member items, όχι για messages */
-.member-item .member-avatar {
-    display: flex;
-}
-
-/* ΒΕΒΑΙΩΣΟΥ ότι τα messages δεν έχουν avatars */
-.message .message-avatar,
-.message .clickable-avatar {
-    display: none !important;
-}
-
-/* Βεβαιώσου ότι όλα τα μηνύματα είναι ίδια */
-.message.other {
-    display: block !important;
-}
-
-.message.other .message-header {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    margin-bottom: 8px !important;
-    flex-direction: row !important;
-}
-
-.message.other .message-sender {
-    display: inline !important;
-    font-weight: 600 !important;
-    font-size: 0.85rem !important;
-    color: var(--accent-red) !important;
-}
-
-.message.other .message-text {
-    margin-left: 0 !important;
-    margin-top: 0 !important;
-    line-height: 1.4 !important;
-    font-size: 0.95rem !important;
-}
-
-/* Animations for user info modal */
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-#user-info-modal.active .modal-content {
-    animation: slideInUp 0.3s ease-out;
-}
-
-/* Mobile responsive για user info modal */
-@media (max-width: 768px) {
-    #user-info-modal .modal-content {
-        max-width: 90%;
-        margin: 0 10px;
-        padding: 20px;
-    }
-    
-    .user-info-picture {
-        width: 100px;
-        height: 100px;
-    }
-    
-    .user-info-actions {
-        flex-direction: column;
-    }
-    
-    .user-info-actions .btn {
-        width: 100%;
-        min-width: auto;
-    }
-}
-
-@media (max-width: 480px) {
-    .user-info-picture {
-        width: 80px;
-        height: 80px;
-    }
-    
-    .user-info-details {
-        padding: 10px;
-    }
-    
-    .user-info-details .info-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-    }
-    
-    .user-info-details .info-item label {
-        font-size: 0.85rem;
-    }
-    
-    .user-info-details .info-value {
-        text-align: left;
-        font-size: 0.95rem;
-    }
+.member-avatar-img:hover,
+.member-avatar:hover,
+.message-avatar-img:hover,
+.message-avatar:hover,
+.friend-avatar:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px var(--accent-red);
 }
 
 /* ========================================
@@ -2215,6 +2203,7 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 8px;
     }
     
+    .member-avatar-img,
     .member-avatar {
         width: 36px;
         height: 36px;
@@ -2244,6 +2233,13 @@ body.pwa-mode .pwa-floating-install-button {
     /* Messages */
     .message {
         max-width: 85%;
+    }
+    
+    .message-avatar-img,
+    .message-avatar {
+        width: 24px;
+        height: 24px;
+        font-size: 0.6rem;
     }
     
     .chat-header {
@@ -2294,6 +2290,12 @@ body.pwa-mode .pwa-floating-install-button {
     /* Friends page */
     .friend-card {
         padding: 1rem;
+    }
+    
+    .friend-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 0.8rem;
     }
     
     .friend-actions {
