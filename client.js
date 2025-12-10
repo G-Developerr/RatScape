@@ -14,6 +14,7 @@ let currentRoom = {
     id: null,
     name: null,
     inviteCode: null,
+    isPrivate: false,
 };
 
 // ===== UNREAD MESSAGES SYSTEM =====
@@ -745,16 +746,63 @@ function addMessageToChat(message) {
     const isOwn = message.sender === currentUser.username;
 
     messageDiv.className = `message ${isOwn ? "own" : "other"}`;
-    messageDiv.innerHTML = `
-    <div class="message-header">
-      <span class="message-sender">${message.sender}</span>
-      <span class="message-time">${message.time || getCurrentTime()}</span>
-    </div>
-    <div class="message-text">${message.text}</div>
-  `;
+    
+    // Δημιουργία clickable avatar για private chats
+    if (currentRoom.isPrivate && !isOwn) {
+        const avatarColor = getAvatarColor(message.sender);
+        const avatarInitials = message.sender.substring(0, 2).toUpperCase();
+        
+        messageDiv.innerHTML = `
+            <div class="message-header">
+                <div class="message-sender clickable-avatar" 
+                     data-username="${message.sender}"
+                     style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 20px; transition: background-color 0.2s;">
+                    <div class="message-avatar" 
+                         style="width: 28px; height: 28px; border-radius: 50%; background: ${avatarColor}; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.75rem;">
+                        ${avatarInitials}
+                    </div>
+                    <span>${message.sender}</span>
+                </div>
+                <span class="message-time">${message.time || getCurrentTime()}</span>
+            </div>
+            <div class="message-text">${message.text}</div>
+        `;
+    } else {
+        messageDiv.innerHTML = `
+            <div class="message-header">
+                <span class="message-sender">${message.sender}</span>
+                <span class="message-time">${message.time || getCurrentTime()}</span>
+            </div>
+            <div class="message-text">${message.text}</div>
+        `;
+    }
 
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Προσθήκη click event στα avatars αν πρόκειται για private chat
+    if (currentRoom.isPrivate && !isOwn) {
+        const avatarElement = messageDiv.querySelector('.clickable-avatar');
+        if (avatarElement) {
+            avatarElement.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = 'rgba(139, 0, 0, 0.2)';
+                this.style.transform = 'translateX(3px)';
+            });
+            
+            avatarElement.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
+                this.style.transform = '';
+            });
+            
+            avatarElement.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const username = avatarElement.dataset.username;
+                if (username && username !== currentUser.username) {
+                    showUserInfo(username);
+                }
+            });
+        }
+    }
 }
 
 function updateRoomMembers(members) {
@@ -764,6 +812,7 @@ function updateRoomMembers(members) {
     members.forEach((member) => {
         const memberDiv = document.createElement("div");
         memberDiv.className = "member-item";
+        memberDiv.dataset.username = member.username;
         memberDiv.innerHTML = `
       <div class="member-avatar">${member.username.substring(0, 2).toUpperCase()}</div>
       <div class="member-info">
@@ -852,7 +901,12 @@ function displayUserRooms(rooms) {
 function enterRoom(roomId, roomName, inviteCode) {
     console.log("🚀 Entering room:", { roomId, roomName, inviteCode });
     
-    currentRoom = { id: roomId, name: roomName, inviteCode: inviteCode };
+    currentRoom = { 
+        id: roomId, 
+        name: roomName, 
+        inviteCode: inviteCode,
+        isPrivate: false 
+    };
 
     // Update UI
     document.getElementById("room-name-sidebar").textContent = roomName;
@@ -1194,15 +1248,16 @@ function startPrivateChatWithFriend(friendUsername) {
         `Private conversation with ${friendUsername}`;
     document.getElementById("room-status").textContent = "Private chat";
 
+    // Make the private chat members clickable too
     document.getElementById("room-members-list").innerHTML = `
-        <div class="member-item">
+        <div class="member-item" data-username="${currentUser.username}">
             <div class="member-avatar">${currentUser.username.substring(0, 2).toUpperCase()}</div>
             <div class="member-info">
                 <span class="member-name">${currentUser.username}</span>
                 <span class="member-joined">You</span>
             </div>
         </div>
-        <div class="member-item">
+        <div class="member-item" data-username="${friendUsername}">
             <div class="member-avatar">${friendUsername.substring(0, 2).toUpperCase()}</div>
             <div class="member-info">
                 <span class="member-name">${friendUsername}</span>
@@ -1214,6 +1269,9 @@ function startPrivateChatWithFriend(friendUsername) {
     document.getElementById("messages-container").innerHTML = "";
     loadPrivateMessages(friendUsername);
     showPage("chat-page");
+    
+    // Make member items clickable και για private chat
+    setTimeout(makeMemberItemsClickable, 100);
 }
 
 async function loadPrivateMessages(friendUsername) {
@@ -1399,9 +1457,9 @@ function makeMemberItemsClickable() {
         
         item.addEventListener("click", function(e) {
             e.stopPropagation();
-            const nameElement = this.querySelector(".member-name");
-            if (nameElement) {
-                showUserInfo(nameElement.textContent);
+            const username = this.dataset.username || this.querySelector(".member-name")?.textContent;
+            if (username) {
+                showUserInfo(username);
             }
         });
     });
@@ -1498,7 +1556,7 @@ function handleLogout() {
     }
 
     currentUser = { username: null, email: null, authenticated: false, sessionId: null };
-    currentRoom = { id: null, name: null, inviteCode: null };
+    currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
     
     // Clear local unread data
     unreadMessages = { private: {}, groups: {}, total: 0 };
@@ -1634,7 +1692,7 @@ async function handleLeaveRoom() {
                     loadUserRooms();
                     
                     // Reset current room
-                    currentRoom = { id: null, name: null, inviteCode: null };
+                    currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
                 } else {
                     showNotification(data.error || "Failed to leave room", "error", "Action Failed");
                 }
