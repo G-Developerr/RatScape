@@ -2426,6 +2426,45 @@ body.pwa-mode .pwa-floating-install-button {
     gap: 8px;
 }
 
+/* Message avatars - Clickable */
+.message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.message.other {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.message-content {
+    flex: 1;
+}
+
+.clickable-avatar {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clickable-avatar:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.3);
+}
+
+.clickable-avatar:active {
+    transform: scale(0.95);
+}
+
 /* Animations for user info modal */
 @keyframes slideInUp {
     from {
@@ -2759,5 +2798,6 @@ body.pwa-mode .pwa-floating-install-button {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
+
 
 
