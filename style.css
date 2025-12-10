@@ -1986,6 +1986,216 @@ body.pwa-mode .pwa-floating-install-button {
     gap: 8px;
 }
 
+/* Message avatars - Clickable */
+.message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.message.other {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.message-content {
+    flex: 1;
+}
+
+.clickable-avatar {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clickable-avatar:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.3);
+}
+
+.clickable-avatar:active {
+    transform: scale(0.95);
+}
+
+/* ========================================
+   FIXED MESSAGE LAYOUT FOR ALL CHATS
+   ======================================== */
+
+/* ΠΡΟΣΟΧΗ: Αυτά τα στυλ διορθώνουν το πρόβλημα στα rooms και στα private chats */
+
+/* Βασικό στυλ για όλα τα μηνύματα */
+.message {
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    max-width: 65%;
+    animation: messageAppear 0.2s ease;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Μηνύματα άλλων χρηστών - FIXED */
+.message.other {
+    align-self: flex-start;
+    background: rgba(38, 38, 38, 0.9);
+    border: 1px solid var(--border-color);
+    border-bottom-left-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+}
+
+/* Header των μηνυμάτων - βελτιωμένο */
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.message-sender {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--accent-red);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Clickable avatar - βελτιωμένο */
+.clickable-avatar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 6px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent !important;
+}
+
+.clickable-avatar:hover {
+    background-color: rgba(139, 0, 0, 0.15) !important;
+}
+
+.clickable-avatar:active {
+    background-color: rgba(139, 0, 0, 0.25) !important;
+    transform: scale(0.98);
+}
+
+.message-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+/* Κείμενο μηνύματος - σωστό */
+.message-text {
+    line-height: 1.4;
+    font-size: 0.95rem;
+    margin-top: 4px;
+    width: 100%;
+}
+
+/* Χρόνος μηνύματος */
+.message-time {
+    font-size: 0.7rem;
+    opacity: 0.8;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+/* Διορθωμένο layout για private chat avatars */
+.message.private .message-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+/* Room messages styling */
+.message.room {
+    background: rgba(38, 38, 38, 0.9);
+    border: 1px solid var(--border-color);
+}
+
+/* Ensure text doesn't overflow */
+.message-text {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Mobile adjustments για όλα τα μηνύματα */
+@media (max-width: 768px) {
+    .message {
+        max-width: 85%;
+    }
+    
+    .clickable-avatar {
+        padding: 2px 4px;
+        gap: 6px;
+    }
+    
+    .message-avatar {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+    }
+    
+    .message-sender {
+        font-size: 0.8rem;
+    }
+    
+    .message-text {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .message {
+        max-width: 90%;
+        padding: 10px 12px;
+    }
+    
+    .clickable-avatar {
+        padding: 1px 3px;
+        gap: 4px;
+    }
+    
+    .message-avatar {
+        width: 20px;
+        height: 20px;
+        font-size: 0.6rem;
+    }
+    
+    .message-sender span:not(.message-avatar) {
+        font-size: 0.75rem;
+    }
+}
+
+/* ========================================
+   FIX: Αφαίρεση προβληματικού CSS
+   ======================================== */
+
+/* ΑΦΑΙΡΕΣΑ ΑΥΤΟ ΤΟ ΠΡΟΒΛΗΜΑΤΙΚΟ CSS: */
+/* .message.other .message-text {
+    margin-left: 38px;
+} */
+
 /* Animations for user info modal */
 @keyframes slideInUp {
     from {
@@ -2466,12 +2676,13 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 /* ========================================
-   PRIVATE CHAT AVATAR STYLING
+   PRIVATE CHAT AVATAR STYLING - FIXED
    ======================================== */
 
 .message.other {
     display: flex;
-    gap: 10px;
+    flex-direction: column;
+    gap: 4px;
     align-items: flex-start;
 }
 
@@ -2481,8 +2692,9 @@ body.pwa-mode .pwa-floating-install-button {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 4px 8px;
-    border-radius: 20px;
+    padding: 2px 6px;
+    border-radius: 16px;
+    background: transparent !important;
 }
 
 .clickable-avatar:hover {
@@ -2512,13 +2724,13 @@ body.pwa-mode .pwa-floating-install-button {
 /* Ensure message text has proper spacing */
 .message.other .message-text {
     margin-top: 4px;
-    margin-left: 38px; /* Αντίστοιχο με avatar width + gap */
+    width: 100%;
 }
 
 /* Mobile adjustments for private chat avatars */
 @media (max-width: 768px) {
     .clickable-avatar {
-        padding: 3px 6px;
+        padding: 2px 4px;
         gap: 6px;
     }
     
@@ -2527,12 +2739,7 @@ body.pwa-mode .pwa-floating-install-button {
         height: 24px;
         font-size: 0.7rem;
     }
-    
-    .message.other .message-text {
-        margin-left: 32px;
-    }
 }
-
 
 /* Animations for user info modal */
 @keyframes slideInUp {
@@ -2867,7 +3074,3 @@ body.pwa-mode .pwa-floating-install-button {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
-
-
-
-
