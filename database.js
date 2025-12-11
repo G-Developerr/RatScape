@@ -1,11 +1,11 @@
-// database.js - RatScape MongoDB Database - FIXED CONNECTION
+// database.js - RatScape MongoDB Database - OPTIMIZED FOR RENDER
 const mongoose = require('mongoose');
 
-// 🔥 ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιεί το MONGODB_URI από το Render Environment
+// 🔥 Χρήση environment variable από το Render
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ratscape';
 
 console.log('🔍 Attempting to connect to MongoDB...');
-console.log('📍 Connection string exists:', !!process.env.MONGODB_URI);
+console.log('📍 MONGODB_URI available:', !!process.env.MONGODB_URI);
 
 // ===== SCHEMAS =====
 
@@ -514,23 +514,22 @@ const dbHelpers = {
   }
 };
 
-// 🔥 FIXED: Initialize database connection με καλύτερο error handling
+// 🔥 ΒΕΛΤΙΩΜΕΝΟ: Initialize database connection με retry logic
 async function initializeDatabase() {
   try {
     console.log("🔄 Connecting to MongoDB...");
     
-    // Έλεγχος αν υπάρχει MONGODB_URI
     if (!process.env.MONGODB_URI) {
       console.warn("⚠️ WARNING: MONGODB_URI not found in environment variables!");
-      console.warn("⚠️ Using local MongoDB. This will NOT work on Render!");
+      console.warn("⚠️ This will work only if you have local MongoDB installed.");
+      console.warn("⚠️ For Render deployment, add MONGODB_URI to your environment variables!");
     }
     
     await mongoose.connect(MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 10000, // 10 seconds timeout
+      serverSelectionTimeoutMS: 30000, // 30 seconds timeout για Render
       socketTimeoutMS: 45000,
-      // 🔥 ΠΡΟΣΘΗΚΗ: Retry configuration
       retryWrites: true,
       retryReads: true,
       maxPoolSize: 10
@@ -562,7 +561,6 @@ async function initializeDatabase() {
     console.error("Error message:", error.message);
     console.error("Error name:", error.name);
     
-    // 🔥 Πιο χρήσιμα error messages
     if (error.name === 'MongooseServerSelectionError') {
       console.error("❌ Cannot reach MongoDB server. Check:");
       console.error("   1. Is MONGODB_URI environment variable set correctly in Render?");
