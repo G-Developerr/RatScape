@@ -4,7 +4,6 @@ const socket = io('https://ratscape.onrender.com', {
   transports: ['websocket', 'polling'],
   withCredentials: true
 });
-
 // Current user state
 let currentUser = {
     username: null,
@@ -2856,5 +2855,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("✅ Ready to chat!");
 });
+
 
 
