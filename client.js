@@ -1765,10 +1765,8 @@ async function handleJoinRoom(inviteCode) {
             }),
         });
 
-        if (!response.ok) {
-            throw new Error("Session expired");
-        }
-
+        // ΠΑΡΑΣΗΜΑΝΤΙΚΟ: Δεν κάνουμε throw error για 404 πια!
+        // Απλά παίρνουμε το JSON response
         const data = await response.json();
 
         if (data.success) {
@@ -1777,16 +1775,16 @@ async function handleJoinRoom(inviteCode) {
             document.getElementById("invite-code-input").value = "";
             enterRoom(data.roomId, data.roomName, inviteCode.trim());
         } else {
+            // Απλά δείχνουμε το μήνυμα λάθους
             showNotification(data.error || "Failed to join room", "error", "Join Room Failed");
         }
     } catch (error) {
-        if (error.message === "Session expired") {
-            handleSessionExpired();
-        } else {
-            showNotification("Error joining room: " + error.message, "error", "Connection Error");
-        }
+        // Αυτό το catch τώρα θα πιάσει μόνο πραγματικά network errors
+        console.error("Error joining room:", error);
+        showNotification("Connection error. Please try again.", "error", "Connection Error");
     }
 }
+
 
 // 🔥 FIXED: LEAVE ROOM FUNCTION
 async function handleLeaveRoom() {
@@ -2748,3 +2746,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("✅ Ready to chat!");
 });
+
