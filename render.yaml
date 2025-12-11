@@ -4,9 +4,11 @@ services:
     env: node
     region: frankfurt
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm start
-    healthCheckPath: /
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
+      - key: MONGODB_URI
+        sync: false  # Θα το προσθέσεις manual στο Render Dashboard
