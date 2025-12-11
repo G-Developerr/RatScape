@@ -27,6 +27,9 @@ let unreadMessages = {
 // ===== USER INFO SYSTEM =====
 let currentViewedUser = null;
 
+// ===== AVATAR SYSTEM =====
+let userAvatars = {}; // Cache για τα avatars των χρηστών
+
 // ===== BEAUTIFUL NOTIFICATION SYSTEM WITH CLICKABLE =====
 
 function showNotification(message, type = "info", title = null, action = null, unreadCount = 1) {
@@ -219,6 +222,105 @@ function hideConfirmationModal() {
     const modal = document.getElementById("confirmation-modal");
     if (modal) {
         modal.classList.remove("active");
+    }
+}
+
+// ===== AVATAR SYSTEM FUNCTIONS =====
+
+// Φόρτωση avatar για έναν χρήστη
+async function loadUserAvatar(username, element, isCurrentUser = false) {
+    if (!username) return;
+    
+    // Έλεγχος cache
+    if (userAvatars[username]) {
+        updateAvatarElement(element, userAvatars[username], username, isCurrentUser);
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/get-profile-picture/${username}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.profile_picture) {
+                // Αποθήκευση στο cache
+                userAvatars[username] = data.profile_picture;
+                updateAvatarElement(element, data.profile_picture, username, isCurrentUser);
+            } else {
+                // Χρήση initials αν δεν υπάρχει avatar
+                updateAvatarElement(element, null, username, isCurrentUser);
+            }
+        }
+    } catch (error) {
+        console.error("Error loading avatar:", error);
+        updateAvatarElement(element, null, username, isCurrentUser);
+    }
+}
+
+// Ενημέρωση ενός avatar element
+function updateAvatarElement(element, avatarUrl, username, isCurrentUser = false) {
+    if (!element) return;
+    
+    if (avatarUrl) {
+        // Έλεγχος αν το element είναι div ή img
+        if (element.tagName === 'DIV') {
+            element.innerHTML = `<img src="${avatarUrl}" alt="${username}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+        } else if (element.tagName === 'IMG') {
+            element.src = avatarUrl;
+            element.alt = username;
+            element.style.display = 'block';
+        }
+    } else {
+        // Χρήση initials
+        if (element.tagName === 'DIV') {
+            const initials = username ? username.substring(0, 2).toUpperCase() : '??';
+            const color = getAvatarColor(username);
+            element.innerHTML = initials;
+            element.style.background = color;
+            element.style.color = 'white';
+            element.style.display = 'flex';
+            element.style.alignItems = 'center';
+            element.style.justifyContent = 'center';
+            element.style.fontWeight = '600';
+            element.style.fontSize = '0.75rem';
+        }
+    }
+}
+
+// Φόρτωση του avatar του τρέχοντος χρήστη παντού
+async function loadCurrentUserAvatar() {
+    if (!currentUser.authenticated) return;
+    
+    // Sidebar avatar
+    const sidebarAvatar = document.getElementById("sidebar-avatar");
+    if (sidebarAvatar) {
+        await loadUserAvatar(currentUser.username, sidebarAvatar, true);
+    }
+    
+    // Profile page avatar
+    const profileImage = document.getElementById("profile-image");
+    if (profileImage) {
+        await loadUserAvatar(currentUser.username, profileImage, true);
+    }
+    
+    // User info modal avatar
+    const userInfoImage = document.getElementById("user-info-image");
+    if (userInfoImage) {
+        await loadUserAvatar(currentUser.username, userInfoImage, true);
+    }
+}
+
+// Φόρτωση avatars για όλα τα μέλη σε room
+async function loadMemberAvatars() {
+    const memberItems = document.querySelectorAll('.member-item');
+    
+    for (const item of memberItems) {
+        const username = item.dataset.username;
+        if (username) {
+            const avatarElement = item.querySelector('.member-avatar');
+            if (avatarElement) {
+                await loadUserAvatar(username, avatarElement, username === currentUser.username);
+            }
+        }
     }
 }
 
@@ -707,6 +809,19 @@ function getLastPage() {
     return localStorage.getItem("ratroom_last_page") || "home-page";
 }
 
+// Βοηθητική συνάρτηση για avatar colors
+function getAvatarColor(username) {
+    const colors = [
+        "#8B0000", "#1A1A1A", "#228B22", "#FFA500", "#4285F4",
+        "#9932CC", "#20B2AA", "#FF4500", "#4682B4", "#32CD32"
+    ];
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+}
+
 // ===== UI UPDATE FUNCTIONS =====
 
 function updateUIForAuthState() {
@@ -729,6 +844,10 @@ function updateUIForAuthState() {
         });
 
         document.getElementById("display-my-username").textContent = currentUser.username;
+        document.getElementById("sidebar-username").textContent = currentUser.username;
+        
+        // Φόρτωση avatar του χρήστη
+        loadCurrentUserAvatar();
         
         // Φόρτωση offline notifications όταν συνδέεται
         setTimeout(() => {
@@ -751,79 +870,36 @@ function addMessageToChat(message) {
 
     messageDiv.className = `message ${isOwn ? "own" : "other"}`;
     
-    // Δημιουργία clickable avatar για private chats
-    if (currentRoom.isPrivate && !isOwn) {
-        const avatarColor = getAvatarColor(message.sender);
-        const avatarInitials = message.sender.substring(0, 2).toUpperCase();
-        
-        messageDiv.innerHTML = `
-            <div class="message-header">
-                <div class="message-sender clickable-avatar" 
-                     data-username="${message.sender}"
-                     style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 20px; transition: background-color 0.2s;">
-                    <div class="message-avatar" 
-                         style="width: 28px; height: 28px; border-radius: 50%; background: ${avatarColor}; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.75rem;">
-                        ${avatarInitials}
-                    </div>
-                    <span>${message.sender}</span>
-                </div>
-                <span class="message-time">${message.time || getCurrentTime()}</span>
-            </div>
-            <div class="message-text">${message.text}</div>
-        `;
-    } else {
-        messageDiv.innerHTML = `
-            <div class="message-header">
-                <span class="message-sender">${message.sender}</span>
-                <span class="message-time">${message.time || getCurrentTime()}</span>
-            </div>
-            <div class="message-text">${message.text}</div>
-        `;
-    }
+    // ΚΟΙΝΟ STYLING ΓΙΑ ΟΛΑ ΤΑ ΜΗΝΥΜΑΤΑ
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-sender">${message.sender}</span>
+            <span class="message-time">${message.time || getCurrentTime()}</span>
+        </div>
+        <div class="message-text">${message.text}</div>
+    `;
 
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    
-    // Προσθήκη click event στα avatars αν πρόκειται για private chat
-    if (currentRoom.isPrivate && !isOwn) {
-        const avatarElement = messageDiv.querySelector('.clickable-avatar');
-        if (avatarElement) {
-            avatarElement.addEventListener('mouseenter', function() {
-                this.style.backgroundColor = 'rgba(139, 0, 0, 0.2)';
-                this.style.transform = 'translateX(3px)';
-            });
-            
-            avatarElement.addEventListener('mouseleave', function() {
-                this.style.backgroundColor = '';
-                this.style.transform = '';
-            });
-            
-            avatarElement.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const username = avatarElement.dataset.username;
-                if (username && username !== currentUser.username) {
-                    showUserInfo(username);
-                }
-            });
-        }
-    }
 }
 
 function updateRoomMembers(members) {
     const membersList = document.getElementById("room-members-list");
     membersList.innerHTML = "";
 
-    members.forEach((member) => {
+    members.forEach(async (member) => {
         const memberDiv = document.createElement("div");
         memberDiv.className = "member-item";
         memberDiv.dataset.username = member.username;
+        
+        // Αρχικά βάζουμε initials
         memberDiv.innerHTML = `
-      <div class="member-avatar">${member.username.substring(0, 2).toUpperCase()}</div>
-      <div class="member-info">
-        <span class="member-name">${member.username}</span>
-        <span class="member-joined">${new Date(member.joined_at).toLocaleDateString()}</span>
-      </div>
-    `;
+            <div class="member-avatar">${member.username.substring(0, 2).toUpperCase()}</div>
+            <div class="member-info">
+                <span class="member-name">${member.username}</span>
+                <span class="member-joined">${new Date(member.joined_at).toLocaleDateString()}</span>
+            </div>
+        `;
         
         // Προσθήκη click event για να ανοίγει το user info modal
         memberDiv.addEventListener("click", (e) => {
@@ -832,6 +908,12 @@ function updateRoomMembers(members) {
         });
         
         membersList.appendChild(memberDiv);
+        
+        // 🔥 Φόρτωση του πραγματικού avatar αν υπάρχει
+        const avatarElement = memberDiv.querySelector('.member-avatar');
+        if (avatarElement) {
+            await loadUserAvatar(member.username, avatarElement, member.username === currentUser.username);
+        }
     });
 }
 
@@ -866,11 +948,11 @@ function displayUserRooms(rooms) {
 
     if (rooms.length === 0) {
         roomsList.innerHTML = `
-      <div class="no-rooms">
-        <p>You haven't joined any rooms yet.</p>
-        <p>Create a new room or join with an invite code!</p>
-      </div>
-    `;
+            <div class="no-rooms">
+                <p>You haven't joined any rooms yet.</p>
+                <p>Create a new room or join with an invite code!</p>
+            </div>
+        `;
         return;
     }
 
@@ -878,15 +960,15 @@ function displayUserRooms(rooms) {
         const roomCard = document.createElement("div");
         roomCard.className = "room-card";
         roomCard.innerHTML = `
-      <div class="room-card-header">
-        <h3>${room.name}</h3>
-        <span class="room-invite-code">${room.invite_code}</span>
-      </div>
-      <div class="room-card-footer">
-        <span class="room-created">Created ${new Date(room.created_at).toLocaleDateString()}</span>
-        <button class="btn btn-primary btn-sm enter-room-btn" data-room-id="${room.id}">Enter Room</button>
-      </div>
-    `;
+            <div class="room-card-header">
+                <h3>${room.name}</h3>
+                <span class="room-invite-code">${room.invite_code}</span>
+            </div>
+            <div class="room-card-footer">
+                <span class="room-created">Created ${new Date(room.created_at).toLocaleDateString()}</span>
+                <button class="btn btn-primary btn-sm enter-room-btn" data-room-id="${room.id}">Enter Room</button>
+            </div>
+        `;
 
         roomCard.querySelector(".enter-room-btn").addEventListener("click", () => {
             enterRoom(room.id, room.name, room.invite_code);
@@ -1071,6 +1153,14 @@ function displayUserFriends(friends, pendingRequests) {
                   .join("")}
             </div>
         `;
+
+        // 🔥 Φόρτωση avatars για τους φίλους
+        friendsSection.querySelectorAll(".friend-avatar").forEach(async (avatarElement, index) => {
+            const friend = friends[index];
+            if (friend) {
+                await loadUserAvatar(friend.friend_username, avatarElement, false);
+            }
+        });
 
         friendsSection.querySelectorAll(".chat-friend-btn").forEach((btn) => {
             btn.addEventListener("click", (e) => {
@@ -1262,9 +1352,12 @@ function startPrivateChatWithFriend(friendUsername) {
     document.getElementById("copy-invite-btn").style.display = "none";
     
     document.getElementById("sidebar-username").textContent = currentUser.username;
-    document.getElementById("sidebar-avatar").textContent = currentUser.username
-        .substring(0, 2)
-        .toUpperCase();
+    
+    // Φόρτωση του avatar του χρήστη
+    const sidebarAvatar = document.getElementById("sidebar-avatar");
+    if (sidebarAvatar) {
+        loadUserAvatar(currentUser.username, sidebarAvatar, true);
+    }
 
     document.getElementById("room-description").textContent =
         `Private conversation with ${friendUsername}`;
@@ -1274,14 +1367,14 @@ function startPrivateChatWithFriend(friendUsername) {
     // Make the private chat members clickable too
     document.getElementById("room-members-list").innerHTML = `
         <div class="member-item" data-username="${currentUser.username}">
-            <div class="member-avatar">${currentUser.username.substring(0, 2).toUpperCase()}</div>
+            <div class="member-avatar"></div>
             <div class="member-info">
                 <span class="member-name">${currentUser.username}</span>
                 <span class="member-joined">You</span>
             </div>
         </div>
         <div class="member-item" data-username="${friendUsername}">
-            <div class="member-avatar">${friendUsername.substring(0, 2).toUpperCase()}</div>
+            <div class="member-avatar"></div>
             <div class="member-info">
                 <span class="member-name">${friendUsername}</span>
                 <span class="member-joined">Friend</span>
@@ -1293,8 +1386,11 @@ function startPrivateChatWithFriend(friendUsername) {
     loadPrivateMessages(friendUsername);
     showPage("chat-page");
     
-    // Make member items clickable και για private chat
-    setTimeout(makeMemberItemsClickable, 100);
+    // Φόρτωση avatars για τα μέλη
+    setTimeout(() => {
+        loadMemberAvatars();
+        makeMemberItemsClickable();
+    }, 100);
 }
 
 async function loadPrivateMessages(friendUsername) {
@@ -1326,19 +1422,6 @@ async function loadPrivateMessages(friendUsername) {
 }
 
 // ===== USER INFO SYSTEM FUNCTIONS =====
-
-// Βοηθητική συνάρτηση για avatar colors
-function getAvatarColor(username) {
-    const colors = [
-        "#8B0000", "#1A1A1A", "#228B22", "#FFA500", "#4285F4",
-        "#9932CC", "#20B2AA", "#FF4500", "#4682B4", "#32CD32"
-    ];
-    let hash = 0;
-    for (let i = 0; i < username.length; i++) {
-        hash = username.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-}
 
 async function showUserInfo(username) {
     if (!username || username === currentUser.username) return;
@@ -1430,17 +1513,37 @@ function updateUserInfoModal(user) {
     }
     
     // Profile picture
+    const userInfoImage = document.getElementById("user-info-image");
     if (user.profile_picture) {
-        document.getElementById("user-info-image").src = user.profile_picture;
+        userInfoImage.src = user.profile_picture + "?t=" + Date.now();
+        userInfoImage.style.display = 'block';
     } else {
         // Default avatar αν δεν έχει εικόνα
         const initials = user.username.substring(0, 2).toUpperCase();
         const color = getAvatarColor(user.username);
-        const avatarElement = document.getElementById("user-info-image");
-        if (avatarElement) {
-            // Δημιουργία SVG avatar αν λείπει η εικόνα
-            avatarElement.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" fill="${color}" rx="60"/><text x="50%" y="50%" font-family="Arial, sans-serif" font-size="40" fill="white" text-anchor="middle" dy=".3em">${initials}</text></svg>`;
+        userInfoImage.style.display = 'none';
+        
+        // Δημιουργία div για initials
+        const avatarContainer = userInfoImage.parentElement;
+        let initialsDiv = avatarContainer.querySelector('.initials-avatar');
+        if (!initialsDiv) {
+            initialsDiv = document.createElement('div');
+            initialsDiv.className = 'initials-avatar';
+            initialsDiv.style.cssText = `
+                width: 100%;
+                height: 100%;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 2rem;
+                color: white;
+            `;
+            avatarContainer.appendChild(initialsDiv);
         }
+        initialsDiv.textContent = initials;
+        initialsDiv.style.background = color;
     }
     
     const addFriendBtn = document.getElementById("add-as-friend-btn");
@@ -1584,6 +1687,9 @@ function handleLogout() {
     // Clear local unread data
     unreadMessages = { private: {}, groups: {}, total: 0 };
     updateUnreadBadges();
+    
+    // Clear avatar cache
+    userAvatars = {};
     
     clearUserFromLocalStorage();
     updateUIForAuthState();
@@ -1807,11 +1913,12 @@ function updateProfileUI(profile) {
     }
     
     // Profile picture
+    const profileImage = document.getElementById("profile-image");
     if (profile.profile_picture) {
-        document.getElementById("profile-image").src = profile.profile_picture;
-        document.getElementById("profile-image").style.display = 'block';
+        profileImage.src = profile.profile_picture + "?t=" + Date.now();
+        profileImage.style.display = 'block';
     } else {
-        document.getElementById("profile-image").src = 'default-avatar.png';
+        profileImage.style.display = 'none';
     }
 }
 
@@ -1853,27 +1960,19 @@ async function uploadProfilePicture(file) {
             const data = await response.json();
             if (data.success) {
                 showNotification("Profile picture updated successfully!", "avatar_upload_success", "Avatar Updated");
-                document.getElementById("profile-image").src = data.profile_picture + "?t=" + Date.now();
                 
-                // Ενημέρωση και στο sidebar avatar
-                const sidebarAvatar = document.getElementById("sidebar-avatar");
-                if (sidebarAvatar) {
-                    // Εάν το sidebar avatar είναι div με initials, διατηρούμε το format
-                    if (sidebarAvatar.tagName === 'DIV') {
-                        sidebarAvatar.textContent = currentUser.username
-                            .substring(0, 2)
-                            .toUpperCase();
-                    } else if (sidebarAvatar.tagName === 'IMG') {
-                        // Εάν είναι εικόνα, ενημερώνουμε την πηγή
-                        sidebarAvatar.src = data.profile_picture + "?t=" + Date.now();
-                    }
-                }
+                // Ανανέωση με cache busting
+                const timestamp = "?t=" + Date.now();
+                const newProfilePicture = data.profile_picture + timestamp;
                 
-                // Ενημέρωση και στο user info modal avatar
-                const userInfoImage = document.getElementById("user-info-image");
-                if (userInfoImage) {
-                    userInfoImage.src = data.profile_picture + "?t=" + Date.now();
-                }
+                // Clear cache για αυτόν τον χρήστη
+                delete userAvatars[currentUser.username];
+                
+                // Update all avatar elements
+                await loadCurrentUserAvatar();
+                
+                // Ενημέρωση cache
+                userAvatars[currentUser.username] = data.profile_picture;
             }
         } else {
             showNotification("Failed to upload profile picture", "error", "Upload Error");
@@ -2114,7 +2213,10 @@ socket.on("room members", (members) => {
         document.getElementById("room-status").textContent = `${members.length} members`;
         
         // Make member items clickable για το user info modal
-        setTimeout(makeMemberItemsClickable, 100);
+        setTimeout(() => {
+            makeMemberItemsClickable();
+            loadMemberAvatars(); // 🔥 Φόρτωση avatars
+        }, 100);
     }
 });
 
@@ -2514,7 +2616,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateMobileUI();
     });
 
-    // Προσθήκη CSS animations για unread system
+    // Προσθήκη CSS animations για unread system και avatars
     const unreadStyle = document.createElement('style');
     unreadStyle.textContent = `
         @keyframes highlightPulse {
@@ -2561,6 +2663,26 @@ document.addEventListener("DOMContentLoaded", async () => {
             background: transparent !important;
             transform: none !important;
         }
+        
+        /* Avatar styling */
+        .member-avatar, #sidebar-avatar, .friend-avatar {
+            overflow: hidden;
+        }
+        
+        .member-avatar img, #sidebar-avatar img, .friend-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        
+        /* Message text better wrapping */
+        .message-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
     `;
     document.head.appendChild(unreadStyle);
 
@@ -2592,6 +2714,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                         sessionId: currentUser.sessionId,
                     });
 
+                    // 🔥 Φόρτωση avatar του χρήστη
+                    loadCurrentUserAvatar();
+                    
                     // 🔥 Φόρτωση offline notifications
                     await loadOfflineNotifications();
 
