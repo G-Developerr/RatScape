@@ -1105,10 +1105,6 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
     }
 
     const messages = await dbHelpers.getPrivateMessages(user1, user2);
-    res.json({ success: false, error: "Not friends" });
-    }
-
-    const messages = await dbHelpers.getPrivateMessages(user1, user2);
     res.json({ success: true, messages });
   } catch (error) {
     console.error("❌ Error getting private messages:", error);
@@ -1359,7 +1355,7 @@ io.on("connection", async (socket) => {
       console.log("🔒 Private message from:", sender, "to:", receiver);
       
     } catch (error) {
-      console.error("❌ Error saving private message:", getErrorMessage(error) });
+      console.error("❌ Error saving private message:", getErrorMessage(error));
     }
   });
 
