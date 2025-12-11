@@ -400,7 +400,7 @@ const dbHelpers = {
 
             if (existing) {
                 existing.count += 1;
-                existing.last_message = message_data ? .text || "New message";
+                existing.last_message = (message_data && message_data.text) || "New message";
                 existing.last_message_time = new Date();
                 await existing.save();
                 console.log(`✅ Updated unread for ${user} from ${sender}: ${existing.count} messages`);
@@ -411,8 +411,8 @@ const dbHelpers = {
                     sender,
                     type,
                     room_id,
-                    last_message: message_data ? .text || "New message",
-                    message_id: message_data ? .message_id || `msg_${Date.now()}`
+                    last_message: (message_data && message_data.text) || "New message",
+                    message_id: (message_data && message_data.message_id) || `msg_${Date.now()}`
                 });
                 await unread.save();
                 console.log(`✅ Created unread for ${user} from ${sender}`);
