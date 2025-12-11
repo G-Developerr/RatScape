@@ -938,6 +938,7 @@ app.post("/create-room", validateSession, async (req, res) => {
   }
 });
 
+// 🔥 FIXED: JOIN ROOM ENDPOINT - ΜΗΝ ΕΠΙΣΤΡΕΦΕΙ 404 ΓΙΑ ΛΑΘΟΣ ΚΩΔΙΚΟ
 app.post("/join-room", validateSession, async (req, res) => {
   try {
     const { inviteCode, username } = req.body;
@@ -948,7 +949,11 @@ app.post("/join-room", validateSession, async (req, res) => {
 
     const room = await dbHelpers.getRoomByInviteCode(inviteCode);
     if (!room) {
-      return res.status(404).json({ success: false, error: "Invalid invite code" });
+      // 🔥 ΚΡΙΤΙΚΟ: Επιστροφή 200 με success: false αντί για 404
+      return res.status(200).json({ 
+        success: false, 
+        error: "Invalid invite code" 
+      });
     }
 
     await dbHelpers.addUserToRoom(room.id, username);
@@ -961,6 +966,7 @@ app.post("/join-room", validateSession, async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error joining room:", error);
+    // 🔥 ΣΗΜΑΝΤΙΚΟ: Για server errors, επιστροφή 500
     res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
@@ -991,17 +997,18 @@ app.post("/send-friend-request", validateSession, async (req, res) => {
 
     const targetUser = await dbHelpers.findUserByUsername(toUser);
     if (!targetUser) {
-      return res.status(404).json({ success: false, error: "User not found" });
+      // 🔥 Επιστροφή 200 με success: false αντί για 404
+      return res.status(200).json({ success: false, error: "User not found" });
     }
 
     const areAlreadyFriends = await dbHelpers.areFriends(fromUser, toUser);
     if (areAlreadyFriends) {
-      return res.status(400).json({ success: false, error: "Already friends" });
+      return res.status(200).json({ success: false, error: "Already friends" });
     }
 
     const hasPendingRequest = await dbHelpers.hasPendingRequest(fromUser, toUser);
     if (hasPendingRequest) {
-      return res.status(400).json({ success: false, error: "Friend request already sent" });
+      return res.status(200).json({ success: false, error: "Friend request already sent" });
     }
 
     await dbHelpers.sendFriendRequest(fromUser, toUser);
@@ -1095,6 +1102,10 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
     const areFriends = await dbHelpers.areFriends(user1, user2);
     if (!areFriends) {
       return res.status(403).json({ success: false, error: "Not friends" });
+    }
+
+    const messages = await dbHelpers.getPrivateMessages(user1, user2);
+    res.json({ success: false, error: "Not friends" });
     }
 
     const messages = await dbHelpers.getPrivateMessages(user1, user2);
@@ -1348,7 +1359,7 @@ io.on("connection", async (socket) => {
       console.log("🔒 Private message from:", sender, "to:", receiver);
       
     } catch (error) {
-      console.error("❌ Error saving private message:", getErrorMessage(error));
+      console.error("❌ Error saving private message:", getErrorMessage(error) });
     }
   });
 
