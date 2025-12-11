@@ -75,20 +75,22 @@ async function processAndResizeImage(filePath) {
     // Βεβαιώσου ότι το αρχείο υπάρχει
     await fs.access(filePath);
     
-    // Δημιουργία output path με _resized suffix
-    const dir = path.dirname(filePath);
-    const ext = path.extname(filePath).toLowerCase();
-    const baseName = path.basename(filePath, ext);
-    const outputPath = path.join(dir, `${baseName}_resized${ext}`);
-    
     console.log(`🖼️ Processing image: ${filePath}`);
-    console.log(`📏 Resizing to 150x150, output: ${outputPath}`);
     
-    // Ανάγνωση metadata για να δούμε το μέγεθος
+    // Ανάγνωση metadata
     const metadata = await sharp(filePath).metadata();
     console.log(`📐 Original image: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);
     
-    // Auto-resize σε 150x150 pixels με διατήρηση aspect ratio
+    // Προσθήκη timestamp στο όνομα για μοναδικότητα
+    const timestamp = Date.now();
+    const ext = path.extname(filePath).toLowerCase();
+    const baseName = path.basename(filePath, ext);
+    const finalFilename = `${baseName}_${timestamp}_resized${ext}`;
+    const outputPath = path.join(path.dirname(filePath), finalFilename);
+    
+    console.log(`📏 Resizing to 150x150, output: ${outputPath}`);
+    
+    // Auto-resize
     await sharp(filePath)
       .resize({
         width: 150,
@@ -96,14 +98,11 @@ async function processAndResizeImage(filePath) {
         fit: sharp.fit.cover,
         position: 'centre'
       })
+      .toFormat('jpeg')
       .jpeg({ 
         quality: 85,
         progressive: true,
         mozjpeg: true
-      })
-      .png({
-        quality: 85,
-        progressive: true
       })
       .toFile(outputPath);
     
@@ -111,15 +110,11 @@ async function processAndResizeImage(filePath) {
     
     // Διαγραφή του αρχικού αρχείου
     await fs.unlink(filePath);
-    console.log(`🗑️ Original file deleted: ${filePath}`);
     
     return outputPath;
   } catch (error) {
     console.error('❌ Error processing image:', error);
-    
-    // Αν αποτύχει το resize, επιστροφή του αρχικού αρχείου
-    console.log(`⚠️ Using original image as fallback: ${filePath}`);
-    return filePath;
+    return filePath; // Fallback to original
   }
 }
 
@@ -202,6 +197,56 @@ app.get("/debug-users", async (req, res) => {
       error: getErrorMessage(error),
       message: "Cannot access users table",
     });
+  }
+});
+
+// 🔥 ΝΕΟ ENDPOINT: GET PROFILE PICTURE
+app.get("/get-profile-picture/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+    const sessionId = req.headers["x-session-id"];
+
+    // Μπορεί να ζητηθεί χωρίς session για public avatars
+    if (sessionId) {
+      const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
+      if (!session) {
+        // Άντεξε ακόμα και χωρίς session για τα avatars
+        console.log("⚠️ No valid session for avatar request, but continuing...");
+      }
+    }
+
+    const user = await dbHelpers.findUserByUsername(username);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+    
+    if (!user.profile_picture) {
+      return res.json({ 
+        success: true, 
+        profile_picture: null 
+      });
+    }
+    
+    // Βεβαιώσου ότι το αρχείο υπάρχει
+    const filePath = path.join(__dirname, user.profile_picture);
+    try {
+      await fs.access(filePath);
+      res.json({ 
+        success: true, 
+        profile_picture: user.profile_picture + "?t=" + Date.now() 
+      });
+    } catch (error) {
+      console.log("Profile picture file not found, returning null");
+      res.json({ 
+        success: true, 
+        profile_picture: null 
+      });
+    }
+    
+  } catch (error) {
+    console.error("Error getting profile picture:", error);
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
 
@@ -656,12 +701,8 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
         }
 
         try {
-            // Create user first
-            await dbHelpers.createUser(email, username, password);
-            console.log("✅ User created successfully:", username);
-
-            // 🔥 Handle avatar με AUTO-RESIZE αν παρέχεται
             let profilePicture = null;
+            // 🔥 Handle avatar με AUTO-RESIZE αν παρέχεται
             if (req.file) {
                 console.log("📸 Processing avatar for registration:", req.file.filename);
                 
@@ -673,12 +714,7 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
                     const fileName = path.basename(resizedImagePath);
                     profilePicture = '/uploads/' + fileName;
                     
-                    // Save to database
-                    await dbHelpers.updateUser(username, { 
-                        profile_picture: profilePicture 
-                    });
-                    
-                    console.log("✅ Avatar resized and saved for user:", username);
+                    console.log("✅ Avatar resized and saved:", profilePicture);
                 } catch (resizeError) {
                     console.error("❌ Error resizing avatar:", resizeError);
                     // Συνέχισε χωρίς avatar αν υπάρχει πρόβλημα
@@ -688,6 +724,10 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
                     }
                 }
             }
+
+            // Create user with profile picture
+            await dbHelpers.createUser(email, username, password, profilePicture);
+            console.log("✅ User created successfully:", username);
 
             res.json({
                 success: true,
@@ -776,6 +816,7 @@ app.post("/login", async (req, res) => {
       user: {
         email: user.email,
         username: user.username,
+        profile_picture: user.profile_picture
       },
       sessionId: sessionId,
     });
@@ -811,6 +852,7 @@ app.get("/verify-session/:username", async (req, res) => {
         user: {
           username: user.username,
           email: user.email,
+          profile_picture: user.profile_picture
         },
       });
     } else {
@@ -1428,6 +1470,7 @@ async function startServer() {
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
       console.log(`📁 SUPPORTED IMAGES: JPEG, PNG, GIF, WebP, BMP, TIFF`);
       console.log(`💾 MAX FILE SIZE: 10MB`);
+      console.log(`🖼️ AVATAR SYSTEM: ENABLED`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
