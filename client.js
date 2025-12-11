@@ -57,6 +57,10 @@ function showNotification(message, type = "info", title = null, action = null, u
             icon = "⚠";
             notificationTitle = title || "Warning";
             break;
+        case "avatar_upload_success":
+            icon = "✓";
+            notificationTitle = title || "Profile Picture Updated";
+            break;
         default:
             icon = "ℹ";
             notificationTitle = title || "Info";
@@ -1822,9 +1826,15 @@ function showProfilePage() {
     showPage("profile-page");
 }
 
-// Profile picture upload
+// Προσθήκη αυτών των γραμμών στο uploadProfilePicture() συνάρτηση:
 async function uploadProfilePicture(file) {
     if (!file) return;
+    
+    // 🔥 ΒΕΛΤΙΩΣΗ: Προσθήκη loading state
+    const uploadBtn = document.getElementById("change-profile-pic-btn");
+    const originalHTML = uploadBtn.innerHTML;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    uploadBtn.disabled = true;
     
     const formData = new FormData();
     formData.append("profile_picture", file);
@@ -1842,13 +1852,39 @@ async function uploadProfilePicture(file) {
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
-                showNotification("Profile picture updated!", "success", "Profile Updated");
+                showNotification("Profile picture updated successfully!", "avatar_upload_success", "Avatar Updated");
                 document.getElementById("profile-image").src = data.profile_picture + "?t=" + Date.now();
+                
+                // Ενημέρωση και στο sidebar avatar
+                const sidebarAvatar = document.getElementById("sidebar-avatar");
+                if (sidebarAvatar) {
+                    // Εάν το sidebar avatar είναι div με initials, διατηρούμε το format
+                    if (sidebarAvatar.tagName === 'DIV') {
+                        sidebarAvatar.textContent = currentUser.username
+                            .substring(0, 2)
+                            .toUpperCase();
+                    } else if (sidebarAvatar.tagName === 'IMG') {
+                        // Εάν είναι εικόνα, ενημερώνουμε την πηγή
+                        sidebarAvatar.src = data.profile_picture + "?t=" + Date.now();
+                    }
+                }
+                
+                // Ενημέρωση και στο user info modal avatar
+                const userInfoImage = document.getElementById("user-info-image");
+                if (userInfoImage) {
+                    userInfoImage.src = data.profile_picture + "?t=" + Date.now();
+                }
             }
+        } else {
+            showNotification("Failed to upload profile picture", "error", "Upload Error");
         }
     } catch (error) {
         console.error("Error uploading profile picture:", error);
         showNotification("Failed to upload profile picture", "error", "Upload Error");
+    } finally {
+        // Επαναφορά του κουμπιού
+        uploadBtn.innerHTML = originalHTML;
+        uploadBtn.disabled = false;
     }
 }
 
@@ -2055,6 +2091,10 @@ socket.on("notification", (data) => {
         case 'friend_request_accepted':
             notificationType = "success";
             title = "Friend Request Accepted";
+            break;
+        case 'avatar_upload_success':
+            notificationType = "success";
+            title = "Profile Picture Updated";
             break;
     }
     
