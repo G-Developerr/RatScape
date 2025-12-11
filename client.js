@@ -1,5 +1,9 @@
 // client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM
-const socket = io();
+// 🔥 ΠΡΟΣΘΗΚΗ: Ορισμός σωστού URL για το Socket.io
+const socket = io('https://ratscape.onrender.com', {
+  transports: ['websocket', 'polling'],
+  withCredentials: true
+});
 
 // Current user state
 let currentUser = {
@@ -916,6 +920,52 @@ function updateRoomMembers(members) {
         }
     });
 }
+
+// 🔥 ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: DEBUG LOGIN
+function debugLogin() {
+    const email = document.getElementById("login-email").value;
+    const password = document.getElementById("login-password").value;
+    
+    console.log("🔍 DEBUG Login attempt:", { email, password });
+    
+    fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+    })
+    .then(response => {
+        console.log("📊 Login response status:", response.status);
+        console.log("📊 Login response headers:", response.headers);
+        return response.json();
+    })
+    .then(data => {
+        console.log("📊 Login response data:", data);
+        if (data.success) {
+            console.log("✅ Login successful:", data.user);
+        } else {
+            console.log("❌ Login failed:", data.error);
+        }
+    })
+    .catch(error => {
+        console.error("❌ Login fetch error:", error);
+    });
+}
+
+// Πρόσθεσε αυτό στο login-submit event listener:
+document.getElementById("login-submit").addEventListener("click", (e) => {
+    e.preventDefault();
+    console.log("🔍 Login button clicked");
+    const email = document.getElementById("login-email").value;
+    const password = document.getElementById("login-password").value;
+    
+    if (!email || !password) {
+        showNotification("Please fill in all fields", "error", "Missing Info");
+        return;
+    }
+    
+    handleLogin(email, password);
+});
+
 
 function loadUserRooms() {
     if (!currentUser.authenticated) return;
@@ -2806,3 +2856,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("✅ Ready to chat!");
 });
+
