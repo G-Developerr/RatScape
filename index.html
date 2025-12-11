@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RatScape - Group Chat</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#8B0000">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RatScape">
+    <meta name="description" content="Private group chat with invite codes. Join rooms and chat with friends in real-time.">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32x32.png">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- PWA FLOATING INSTALL BUTTON -->
+    <button id="pwa-install-btn" class="pwa-floating-install-button" style="display: none;" onclick="installPWA()">
+        <i class="fas fa-download"></i>
+        <span class="install-text">Download RatScape</span>
+    </button>
+
+    <!-- HEADER NAVIGATION -->
+    <nav id="main-nav">
+        <div class="nav-brand">
+            <button id="home-btn" class="nav-btn">
+                <img src="logo.jpg.jpg" alt="RatScape" class="nav-logo" style="height: 62px; width: auto;">
+            </button>
+        </div>
+        
+        <div class="nav-actions" id="nav-logged-out">
+            <button id="login-nav-btn" class="nav-btn"><i class="fas fa-sign-in-alt"></i> Login</button>
+            <button id="register-nav-btn" class="nav-btn"><i class="fas fa-user-plus"></i> Register</button>
+        </div>
+        <div class="nav-actions" id="nav-logged-in" style="display: none;">
+            <span id="nav-username" class="nav-username"></span>
+            <button id="my-friends-btn" class="nav-btn"><i class="fas fa-users"></i> Friends</button>
+            <button id="my-rooms-btn" class="nav-btn"><i class="fas fa-comments"></i> My Rooms</button>
+            <button id="my-profile-btn" class="nav-btn"><i class="fas fa-user-circle"></i> Profile</button>
+            <button id="logout-btn" class="nav-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </nav>
+
+    <!-- HOME PAGE -->
+    <div id="home-page" class="page active">
+        <div class="hero-section">
+            <h1>Welcome to RatScape</h1>
+            <p>Create private group chats with invite codes. Join rooms and chat with your friends in real-time.</p>
+            <div id="home-cta-logged-out">
+                <button id="home-login-btn" class="cta-btn"><i class="fas fa-sign-in-alt"></i> Login to Start</button>
+                <button id="home-register-btn" class="cta-btn-secondary"><i class="fas fa-user-plus"></i> Create Account</button>
+            </div>
+            <div id="home-cta-logged-in" style="display: none;">
+                <button id="create-room-btn" class="cta-btn"><i class="fas fa-plus-circle"></i> Create Room</button>
+                <button id="join-room-btn" class="cta-btn-secondary"><i class="fas fa-key"></i> Join with Code</button>
+            </div>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-lock"></i></div>
+                <h3>Private Rooms</h3>
+                <p>Create private group chats accessible only with invite codes. Your conversations stay private.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-bolt"></i></div>
+                <h3>Real-time Messaging</h3>
+                <p>Instant message delivery with real-time synchronization across all connected users.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-user-friends"></i></div>
+                <h3>Group Collaboration</h3>
+                <p>See who's online, share messages, and collaborate with your team in dedicated rooms.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MY ROOMS PAGE -->
+    <div id="rooms-page" class="page">
+        <div class="rooms-container">
+            <div class="rooms-header">
+                <h2>My Rooms</h2>
+                <div class="rooms-actions">
+                    <button id="create-room-btn-2" class="btn btn-primary"><i class="fas fa-plus-circle"></i> Create Room</button>
+                    <button id="join-room-btn-2" class="btn btn-secondary"><i class="fas fa-key"></i> Join Room</button>
+                </div>
+            </div>
+            <div id="rooms-list" class="rooms-list">
+                <!-- Rooms will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MY FRIENDS PAGE -->
+    <div id="friends-page" class="page">
+        <div class="rooms-container">
+            <div class="rooms-header">
+                <h2>My Friends</h2>
+                <div class="rooms-actions">
+                    <button id="add-friend-btn" class="btn btn-primary"><i class="fas fa-user-plus"></i> Add Friend</button>
+                </div>
+            </div>
+
+            <!-- My Username Display -->
+            <div class="my-username-card">
+                <div class="my-username-header">
+                    <span>Your Username:</span>
+                    <div class="username-display">
+                        <span id="display-my-username" class="username-text">username</span>
+                        <button id="copy-username-btn" class="btn-icon" title="Copy username"><i class="fas fa-copy"></i></button>
+                    </div>
+                </div>
+                <p class="username-hint">Share this username with friends so they can add you!</p>
+            </div>
+
+            <div id="friends-list" class="friends-list-page">
+                <!-- Friends will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MY PROFILE PAGE -->
+    <div id="profile-page" class="page">
+        <div class="rooms-container">
+            <div class="rooms-header">
+                <h2>My Profile</h2>
+                <button id="back-from-profile-btn" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+            </div>
+
+            <div class="profile-container">
+                <!-- Profile Picture -->
+                <div class="profile-picture-section">
+                    <div class="profile-picture-container">
+                        <div class="profile-image-wrapper">
+                            <img id="profile-image" src="" alt="Profile Picture" class="profile-image">
+                            <div class="profile-image-overlay">
+                                <button id="change-profile-pic-btn" class="btn-icon">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <input type="file" id="profile-image-input" accept="image/*" style="display: none;">
+                    </div>
+                    <h3 id="profile-username">Username</h3>
+                    <p class="profile-email" id="profile-email">Email</p>
+                </div>
+
+                <!-- Profile Info -->
+                <div class="profile-info-section">
+                    <div class="info-card">
+                        <h3>Profile Information</h3>
+                        <div class="info-item">
+                            <label>Username:</label>
+                            <span id="info-username" class="info-value">Loading...</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Email:</label>
+                            <span id="info-email" class="info-value">Loading...</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Status:</label>
+                            <span id="info-status" class="info-value status-online">Loading...</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Joined:</label>
+                            <span id="info-joined" class="info-value">Loading...</span>
+                        </div>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="stats-card">
+                        <h3>Your Statistics</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-friends">0</div>
+                                <div class="stat-label">Friends</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-rooms">0</div>
+                                <div class="stat-label">Rooms</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-messages">0</div>
+                                <div class="stat-label">Messages</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profile Actions -->
+                    <div class="profile-actions">
+                        <button id="edit-profile-btn" class="btn btn-primary">
+                            <i class="fas fa-edit"></i> Edit Profile
+                        </button>
+                        <button id="change-password-btn" class="btn btn-secondary">
+                            <i class="fas fa-key"></i> Change Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHAT PAGE -->
+    <div id="chat-page" class="page">
+        <div class="chat-layout">
+            <!-- SIDEBAR -->
+            <div id="sidebar">
+                <div class="sidebar-header">
+                    <h2 id="room-name-sidebar">RatScape</h2>
+                    <div class="room-info">
+                        <div class="status-dot"></div>
+                        <span id="room-status">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- Room Info -->
+                <div class="room-details" id="invite-code-container">
+                    <div class="invite-code-section">
+                        <label>Invite Code:</label>
+                        <div class="invite-code-display">
+                            <span id="room-invite-code">------</span>
+                            <button id="copy-invite-btn" class="btn-icon" title="Copy invite code"><i class="fas fa-copy"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Room Members -->
+                <div class="room-members-section">
+                    <h3>MEMBERS</h3>
+                    <div id="room-members-list">
+                        <!-- Members will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- User Profile -->
+                <div class="user-profile">
+                    <div class="profile-avatar">
+                        <div class="avatar" id="sidebar-avatar">U</div>
+                    </div>
+                    <div class="profile-info">
+                        <span class="profile-name" id="sidebar-username">User</span>
+                        <span class="profile-status">Online</span>
+                    </div>
+                    <button id="leave-room-btn" class="btn-icon" title="Leave room"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </div>
+
+            <!-- MAIN CHAT -->
+            <div id="main-chat">
+                <div class="chat-header">
+                    <div class="chat-info">
+                        <h2 id="room-name-header">Room Name</h2>
+                        <span class="chat-description" id="room-description">Group chat</span>
+                    </div>
+                    <div class="chat-actions">
+                        <button class="action-btn clear-btn" id="clear-messages-btn"><i class="fas fa-trash"></i> Clear</button>
+                    </div>
+                </div>
+
+                <!-- MESSAGES AREA -->
+                <div id="messages-container">
+                    <!-- Messages will be loaded here -->
+                </div>
+
+                <!-- MESSAGE INPUT -->
+                <div class="message-input-container">
+                    <form id="chat-form">
+                        <div class="input-actions">
+                            <button type="button" class="input-action-btn"><i class="fas fa-smile"></i></button>
+                            <button type="button" class="input-action-btn"><i class="fas fa-paperclip"></i></button>
+                        </div>
+                        <textarea id="message-input" autocomplete="off" placeholder="Type your message..." rows="1"></textarea>
+                        <button type="submit" class="send-btn"><i class="fas fa-paper-plane"></i> Send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIN MODAL -->
+    <div class="modal" id="login-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Login to RatScape</h3>
+                <button class="close-modal-btn" id="close-login-modal">×</button>
+            </div>
+            <div class="form-container active">
+                <div class="form-group">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="Enter your password">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="login-submit"><i class="fas fa-sign-in-alt"></i> Login</button>
+                    <button class="btn btn-secondary" id="login-cancel">Cancel</button>
+                </div>
+                <div class="guest-section">
+                    <p>Don't have an account?</p>
+                    <button class="btn btn-guest" id="switch-to-register"><i class="fas fa-user-plus"></i> Create Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REGISTER MODAL -->
+    <div class="modal" id="register-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Join RatScape</h3>
+                <button class="close-modal-btn" id="close-register-modal">×</button>
+            </div>
+            <div class="form-container active">
+                <div class="registration-avatar-section">
+                    <div class="registration-avatar-preview">
+                        <img id="register-avatar-preview" src="" style="display: none;">
+                        <div id="register-avatar-placeholder" class="registration-avatar-placeholder">
+                            <i class="fas fa-user"></i>
+                            <span>No photo</span>
+                        </div>
+                    </div>
+                    <div class="registration-avatar-buttons">
+                        <button type="button" id="register-browse-btn" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-folder-open"></i> Browse
+                        </button>
+                        <input type="file" id="register-avatar-input" accept="image/*" style="display: none;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="register-email">Email</label>
+                    <input type="email" id="register-email" placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="register-username">Username</label>
+                    <input type="text" id="register-username" placeholder="Choose a username">
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <input type="password" id="register-password" placeholder="Create a password">
+                </div>
+                <div class="form-group">
+                    <label for="register-confirm">Confirm Password</label>
+                    <input type="password" id="register-confirm" placeholder="Confirm your password">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="register-submit"><i class="fas fa-user-plus"></i> Create Account</button>
+                    <button class="btn btn-secondary" id="register-cancel">Cancel</button>
+                </div>
+                <div class="guest-section">
+                    <p>Already have an account?</p>
+                    <button class="btn btn-guest" id="switch-to-login"><i class="fas fa-sign-in-alt"></i> Sign In</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE ROOM MODAL -->
+    <div class="modal" id="create-room-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Room</h3>
+                <button class="close-modal-btn" id="close-create-room-modal">×</button>
+            </div>
+            <div class="form-container active">
+                <div class="form-group">
+                    <label for="room-name-input">Room Name</label>
+                    <input type="text" id="room-name-input" placeholder="Enter room name">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="create-room-submit"><i class="fas fa-plus-circle"></i> Create Room</button>
+                    <button class="btn btn-secondary" id="create-room-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JOIN ROOM MODAL -->
+    <div class="modal" id="join-room-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Join Room with Code</h3>
+                <button class="close-modal-btn" id="close-join-room-modal">×</button>
+            </div>
+            <div class="form-container active">
+                <div class="form-group">
+                    <label for="invite-code-input">Invite Code</label>
+                    <input type="text" id="invite-code-input" placeholder="Enter invite code" style="text-transform: uppercase;">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="join-room-submit"><i class="fas fa-key"></i> Join Room</button>
+                    <button class="btn btn-secondary" id="join-room-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADD FRIEND MODAL -->
+    <div class="modal" id="add-friend-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Friend</h3>
+                <button class="close-modal-btn" id="close-add-friend-modal">×</button>
+            </div>
+            <div class="form-container active">
+                <div class="form-group">
+                    <label for="friend-username-input">Friend's Username</label>
+                    <input type="text" id="friend-username-input" placeholder="Enter username">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="add-friend-submit"><i class="fas fa-user-plus"></i> Add Friend</button>
+                    <button class="btn btn-secondary" id="add-friend-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT PROFILE MODAL -->
+    <div class="modal" id="edit-profile-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Profile</h3>
+                <button class="close-modal-btn" id="close-edit-profile-modal">×</button>
+            </div>
+            <div class="form-container active">
+                <div class="form-group">
+                    <label for="edit-username">Username</label>
+                    <input type="text" id="edit-username" placeholder="Enter new username">
+                </div>
+                <div class="form-group">
+                    <label for="edit-email">Email</label>
+                    <input type="email" id="edit-email" placeholder="Enter new email">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="save-profile-btn"><i class="fas fa-save"></i> Save Changes</button>
+                    <button class="btn btn-secondary" id="cancel-edit-profile-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHANGE PASSWORD MODAL -->
+    <div class="modal" id="change-password-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Change Password</h3>
+                <button class="close-modal-btn" id="close-change-password-modal">×</button>
+            </div>
+            <div class="form-container active">
+                <div class="form-group">
+                    <label for="current-password">Current Password</label>
+                    <input type="password" id="current-password" placeholder="Enter current password">
+                </div>
+                <div class="form-group">
+                    <label for="new-password">New Password</label>
+                    <input type="password" id="new-password" placeholder="Enter new password">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-new-password">Confirm New Password</label>
+                    <input type="password" id="confirm-new-password" placeholder="Confirm new password">
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="save-password-btn"><i class="fas fa-key"></i> Change Password</button>
+                    <button class="btn btn-secondary" id="cancel-password-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔥 NEW: USER INFO MODAL -->
+    <div class="modal" id="user-info-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="user-info-title">User Profile</h3>
+                <button class="close-modal-btn" id="close-user-info-modal">×</button>
+            </div>
+
+            <div class="form-container active">
+                <div class="user-info-container">
+                    <div class="user-info-picture">
+                        <img id="user-info-image" src="" alt="User Picture" class="user-info-image" onerror="this.src='default-avatar.png'">
+                    </div>
+                    
+                    <div class="user-info-details">
+                        <div class="info-item">
+                            <label>Username:</label>
+                            <span id="user-info-username" class="info-value">username</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Status:</label>
+                            <span id="user-info-status" class="info-value status-online">Online</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Joined:</label>
+                            <span id="user-info-joined" class="info-value">Loading...</span>
+                        </div>
+                    </div>
+
+                    <div class="user-info-actions">
+                        <button id="send-private-message-btn" class="btn btn-primary">
+                            <i class="fas fa-comment"></i> Send Message
+                        </button>
+                        <button id="add-as-friend-btn" class="btn btn-secondary" style="display: none;">
+                            <i class="fas fa-user-plus"></i> Add Friend
+                        </button>
+                        <button id="view-mutual-rooms-btn" class="btn btn-secondary">
+                            <i class="fas fa-door-open"></i> Mutual Rooms
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+    
+    <!-- PWA SCRIPT -->
+    <script>
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then((registration) => {
+            console.log('✅ Service Worker registered:', registration.scope);
+          })
+          .catch((error) => {
+            console.log('❌ Service Worker registration failed:', error);
+          });
+      });
+    }
+
+    // PWA Install Management
+    let deferredPrompt;
+    let installButton = document.getElementById('pwa-install-btn');
+
+    function showInstallButton() {
+      const homePageActive = document.getElementById('home-page').classList.contains('active');
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                    window.navigator.standalone === true;
+      
+      if (installButton && homePageActive && !isPWA) {
+        installButton.style.display = 'flex';
+        installButton.classList.add('fade-in');
+      } else {
+        installButton.style.display = 'none';
+        installButton.classList.remove('fade-in');
+      }
+    }
+
+    function hideInstallButton() {
+      if (installButton) {
+        installButton.style.display = 'none';
+        installButton.classList.remove('fade-in');
+      }
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('📱 PWA Install Prompt triggered');
+      e.preventDefault();
+      deferredPrompt = e;
+      showInstallButton();
+    });
+
+    window.installPWA = async () => {
+      if (deferredPrompt) {
+        console.log('📲 Starting PWA installation with browser prompt...');
+        
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        console.log(`📱 User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} installation`);
+        
+        if (outcome === 'accepted') {
+          if (typeof showNotification === 'function') {
+            showNotification('App installed successfully!', 'success', 'Welcome to RatScape!');
+          }
+          hideInstallButton();
+        }
+        
+        deferredPrompt = null;
+      } else {
+        console.log('ℹ️ No install prompt available, showing instructions');
+        if (typeof showNotification === 'function') {
+          showNotification('Look for the install option in your browser menu!', 'info', 'Install RatScape');
+        }
+      }
+    };
+
+    window.addEventListener('load', () => {
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                    window.navigator.standalone === true;
+      
+      if (isPWA) {
+        console.log('✅ Running as PWA');
+        document.body.classList.add('pwa-mode');
+        hideInstallButton();
+      } else {
+        console.log('🌐 Running in browser');
+        document.body.classList.remove('pwa-mode');
+        setTimeout(showInstallButton, 1000);
+      }
+    });
+
+    const observer = new MutationObserver(() => {
+      showInstallButton();
+    });
+
+    document.querySelectorAll('.page').forEach(page => {
+      observer.observe(page, { 
+        attributes: true, 
+        attributeFilter: ['class'] 
+      });
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(showInstallButton, 1500);
+    });
+    </script>
+</body>
+
+</html>
