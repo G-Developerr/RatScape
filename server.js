@@ -1214,6 +1214,56 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // ===== 🔥 ΝΕΟ SOCKET EVENT: LEAVE ROOM =====
+  socket.on("leave room", async (data) => {
+    try {
+      const { roomId, username } = data;
+      
+      if (!roomId || !username) {
+        console.log("❌ Missing data for leave room:", data);
+        return;
+      }
+
+      console.log(`🚪 ${username} is leaving room ${roomId} via socket`);
+
+      // Leave the socket room
+      if (socket.rooms.has(roomId)) {
+        socket.leave(roomId);
+        console.log(`✅ ${username} left socket room ${roomId}`);
+      }
+
+      // Update room sockets tracking
+      const roomSocketSet = roomSockets.get(roomId);
+      if (roomSocketSet) {
+        roomSocketSet.delete(socket.id);
+        if (roomSocketSet.size === 0) {
+          roomSockets.delete(roomId);
+        }
+      }
+
+      // Update online users tracking
+      if (onlineUsers.has(username)) {
+        onlineUsers.get(username).currentRoom = null;
+      }
+
+      // Notify other users in the room
+      socket.to(roomId).emit("room_member_left", {
+        username: username,
+        roomId: roomId,
+        message: `${username} has left the room`
+      });
+
+      // Reset current room tracking for this socket
+      if (currentRoomId === roomId && currentUsername === username) {
+        currentRoomId = null;
+        console.log(`✅ ${username}'s current room reset`);
+      }
+
+    } catch (error) {
+      console.error("❌ Error in leave room socket event:", error);
+    }
+  });
+
   socket.on("chat message", async (data) => {
     try {
       if (!currentRoomId || !currentUsername || !currentSessionId) {
@@ -1471,6 +1521,7 @@ async function startServer() {
       console.log(`📁 SUPPORTED IMAGES: JPEG, PNG, GIF, WebP, BMP, TIFF`);
       console.log(`💾 MAX FILE SIZE: 10MB`);
       console.log(`🖼️ AVATAR SYSTEM: ENABLED`);
+      console.log(`🚪 LEAVE ROOM SYSTEM: ENABLED`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
