@@ -2857,3 +2857,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("✅ Ready to chat!");
 });
 
+
