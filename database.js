@@ -1,77 +1,77 @@
-// database.js - RatScape MongoDB Database - OPTIMIZED FOR RENDER
+// database.js - RatScape MongoDB Database - FIXED CONNECTION
 const mongoose = require('mongoose');
 
-// 🔥 Χρήση environment variable από το Render
+// 🔥 ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιεί το MONGODB_URI από το Render Environment
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ratscape';
 
 console.log('🔍 Attempting to connect to MongoDB...');
-console.log('📍 MONGODB_URI available:', !!process.env.MONGODB_URI);
+console.log('📍 Connection string exists:', !!process.env.MONGODB_URI);
 
 // ===== SCHEMAS =====
 
 const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  username: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  status: { type: String, default: 'Online' },
-  profile_picture: { type: String, default: null },
-  created_at: { type: Date, default: Date.now }
+    email: { type: String, required: true, unique: true },
+    username: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    status: { type: String, default: 'Online' },
+    profile_picture: { type: String, default: null },
+    created_at: { type: Date, default: Date.now }
 });
 
 const roomSchema = new mongoose.Schema({
-  room_id: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
-  invite_code: { type: String, required: true, unique: true },
-  created_by: { type: String, required: true },
-  created_at: { type: Date, default: Date.now }
+    room_id: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
+    invite_code: { type: String, required: true, unique: true },
+    created_by: { type: String, required: true },
+    created_at: { type: Date, default: Date.now }
 });
 
 const roomMemberSchema = new mongoose.Schema({
-  room_id: { type: String, required: true },
-  username: { type: String, required: true },
-  joined_at: { type: Date, default: Date.now }
+    room_id: { type: String, required: true },
+    username: { type: String, required: true },
+    joined_at: { type: Date, default: Date.now }
 });
 
 const messageSchema = new mongoose.Schema({
-  room_id: { type: String, required: true },
-  sender: { type: String, required: true },
-  text: { type: String, required: true },
-  time: { type: String, required: true },
-  created_at: { type: Date, default: Date.now }
+    room_id: { type: String, required: true },
+    sender: { type: String, required: true },
+    text: { type: String, required: true },
+    time: { type: String, required: true },
+    created_at: { type: Date, default: Date.now }
 });
 
 const privateMessageSchema = new mongoose.Schema({
-  sender: { type: String, required: true },
-  receiver: { type: String, required: true },
-  text: { type: String, required: true },
-  time: { type: String, required: true },
-  created_at: { type: Date, default: Date.now }
+    sender: { type: String, required: true },
+    receiver: { type: String, required: true },
+    text: { type: String, required: true },
+    time: { type: String, required: true },
+    created_at: { type: Date, default: Date.now }
 });
 
 const friendSchema = new mongoose.Schema({
-  sender: { type: String, required: true },
-  receiver: { type: String, required: true },
-  status: { type: String, default: 'pending' },
-  created_at: { type: Date, default: Date.now }
+    sender: { type: String, required: true },
+    receiver: { type: String, required: true },
+    status: { type: String, default: 'pending' },
+    created_at: { type: Date, default: Date.now }
 });
 
 const sessionSchema = new mongoose.Schema({
-  session_id: { type: String, required: true, unique: true },
-  username: { type: String, required: true },
-  created_at: { type: Date, default: Date.now },
-  last_accessed: { type: Date, default: Date.now }
+    session_id: { type: String, required: true, unique: true },
+    username: { type: String, required: true },
+    created_at: { type: Date, default: Date.now },
+    last_accessed: { type: Date, default: Date.now }
 });
 
 const unreadMessageSchema = new mongoose.Schema({
-  user: { type: String, required: true, index: true },
-  sender: { type: String, required: true },
-  room_id: { type: String },
-  message_id: { type: String },
-  type: { type: String, enum: ['private', 'group'], required: true },
-  count: { type: Number, default: 1 },
-  last_message: { type: String },
-  last_message_time: { type: Date, default: Date.now },
-  created_at: { type: Date, default: Date.now }
+    user: { type: String, required: true, index: true },
+    sender: { type: String, required: true },
+    room_id: { type: String },
+    message_id: { type: String },
+    type: { type: String, enum: ['private', 'group'], required: true },
+    count: { type: Number, default: 1 },
+    last_message: { type: String },
+    last_message_time: { type: Date, default: Date.now },
+    created_at: { type: Date, default: Date.now }
 });
 
 // ===== MODELS =====
@@ -87,490 +87,485 @@ const UnreadMessage = mongoose.model('UnreadMessage', unreadMessageSchema);
 // ===== DATABASE HELPERS =====
 
 const dbHelpers = {
-  // User methods
-  createUser: async function(email, username, password, profile_picture = null) {
-    const user = new User({ 
-      email, 
-      username, 
-      password,
-      profile_picture: profile_picture || null
-    });
-    await user.save();
-    console.log("✅ User created permanently:", username);
-    return user;
-  },
-
-  findUserByEmail: async function(email) {
-    return await User.findOne({ email });
-  },
-
-  findUserByUsername: async function(username) {
-    return await User.findOne({ username });
-  },
-
-  saveUser: async function(user) {
-    await User.updateOne({ username: user.username }, { status: user.status });
-  },
-
-  getAllUsers: async function() {
-    return await User.find({});
-  },
-
-  updateUser: async function(username, updates) {
-    const user = await User.findOne({ username });
-    if (!user) return false;
-    
-    Object.keys(updates).forEach(key => {
-      if (updates[key] !== undefined) {
-        user[key] = updates[key];
-      }
-    });
-    
-    await user.save();
-    return true;
-  },
-
-  updateUserPassword: async function(username, newPassword) {
-    const user = await User.findOne({ username });
-    if (!user) return false;
-    
-    user.password = newPassword;
-    await user.save();
-    return true;
-  },
-
-  getUserStats: async function(username) {
-    const user = await User.findOne({ username });
-    if (!user) return null;
-    
-    const friends = await this.getFriends(username);
-    const rooms = await this.getUserRooms(username);
-    
-    const messages = await Message.countDocuments({ 
-      $or: [
-        { sender: username },
-        { room_id: { $in: rooms.map(r => r.id) } }
-      ]
-    });
-    
-    return messages;
-  },
-
-  getUserProfilePicture: async function(username) {
-    const user = await User.findOne({ username });
-    return user ? user.profile_picture : null;
-  },
-
-  // Room methods
-  createRoom: async function(name, createdBy) {
-    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const roomId = `room_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
-    const room = new Room({ 
-      room_id: roomId,
-      name, 
-      invite_code: inviteCode, 
-      created_by: createdBy 
-    });
-    await room.save();
-    
-    return { roomId: roomId, inviteCode };
-  },
-
-  getRoomByInviteCode: async function(inviteCode) {
-    const room = await Room.findOne({ invite_code: inviteCode });
-    if (room) {
-      return {
-        id: room.room_id,
-        name: room.name,
-        invite_code: room.invite_code,
-        created_by: room.created_by,
-        created_at: room.created_at
-      };
-    }
-    return null;
-  },
-
-  getRoomById: async function(roomId) {
-    const room = await Room.findOne({ room_id: roomId });
-    if (room) {
-      return {
-        id: room.room_id,
-        name: room.name,
-        invite_code: room.invite_code,
-        created_by: room.created_by,
-        created_at: room.created_at
-      };
-    }
-    return null;
-  },
-
-  addUserToRoom: async function(roomId, username) {
-    const existing = await RoomMember.findOne({ room_id: roomId, username });
-    if (!existing) {
-      const member = new RoomMember({ room_id: roomId, username });
-      await member.save();
-    }
-  },
-
-  removeUserFromRoom: async function(roomId, username) {
-    await RoomMember.deleteOne({ room_id: roomId, username });
-    console.log(`✅ ${username} removed from room ${roomId}`);
-  },
-
-  isUserInRoom: async function(roomId, username) {
-    const member = await RoomMember.findOne({ room_id: roomId, username });
-    return !!member;
-  },
-
-  getUserRooms: async function(username) {
-    const members = await RoomMember.find({ username });
-    const rooms = [];
-    
-    for (const member of members) {
-      const room = await Room.findOne({ room_id: member.room_id });
-      if (room) {
-        rooms.push({
-          id: room.room_id,
-          name: room.name,
-          invite_code: room.invite_code,
-          created_by: room.created_by,
-          created_at: room.created_at
+    // User methods
+    createUser: async function(email, username, password, profile_picture = null) {
+        const user = new User({
+            email,
+            username,
+            password,
+            profile_picture: profile_picture || null
         });
-      }
-    }
-    
-    return rooms;
-  },
+        await user.save();
+        console.log("✅ User created permanently:", username);
+        return user;
+    },
 
-  getRoomMembers: async function(roomId) {
-    const members = await RoomMember.find({ room_id: roomId });
-    return members.map(m => ({ username: m.username, joined_at: m.joined_at }));
-  },
+    findUserByEmail: async function(email) {
+        return await User.findOne({ email });
+    },
 
-  // Message methods
-  saveMessage: async function(message) {
-    const msg = new Message({
-      room_id: message.room_id,
-      sender: message.sender,
-      text: message.text,
-      time: message.time
-    });
-    await msg.save();
-  },
+    findUserByUsername: async function(username) {
+        return await User.findOne({ username });
+    },
 
-  getRoomMessages: async function(roomId, userJoinedAt = null) {
-    const query = { room_id: roomId };
-    if (userJoinedAt) {
-      query.created_at = { $gte: new Date(userJoinedAt) };
-    }
-    return await Message.find(query).sort({ created_at: 1 });
-  },
+    saveUser: async function(user) {
+        await User.updateOne({ username: user.username }, { status: user.status });
+    },
 
-  // Friend methods
-  sendFriendRequest: async function(fromUser, toUser) {
-    const existing = await Friend.findOne({
-      $or: [
-        { sender: fromUser, receiver: toUser },
-        { sender: toUser, receiver: fromUser }
-      ]
-    });
-    
-    if (!existing) {
-      const friend = new Friend({ sender: fromUser, receiver: toUser, status: 'pending' });
-      await friend.save();
-      console.log(`✅ Friend request: ${fromUser} → ${toUser}`);
-    }
-  },
+    getAllUsers: async function() {
+        return await User.find({});
+    },
 
-  getPendingRequests: async function(username) {
-    const requests = await Friend.find({ receiver: username, status: 'pending' });
-    return requests.map(r => ({ friend_username: r.sender, created_at: r.created_at }));
-  },
+    updateUser: async function(username, updates) {
+        const user = await User.findOne({ username });
+        if (!user) return false;
 
-  respondToFriendRequest: async function(username, friendUsername, accept) {
-    const newStatus = accept ? 'accepted' : 'rejected';
-    await Friend.updateOne(
-      { sender: friendUsername, receiver: username, status: 'pending' },
-      { status: newStatus }
-    );
-    console.log(`✅ ${username} ${accept ? 'accepted' : 'rejected'} request from ${friendUsername}`);
-  },
-
-  getFriends: async function(username) {
-    const friends = await Friend.find({
-      $or: [
-        { sender: username, status: 'accepted' },
-        { receiver: username, status: 'accepted' }
-      ]
-    });
-    
-    return friends.map(f => ({
-      friend_username: f.sender === username ? f.receiver : f.sender,
-      created_at: f.created_at
-    }));
-  },
-
-  areFriends: async function(user1, user2) {
-    const friendship = await Friend.findOne({
-      $or: [
-        { sender: user1, receiver: user2, status: 'accepted' },
-        { sender: user2, receiver: user1, status: 'accepted' }
-      ]
-    });
-    return !!friendship;
-  },
-
-  hasPendingRequest: async function(user1, user2) {
-    const request = await Friend.findOne({
-      $or: [
-        { sender: user1, receiver: user2, status: 'pending' },
-        { sender: user2, receiver: user1, status: 'pending' }
-      ]
-    });
-    return !!request;
-  },
-
-  removeFriend: async function(user1, user2) {
-    await Friend.deleteOne({
-      $or: [
-        { sender: user1, receiver: user2 },
-        { sender: user2, receiver: user1 }
-      ]
-    });
-    console.log(`✅ Friendship removed: ${user1} ↔ ${user2}`);
-  },
-
-  // Private messages
-  savePrivateMessage: async function(message) {
-    const msg = new PrivateMessage({
-      sender: message.sender,
-      receiver: message.receiver,
-      text: message.text,
-      time: message.time
-    });
-    await msg.save();
-  },
-
-  getPrivateMessages: async function(user1, user2) {
-    return await PrivateMessage.find({
-      $or: [
-        { sender: user1, receiver: user2 },
-        { sender: user2, receiver: user1 }
-      ]
-    }).sort({ created_at: 1 });
-  },
-
-  // Session methods
-  saveSession: async function(sessionId, sessionData) {
-    await Session.updateOne(
-      { session_id: sessionId },
-      { 
-        session_id: sessionId, 
-        username: sessionData.username, 
-        last_accessed: new Date() 
-      },
-      { upsert: true }
-    );
-  },
-
-  getSession: async function(sessionId) {
-    const session = await Session.findOne({ session_id: sessionId });
-    if (session) {
-      session.last_accessed = new Date();
-      await session.save();
-    }
-    return session;
-  },
-
-  deleteSession: async function(sessionId) {
-    await Session.deleteOne({ session_id: sessionId });
-  },
-
-  cleanupExpiredSessions: async function() {
-    const oneWeek = 7 * 24 * 60 * 60 * 1000;
-    const expiredDate = new Date(Date.now() - oneWeek);
-    await Session.deleteMany({ last_accessed: { $lt: expiredDate } });
-  },
-
-  // Unread Messages methods
-  addUnreadMessage: async function(user, sender, type, room_id = null, message_data = null) {
-    try {
-      const query = { 
-        user, 
-        sender,
-        type,
-        room_id: room_id || null
-      };
-      
-      const existing = await UnreadMessage.findOne(query);
-      
-      if (existing) {
-        existing.count += 1;
-        existing.last_message = message_data?.text || "New message";
-        existing.last_message_time = new Date();
-        await existing.save();
-        console.log(`✅ Updated unread for ${user} from ${sender}: ${existing.count} messages`);
-        return existing;
-      } else {
-        const unread = new UnreadMessage({
-          user,
-          sender,
-          type,
-          room_id,
-          last_message: message_data?.text || "New message",
-          message_id: message_data?.message_id || `msg_${Date.now()}`
+        Object.keys(updates).forEach(key => {
+            if (updates[key] !== undefined) {
+                user[key] = updates[key];
+            }
         });
-        await unread.save();
-        console.log(`✅ Created unread for ${user} from ${sender}`);
-        return unread;
-      }
-    } catch (error) {
-      console.error("❌ Error adding unread message:", error);
-      return null;
-    }
-  },
 
-  getUnreadMessages: async function(user) {
-    try {
-      const unreads = await UnreadMessage.find({ user }).sort({ last_message_time: -1 });
-      return unreads;
-    } catch (error) {
-      console.error("❌ Error getting unread messages:", error);
-      return [];
-    }
-  },
+        await user.save();
+        return true;
+    },
 
-  getUnreadCountForUser: async function(user, sender = null, type = null, room_id = null) {
-    try {
-      const query = { user };
-      if (sender) query.sender = sender;
-      if (type) query.type = type;
-      if (room_id) query.room_id = room_id;
-      
-      const unread = await UnreadMessage.findOne(query);
-      return unread ? unread.count : 0;
-    } catch (error) {
-      console.error("❌ Error getting unread count:", error);
-      return 0;
-    }
-  },
+    updateUserPassword: async function(username, newPassword) {
+        const user = await User.findOne({ username });
+        if (!user) return false;
 
-  markAsRead: async function(user, sender = null, type = null, room_id = null) {
-    try {
-      const query = { user };
-      if (sender) query.sender = sender;
-      if (type) query.type = type;
-      if (room_id) query.room_id = room_id;
-      
-      const result = await UnreadMessage.deleteMany(query);
-      console.log(`✅ Marked as read for ${user}: ${result.deletedCount} messages`);
-      return result.deletedCount > 0;
-    } catch (error) {
-      console.error("❌ Error marking messages as read:", error);
-      return false;
-    }
-  },
+        user.password = newPassword;
+        await user.save();
+        return true;
+    },
 
-  clearAllUnread: async function(user) {
-    try {
-      const result = await UnreadMessage.deleteMany({ user });
-      console.log(`✅ Cleared all unread for ${user}: ${result.deletedCount} messages`);
-      return result.deletedCount > 0;
-    } catch (error) {
-      console.error("❌ Error clearing all unread messages:", error);
-      return false;
-    }
-  },
+    getUserStats: async function(username) {
+        const user = await User.findOne({ username });
+        if (!user) return null;
 
-  getUnreadSummary: async function(user) {
-    try {
-      const unreads = await UnreadMessage.find({ user });
-      
-      const summary = {
-        total: 0,
-        private: {},
-        groups: {}
-      };
-      
-      unreads.forEach(unread => {
-        summary.total += unread.count;
-        
-        if (unread.type === 'private') {
-          summary.private[unread.sender] = unread.count;
-        } else if (unread.type === 'group') {
-          if (!summary.groups[unread.room_id]) {
-            summary.groups[unread.room_id] = 0;
-          }
-          summary.groups[unread.room_id] += unread.count;
+        const friends = await this.getFriends(username);
+        const rooms = await this.getUserRooms(username);
+
+        const messages = await Message.countDocuments({
+            $or: [
+                { sender: username },
+                { room_id: { $in: rooms.map(r => r.id) } }
+            ]
+        });
+
+        return messages;
+    },
+
+    getUserProfilePicture: async function(username) {
+        const user = await User.findOne({ username });
+        return user ? user.profile_picture : null;
+    },
+
+    // Room methods
+    createRoom: async function(name, createdBy) {
+        const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const roomId = `room_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+        const room = new Room({
+            room_id: roomId,
+            name,
+            invite_code: inviteCode,
+            created_by: createdBy
+        });
+        await room.save();
+
+        return { roomId: roomId, inviteCode };
+    },
+
+    getRoomByInviteCode: async function(inviteCode) {
+        const room = await Room.findOne({ invite_code: inviteCode });
+        if (room) {
+            return {
+                id: room.room_id,
+                name: room.name,
+                invite_code: room.invite_code,
+                created_by: room.created_by,
+                created_at: room.created_at
+            };
         }
-      });
-      
-      return summary;
-    } catch (error) {
-      console.error("❌ Error getting unread summary:", error);
-      return { total: 0, private: {}, groups: {} };
+        return null;
+    },
+
+    getRoomById: async function(roomId) {
+        const room = await Room.findOne({ room_id: roomId });
+        if (room) {
+            return {
+                id: room.room_id,
+                name: room.name,
+                invite_code: room.invite_code,
+                created_by: room.created_by,
+                created_at: room.created_at
+            };
+        }
+        return null;
+    },
+
+    addUserToRoom: async function(roomId, username) {
+        const existing = await RoomMember.findOne({ room_id: roomId, username });
+        if (!existing) {
+            const member = new RoomMember({ room_id: roomId, username });
+            await member.save();
+        }
+    },
+
+    removeUserFromRoom: async function(roomId, username) {
+        await RoomMember.deleteOne({ room_id: roomId, username });
+        console.log(`✅ ${username} removed from room ${roomId}`);
+    },
+
+    isUserInRoom: async function(roomId, username) {
+        const member = await RoomMember.findOne({ room_id: roomId, username });
+        return !!member;
+    },
+
+    getUserRooms: async function(username) {
+        const members = await RoomMember.find({ username });
+        const rooms = [];
+
+        for (const member of members) {
+            const room = await Room.findOne({ room_id: member.room_id });
+            if (room) {
+                rooms.push({
+                    id: room.room_id,
+                    name: room.name,
+                    invite_code: room.invite_code,
+                    created_by: room.created_by,
+                    created_at: room.created_at
+                });
+            }
+        }
+
+        return rooms;
+    },
+
+    getRoomMembers: async function(roomId) {
+        const members = await RoomMember.find({ room_id: roomId });
+        return members.map(m => ({ username: m.username, joined_at: m.joined_at }));
+    },
+
+    // Message methods
+    saveMessage: async function(message) {
+        const msg = new Message({
+            room_id: message.room_id,
+            sender: message.sender,
+            text: message.text,
+            time: message.time
+        });
+        await msg.save();
+    },
+
+    getRoomMessages: async function(roomId, userJoinedAt = null) {
+        const query = { room_id: roomId };
+        if (userJoinedAt) {
+            query.created_at = { $gte: new Date(userJoinedAt) };
+        }
+        return await Message.find(query).sort({ created_at: 1 });
+    },
+
+    // Friend methods
+    sendFriendRequest: async function(fromUser, toUser) {
+        const existing = await Friend.findOne({
+            $or: [
+                { sender: fromUser, receiver: toUser },
+                { sender: toUser, receiver: fromUser }
+            ]
+        });
+
+        if (!existing) {
+            const friend = new Friend({ sender: fromUser, receiver: toUser, status: 'pending' });
+            await friend.save();
+            console.log(`✅ Friend request: ${fromUser} → ${toUser}`);
+        }
+    },
+
+    getPendingRequests: async function(username) {
+        const requests = await Friend.find({ receiver: username, status: 'pending' });
+        return requests.map(r => ({ friend_username: r.sender, created_at: r.created_at }));
+    },
+
+    respondToFriendRequest: async function(username, friendUsername, accept) {
+        const newStatus = accept ? 'accepted' : 'rejected';
+        await Friend.updateOne({ sender: friendUsername, receiver: username, status: 'pending' }, { status: newStatus });
+        console.log(`✅ ${username} ${accept ? 'accepted' : 'rejected'} request from ${friendUsername}`);
+    },
+
+    getFriends: async function(username) {
+        const friends = await Friend.find({
+            $or: [
+                { sender: username, status: 'accepted' },
+                { receiver: username, status: 'accepted' }
+            ]
+        });
+
+        return friends.map(f => ({
+            friend_username: f.sender === username ? f.receiver : f.sender,
+            created_at: f.created_at
+        }));
+    },
+
+    areFriends: async function(user1, user2) {
+        const friendship = await Friend.findOne({
+            $or: [
+                { sender: user1, receiver: user2, status: 'accepted' },
+                { sender: user2, receiver: user1, status: 'accepted' }
+            ]
+        });
+        return !!friendship;
+    },
+
+    hasPendingRequest: async function(user1, user2) {
+        const request = await Friend.findOne({
+            $or: [
+                { sender: user1, receiver: user2, status: 'pending' },
+                { sender: user2, receiver: user1, status: 'pending' }
+            ]
+        });
+        return !!request;
+    },
+
+    removeFriend: async function(user1, user2) {
+        await Friend.deleteOne({
+            $or: [
+                { sender: user1, receiver: user2 },
+                { sender: user2, receiver: user1 }
+            ]
+        });
+        console.log(`✅ Friendship removed: ${user1} ↔ ${user2}`);
+    },
+
+    // Private messages
+    savePrivateMessage: async function(message) {
+        const msg = new PrivateMessage({
+            sender: message.sender,
+            receiver: message.receiver,
+            text: message.text,
+            time: message.time
+        });
+        await msg.save();
+    },
+
+    getPrivateMessages: async function(user1, user2) {
+        return await PrivateMessage.find({
+            $or: [
+                { sender: user1, receiver: user2 },
+                { sender: user2, receiver: user1 }
+            ]
+        }).sort({ created_at: 1 });
+    },
+
+    // Session methods
+    saveSession: async function(sessionId, sessionData) {
+        await Session.updateOne({ session_id: sessionId }, {
+            session_id: sessionId,
+            username: sessionData.username,
+            last_accessed: new Date()
+        }, { upsert: true });
+    },
+
+    getSession: async function(sessionId) {
+        const session = await Session.findOne({ session_id: sessionId });
+        if (session) {
+            session.last_accessed = new Date();
+            await session.save();
+        }
+        return session;
+    },
+
+    deleteSession: async function(sessionId) {
+        await Session.deleteOne({ session_id: sessionId });
+    },
+
+    cleanupExpiredSessions: async function() {
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        const expiredDate = new Date(Date.now() - oneWeek);
+        await Session.deleteMany({ last_accessed: { $lt: expiredDate } });
+    },
+
+    // Unread Messages methods
+    addUnreadMessage: async function(user, sender, type, room_id = null, message_data = null) {
+        try {
+            const query = {
+                user,
+                sender,
+                type,
+                room_id: room_id || null
+            };
+
+            const existing = await UnreadMessage.findOne(query);
+
+            if (existing) {
+                existing.count += 1;
+                existing.last_message = message_data ? .text || "New message";
+                existing.last_message_time = new Date();
+                await existing.save();
+                console.log(`✅ Updated unread for ${user} from ${sender}: ${existing.count} messages`);
+                return existing;
+            } else {
+                const unread = new UnreadMessage({
+                    user,
+                    sender,
+                    type,
+                    room_id,
+                    last_message: message_data ? .text || "New message",
+                    message_id: message_data ? .message_id || `msg_${Date.now()}`
+                });
+                await unread.save();
+                console.log(`✅ Created unread for ${user} from ${sender}`);
+                return unread;
+            }
+        } catch (error) {
+            console.error("❌ Error adding unread message:", error);
+            return null;
+        }
+    },
+
+    getUnreadMessages: async function(user) {
+        try {
+            const unreads = await UnreadMessage.find({ user }).sort({ last_message_time: -1 });
+            return unreads;
+        } catch (error) {
+            console.error("❌ Error getting unread messages:", error);
+            return [];
+        }
+    },
+
+    getUnreadCountForUser: async function(user, sender = null, type = null, room_id = null) {
+        try {
+            const query = { user };
+            if (sender) query.sender = sender;
+            if (type) query.type = type;
+            if (room_id) query.room_id = room_id;
+
+            const unread = await UnreadMessage.findOne(query);
+            return unread ? unread.count : 0;
+        } catch (error) {
+            console.error("❌ Error getting unread count:", error);
+            return 0;
+        }
+    },
+
+    markAsRead: async function(user, sender = null, type = null, room_id = null) {
+        try {
+            const query = { user };
+            if (sender) query.sender = sender;
+            if (type) query.type = type;
+            if (room_id) query.room_id = room_id;
+
+            const result = await UnreadMessage.deleteMany(query);
+            console.log(`✅ Marked as read for ${user}: ${result.deletedCount} messages`);
+            return result.deletedCount > 0;
+        } catch (error) {
+            console.error("❌ Error marking messages as read:", error);
+            return false;
+        }
+    },
+
+    clearAllUnread: async function(user) {
+        try {
+            const result = await UnreadMessage.deleteMany({ user });
+            console.log(`✅ Cleared all unread for ${user}: ${result.deletedCount} messages`);
+            return result.deletedCount > 0;
+        } catch (error) {
+            console.error("❌ Error clearing all unread messages:", error);
+            return false;
+        }
+    },
+
+    getUnreadSummary: async function(user) {
+        try {
+            const unreads = await UnreadMessage.find({ user });
+
+            const summary = {
+                total: 0,
+                private: {},
+                groups: {}
+            };
+
+            unreads.forEach(unread => {
+                summary.total += unread.count;
+
+                if (unread.type === 'private') {
+                    summary.private[unread.sender] = unread.count;
+                } else if (unread.type === 'group') {
+                    if (!summary.groups[unread.room_id]) {
+                        summary.groups[unread.room_id] = 0;
+                    }
+                    summary.groups[unread.room_id] += unread.count;
+                }
+            });
+
+            return summary;
+        } catch (error) {
+            console.error("❌ Error getting unread summary:", error);
+            return { total: 0, private: {}, groups: {} };
+        }
     }
-  }
 };
 
-// 🔥 ΒΕΛΤΙΩΜΕΝΟ: Initialize database connection με retry logic
+// 🔥 FIXED: Initialize database connection με καλύτερο error handling
 async function initializeDatabase() {
-  try {
-    console.log("🔄 Connecting to MongoDB...");
-    
-    if (!process.env.MONGODB_URI) {
-      console.warn("⚠️ WARNING: MONGODB_URI not found in environment variables!");
-      console.warn("⚠️ This will work only if you have local MongoDB installed.");
-      console.warn("⚠️ For Render deployment, add MONGODB_URI to your environment variables!");
+    try {
+        console.log("🔄 Connecting to MongoDB...");
+
+        // Έλεγχος αν υπάρχει MONGODB_URI
+        if (!process.env.MONGODB_URI) {
+            console.warn("⚠️ WARNING: MONGODB_URI not found in environment variables!");
+            console.warn("⚠️ Using local MongoDB. This will NOT work on Render!");
+        }
+
+        await mongoose.connect(MONGODB_URI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 10000, // 10 seconds timeout
+            socketTimeoutMS: 45000,
+            // 🔥 ΠΡΟΣΘΗΚΗ: Retry configuration
+            retryWrites: true,
+            retryReads: true,
+            maxPoolSize: 10
+        });
+
+        console.log('✅ Database connected successfully to:', mongoose.connection.host);
+        console.log('📊 Database name:', mongoose.connection.name);
+
+        // Connection event handlers
+        mongoose.connection.on('error', (err) => {
+            console.error("❌ MongoDB connection error:", err.message);
+        });
+
+        mongoose.connection.on('disconnected', () => {
+            console.log("⚠️ MongoDB disconnected. Attempting to reconnect...");
+        });
+
+        mongoose.connection.on('reconnected', () => {
+            console.log("✅ MongoDB reconnected successfully");
+        });
+
+        mongoose.connection.on('connected', () => {
+            console.log("🔗 MongoDB connection established");
+        });
+
+        return mongoose.connection;
+    } catch (error) {
+        console.error("❌ Failed to connect to database:");
+        console.error("Error message:", error.message);
+        console.error("Error name:", error.name);
+
+        // 🔥 Πιο χρήσιμα error messages
+        if (error.name === 'MongooseServerSelectionError') {
+            console.error("❌ Cannot reach MongoDB server. Check:");
+            console.error("   1. Is MONGODB_URI environment variable set correctly in Render?");
+            console.error("   2. Is MongoDB Atlas cluster running?");
+            console.error("   3. Is the IP address whitelisted in MongoDB Atlas (0.0.0.0/0)?");
+            console.error("   4. Is the database user password correct?");
+        }
+
+        throw error;
     }
-    
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 30000, // 30 seconds timeout για Render
-      socketTimeoutMS: 45000,
-      retryWrites: true,
-      retryReads: true,
-      maxPoolSize: 10
-    });
-    
-    console.log('✅ Database connected successfully to:', mongoose.connection.host);
-    console.log('📊 Database name:', mongoose.connection.name);
-    
-    // Connection event handlers
-    mongoose.connection.on('error', (err) => {
-      console.error("❌ MongoDB connection error:", err.message);
-    });
-    
-    mongoose.connection.on('disconnected', () => {
-      console.log("⚠️ MongoDB disconnected. Attempting to reconnect...");
-    });
-    
-    mongoose.connection.on('reconnected', () => {
-      console.log("✅ MongoDB reconnected successfully");
-    });
-    
-    mongoose.connection.on('connected', () => {
-      console.log("🔗 MongoDB connection established");
-    });
-    
-    return mongoose.connection;
-  } catch (error) {
-    console.error("❌ Failed to connect to database:");
-    console.error("Error message:", error.message);
-    console.error("Error name:", error.name);
-    
-    if (error.name === 'MongooseServerSelectionError') {
-      console.error("❌ Cannot reach MongoDB server. Check:");
-      console.error("   1. Is MONGODB_URI environment variable set correctly in Render?");
-      console.error("   2. Is MongoDB Atlas cluster running?");
-      console.error("   3. Is the IP address whitelisted in MongoDB Atlas (0.0.0.0/0)?");
-      console.error("   4. Is the database user password correct?");
-    }
-    
-    throw error;
-  }
 }
 
 module.exports = { dbHelpers, initializeDatabase };
