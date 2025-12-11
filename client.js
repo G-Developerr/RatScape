@@ -1788,15 +1788,39 @@ async function handleJoinRoom(inviteCode) {
     }
 }
 
-// 🔥 FIXED: LEAVE ROOM FUNCTION
+// 🔥 FIXED: LEAVE ROOM FUNCTION - ΔΙΟΡΘΩΜΕΝΗ ΕΚΔΟΣΗ
 async function handleLeaveRoom() {
-    if (!currentRoom.id || currentRoom.isPrivate) return;
+    console.log("🚪 Leave room button clicked");
+    console.log("Current room:", currentRoom);
+    
+    if (!currentRoom.id) {
+        showNotification("You're not in a room", "warning", "No Room");
+        return;
+    }
+    
+    // Εάν είναι private chat, απλά επιστρέφουμε στις ομάδες
+    if (currentRoom.isPrivate) {
+        showNotification("Exited private chat", "info", "Chat Ended");
+        
+        // Reset current room
+        currentRoom = { 
+            id: null, 
+            name: null, 
+            inviteCode: null, 
+            isPrivate: false 
+        };
+        
+        showPage("rooms-page");
+        return;
+    }
     
     showConfirmationModal(
-        "Are you sure you want to leave this room?",
+        "Are you sure you want to leave this room? You'll need a new invite code to rejoin.",
         "Leave Room",
         async () => {
             try {
+                console.log("🚪 Leaving room:", currentRoom.id, "User:", currentUser.username);
+                
                 const response = await fetch("/leave-room", {
                     method: "POST",
                     headers: {
@@ -1816,15 +1840,33 @@ async function handleLeaveRoom() {
                 const data = await response.json();
 
                 if (data.success) {
-                    showNotification("Left room successfully!", "info", "Room Left");
-                    showPage("rooms-page");
-                    loadUserRooms();
+                    // Notify server via socket πρώτα
+                    socket.emit("leave room", { 
+                        roomId: currentRoom.id,
+                        username: currentUser.username 
+                    });
                     
-                    // Reset current room
-                    currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
-                    // Επαναφορά του invite code section
-                    document.getElementById("invite-code-container").classList.remove("hide-for-private");
-                    document.getElementById("copy-invite-btn").style.display = "flex";
+                    // Clear room tracking
+                    const leftRoomId = currentRoom.id;
+                    currentRoom = { 
+                        id: null, 
+                        name: null, 
+                        inviteCode: null, 
+                        isPrivate: false 
+                    };
+                    
+                    // Επαναφορά του UI
+                    document.getElementById("invite-code-container")?.classList.remove("hide-for-private");
+                    document.getElementById("copy-invite-btn")?.style.display = "flex";
+                    
+                    // Πηγαίνουμε στη σελίδα rooms
+                    showPage("rooms-page");
+                    
+                    // Reload rooms list
+                    setTimeout(() => {
+                        loadUserRooms();
+                        showNotification("Successfully left the room", "info", "Room Left");
+                    }, 300);
                 } else {
                     showNotification(data.error || "Failed to leave room", "error", "Action Failed");
                 }
@@ -2226,6 +2268,22 @@ socket.on("room info", (room) => {
         document.getElementById("room-name-sidebar").textContent = room.name;
         document.getElementById("room-name-header").textContent = room.name;
         document.getElementById("room-description").textContent = `Created by ${room.created_by}`;
+    }
+});
+
+// 🔥 ΝΕΟ: Room member left notification
+socket.on("room_member_left", (data) => {
+    console.log("👋 Room member left:", data);
+    
+    // Αν είμαστε στο ίδιο room, ανανεώνουμε τη λίστα μελών
+    if (currentRoom.id === data.roomId) {
+        // Απλά ενημερώνουμε τον χρήστη
+        showNotification(`${data.username} left the room`, "info", "Member Left");
+        
+        // Ανανεώνουμε τη λίστα μελών
+        setTimeout(() => {
+            socket.emit("get room members", { roomId: currentRoom.id });
+        }, 500);
     }
 });
 
