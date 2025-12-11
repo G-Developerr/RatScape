@@ -88,10 +88,16 @@ const UnreadMessage = mongoose.model('UnreadMessage', unreadMessageSchema);
 
 const dbHelpers = {
   // User methods
-  createUser: async function(email, username, password) {
-    const user = new User({ email, username, password });
+  createUser: async function(email, username, password, profile_picture = null) {
+    const user = new User({ 
+      email, 
+      username, 
+      password,
+      profile_picture: profile_picture || null
+    });
     await user.save();
     console.log("✅ User created permanently:", username);
+    return user;
   },
 
   findUserByEmail: async function(email) {
@@ -148,6 +154,11 @@ const dbHelpers = {
     });
     
     return messages;
+  },
+
+  getUserProfilePicture: async function(username) {
+    const user = await User.findOne({ username });
+    return user ? user.profile_picture : null;
   },
 
   // Room methods
