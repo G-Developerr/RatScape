@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - RENDER COMPATIBLE
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -6,32 +6,16 @@ const cors = require("cors");
 const path = require("path");
 const { dbHelpers, initializeDatabase } = require("./database.js");
 const multer = require('multer');
-const sharp = require('sharp');
+const sharp = require('sharp'); // 🔥 ΝΕΟ: Για auto-resize εικόνων
 const fs = require('fs').promises;
 
 const app = express();
 const server = createServer(app);
 
-// 🔥 FIXED για Render: Χρήση environment variable για origins
-const allowedOrigins = [
-  "https://ratscape.onrender.com",
-  "https://ratscape.onrender.com:10000",
-  "http://localhost:3000",
-  "http://localhost:10000",
-  "http://localhost:3001"
-];
-
+// FIXED: WebSocket config for Render
 const io = new Server(server, {
   cors: {
-    origin: function(origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) === -1) {
-        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-        return callback(new Error(msg), false);
-      }
-      return callback(null, true);
-    },
+    origin: ["https://ratscape.onrender.com", "http://localhost:3000", "http://localhost:10000"],
     methods: ["GET", "POST"],
     credentials: true
   },
@@ -40,13 +24,7 @@ const io = new Server(server, {
 
 // Middleware
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: ["https://ratscape.onrender.com", "http://localhost:3000"],
   credentials: true
 }));
 app.use(express.json());
@@ -61,7 +39,7 @@ const ensureUploadsDir = async () => {
   }
 };
 
-// Configure multer
+// 🔥 ΒΕΛΤΙΩΣΗ: Configure multer με auto-resize
 const storage = multer.diskStorage({
     destination: async function (req, file, cb) {
         await ensureUploadsDir();
@@ -77,7 +55,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage: storage,
     limits: { 
-      fileSize: 10 * 1024 * 1024,
+      fileSize: 10 * 1024 * 1024, // 🔥 ΑΥΞΗΣΗ: 10MB limit για μεγαλύτερες φωτογραφίες
     },
     fileFilter: function (req, file, cb) {
         const filetypes = /jpeg|jpg|png|gif|webp|bmp|tiff/;
@@ -87,22 +65,32 @@ const upload = multer({
         if (mimetype && extname) {
             return cb(null, true);
         }
-        cb(new Error('Only image files are allowed'));
+        cb(new Error('Only image files are allowed (JPEG, PNG, GIF, WebP, BMP, TIFF)'));
     }
 });
 
-// Auto-resize function
+// 🔥 ΒΕΛΤΙΩΣΗ: Συνάρτηση για auto-resize και optimization εικόνων
 async function processAndResizeImage(filePath) {
   try {
+    // Βεβαιώσου ότι το αρχείο υπάρχει
     await fs.access(filePath);
     
+    console.log(`🖼️ Processing image: ${filePath}`);
+    
+    // Ανάγνωση metadata
     const metadata = await sharp(filePath).metadata();
+    console.log(`📐 Original image: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);
+    
+    // Προσθήκη timestamp στο όνομα για μοναδικότητα
     const timestamp = Date.now();
     const ext = path.extname(filePath).toLowerCase();
     const baseName = path.basename(filePath, ext);
     const finalFilename = `${baseName}_${timestamp}_resized${ext}`;
     const outputPath = path.join(path.dirname(filePath), finalFilename);
     
+    console.log(`📏 Resizing to 150x150, output: ${outputPath}`);
+    
+    // Auto-resize
     await sharp(filePath)
       .resize({
         width: 150,
@@ -118,26 +106,21 @@ async function processAndResizeImage(filePath) {
       })
       .toFile(outputPath);
     
+    console.log(`✅ Image processed successfully: ${outputPath}`);
+    
+    // Διαγραφή του αρχικού αρχείου
     await fs.unlink(filePath);
+    
     return outputPath;
   } catch (error) {
-    console.error('Error processing image:', error);
-    return filePath;
+    console.error('❌ Error processing image:', error);
+    return filePath; // Fallback to original
   }
 }
 
-// Serve static files
+// Serve static files correctly for Render
 app.use(express.static(path.join(__dirname)));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Health check endpoint για το Render
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    service: 'RatScape Chat'
-  });
-});
 
 // Routes
 app.get("/", (req, res) => {
@@ -148,12 +131,12 @@ app.get("/test", (req, res) => {
   res.sendFile(path.join(__dirname, "test.html"));
 });
 
-// Session management
+// Memory sessions as fallback
 const userSessions = new Map();
 const onlineUsers = new Map();
 const roomSockets = new Map();
 
-// Enhanced session middleware
+// Enhanced session middleware using database
 async function validateSession(req, res, next) {
   const sessionId = req.headers["x-session-id"];
   const username = req.params.username || req.body.username;
@@ -163,12 +146,14 @@ async function validateSession(req, res, next) {
   }
 
   try {
+    // Try database first, then memory fallback
     let session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     
     if (!session) {
       return res.status(401).json({ success: false, error: "Invalid session" });
     }
 
+    // Check session expiration (7 days)
     const oneWeek = 7 * 24 * 60 * 60 * 1000;
     const sessionTime = new Date(session.last_accessed || session.createdAt).getTime();
     
@@ -178,6 +163,7 @@ async function validateSession(req, res, next) {
       return res.status(401).json({ success: false, error: "Session expired" });
     }
 
+    // If username is provided, verify it matches session
     if (username && session.username !== username) {
       return res.status(401).json({ success: false, error: "Session mismatch" });
     }
@@ -214,16 +200,18 @@ app.get("/debug-users", async (req, res) => {
   }
 });
 
-// Get profile picture endpoint
+// 🔥 ΝΕΟ ENDPOINT: GET PROFILE PICTURE
 app.get("/get-profile-picture/:username", async (req, res) => {
   try {
     const { username } = req.params;
     const sessionId = req.headers["x-session-id"];
 
+    // Μπορεί να ζητηθεί χωρίς session για public avatars
     if (sessionId) {
       const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
       if (!session) {
-        console.log("⚠️ No valid session for avatar request");
+        // Άντεξε ακόμα και χωρίς session για τα avatars
+        console.log("⚠️ No valid session for avatar request, but continuing...");
       }
     }
 
@@ -240,6 +228,7 @@ app.get("/get-profile-picture/:username", async (req, res) => {
       });
     }
     
+    // Βεβαιώσου ότι το αρχείο υπάρχει
     const filePath = path.join(__dirname, user.profile_picture);
     try {
       await fs.access(filePath);
@@ -248,7 +237,7 @@ app.get("/get-profile-picture/:username", async (req, res) => {
         profile_picture: user.profile_picture + "?t=" + Date.now() 
       });
     } catch (error) {
-      console.log("Profile picture file not found");
+      console.log("Profile picture file not found, returning null");
       res.json({ 
         success: true, 
         profile_picture: null 
@@ -261,16 +250,21 @@ app.get("/get-profile-picture/:username", async (req, res) => {
   }
 });
 
-// Offline notifications
+// ===== ΝΕΟ ENDPOINT: OFFLINE NOTIFICATIONS =====
 app.get("/offline-notifications/:username", validateSession, async (req, res) => {
   try {
     const { username } = req.params;
     
+    // Φόρτωση unread messages
     const unreads = await dbHelpers.getUnreadMessages(username);
+    
+    // Φόρτωση pending friend requests
     const pendingRequests = await dbHelpers.getPendingRequests(username);
     
+    // Δημιουργία notifications array
     const notifications = [];
     
+    // Προσθήκη unread private messages
     const privateUnreads = unreads.filter(u => u.type === 'private');
     for (const unread of privateUnreads) {
       notifications.push({
@@ -287,6 +281,7 @@ app.get("/offline-notifications/:username", validateSession, async (req, res) =>
       });
     }
     
+    // Προσθήκη unread group messages
     const groupUnreads = unreads.filter(u => u.type === 'group');
     for (const unread of groupUnreads) {
       const room = await dbHelpers.getRoomById(unread.room_id);
@@ -307,6 +302,7 @@ app.get("/offline-notifications/:username", validateSession, async (req, res) =>
       });
     }
     
+    // Προσθήκη pending friend requests
     for (const request of pendingRequests) {
       notifications.push({
         id: `request_${request._id}`,
@@ -320,8 +316,10 @@ app.get("/offline-notifications/:username", validateSession, async (req, res) =>
       });
     }
     
+    // Ταξινόμηση κατά timestamp (νέα πρώτα)
     notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     
+    // Συνολικό count
     const totalUnread = unreads.reduce((sum, u) => sum + u.count, 0);
     
     res.json({
@@ -338,7 +336,7 @@ app.get("/offline-notifications/:username", validateSession, async (req, res) =>
   }
 });
 
-// Mark as read
+// ===== ΝΕΟ ENDPOINT: MARK AS READ =====
 app.post("/mark-as-read", validateSession, async (req, res) => {
   try {
     const { username, sender, type, room_id } = req.body;
@@ -360,7 +358,7 @@ app.post("/mark-as-read", validateSession, async (req, res) => {
   }
 });
 
-// Unread summary
+// ===== ΝΕΟ ENDPOINT: GET UNREAD SUMMARY =====
 app.get("/unread-summary/:username", validateSession, async (req, res) => {
   try {
     const { username } = req.params;
@@ -378,6 +376,8 @@ app.get("/unread-summary/:username", validateSession, async (req, res) => {
   }
 });
 
+// ===== ΝΕΑ ENDPOINTS: PROFILE SYSTEM =====
+
 // User profile endpoint
 app.get("/user-profile/:username", validateSession, async (req, res) => {
     try {
@@ -388,8 +388,11 @@ app.get("/user-profile/:username", validateSession, async (req, res) => {
             return res.status(404).json({ success: false, error: "User not found" });
         }
         
+        // Get user statistics
         const friends = await dbHelpers.getFriends(username);
         const rooms = await dbHelpers.getUserRooms(username);
+        
+        // Get messages count (simplified)
         const messages = await dbHelpers.getUserStats(username);
         
         const profile = {
@@ -418,31 +421,40 @@ app.get("/user-profile/:username", validateSession, async (req, res) => {
     }
 });
 
-// User info endpoint
+// ===== ΝΕΑ ENDPOINTS: USER INFO SYSTEM =====
+
+// User info endpoint (για άλλους χρήστες) - FIXED VERSION
 app.get("/user-info/:targetUsername", async (req, res) => {
   try {
     const { targetUsername } = req.params;
     const sessionId = req.headers["x-session-id"];
 
+    console.log("🔍 User info request for:", targetUsername, "session:", sessionId);
+
+    // Check session
     if (!sessionId) {
       return res.status(401).json({ success: false, error: "Session required" });
     }
 
+    // Get session from database or memory
     const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     if (!session) {
       return res.status(401).json({ success: false, error: "Invalid session" });
     }
 
+    // Get the user making the request
     const requestingUser = await dbHelpers.findUserByUsername(session.username);
     if (!requestingUser) {
       return res.status(401).json({ success: false, error: "Requesting user not found" });
     }
 
+    // Get the target user
     const targetUser = await dbHelpers.findUserByUsername(targetUsername);
     if (!targetUser) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
+    // Create user info response
     const userInfo = {
       username: targetUser.username,
       status: targetUser.status || "Offline",
@@ -450,27 +462,32 @@ app.get("/user-info/:targetUsername", async (req, res) => {
       profile_picture: targetUser.profile_picture || null
     };
 
+    console.log("✅ User info retrieved for:", targetUsername);
+
     res.json({
       success: true,
       user: userInfo
     });
     
   } catch (error) {
-    console.error("Error getting user info:", error);
+    console.error("❌ Error getting user info:", error);
     res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
 
-// Check friendship status
+// ===== ΝΕΟ ENDPOINT: CHECK FRIENDSHIP STATUS =====
 app.get("/check-friendship/:username/:friendUsername", async (req, res) => {
   try {
     const { username, friendUsername } = req.params;
     const sessionId = req.headers["x-session-id"];
 
+    console.log("🔍 Checking friendship between:", username, "and", friendUsername);
+
     if (!sessionId) {
       return res.status(401).json({ success: false, error: "Session required" });
     }
 
+    // Validate session
     const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     if (!session || session.username !== username) {
       return res.status(401).json({ success: false, error: "Invalid session" });
@@ -483,6 +500,8 @@ app.get("/check-friendship/:username/:friendUsername", async (req, res) => {
     const areFriends = await dbHelpers.areFriends(username, friendUsername);
     const hasPendingRequest = await dbHelpers.hasPendingRequest(username, friendUsername);
 
+    console.log("✅ Friendship check result:", { areFriends, hasPendingRequest });
+
     res.json({
       success: true,
       areFriends: areFriends,
@@ -490,7 +509,7 @@ app.get("/check-friendship/:username/:friendUsername", async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error checking friendship:", error);
+    console.error("❌ Error checking friendship:", error);
     res.status(500).json({ 
       success: false, 
       error: getErrorMessage(error) 
@@ -498,11 +517,12 @@ app.get("/check-friendship/:username/:friendUsername", async (req, res) => {
   }
 });
 
-// Update profile
+// Update profile endpoint
 app.post("/update-profile", validateSession, async (req, res) => {
     try {
         const { username, updates } = req.body;
         
+        // Check if new username is taken
         if (updates.username) {
             const existingUser = await dbHelpers.findUserByUsername(updates.username);
             if (existingUser && existingUser.username !== username) {
@@ -510,6 +530,7 @@ app.post("/update-profile", validateSession, async (req, res) => {
             }
         }
         
+        // Check if new email is taken
         if (updates.email) {
             const existingEmail = await dbHelpers.findUserByEmail(updates.email);
             if (existingEmail && existingEmail.username !== username) {
@@ -517,6 +538,7 @@ app.post("/update-profile", validateSession, async (req, res) => {
             }
         }
         
+        // Update user in database
         const updated = await dbHelpers.updateUser(username, updates);
         
         if (updated) {
@@ -538,7 +560,7 @@ app.post("/update-profile", validateSession, async (req, res) => {
     }
 });
 
-// Change password
+// Change password endpoint
 app.post("/change-password", validateSession, async (req, res) => {
     try {
         const { username, currentPassword, newPassword } = req.body;
@@ -548,10 +570,12 @@ app.post("/change-password", validateSession, async (req, res) => {
             return res.status(404).json({ success: false, error: "User not found" });
         }
         
+        // Check current password
         if (user.password !== currentPassword) {
             return res.status(401).json({ success: false, error: "Current password is incorrect" });
         }
         
+        // Update password
         const updated = await dbHelpers.updateUserPassword(username, newPassword);
         
         if (updated) {
@@ -569,7 +593,7 @@ app.post("/change-password", validateSession, async (req, res) => {
     }
 });
 
-// Upload profile picture
+// 🔥 ΒΕΛΤΙΩΣΗ: Upload profile picture endpoint με AUTO-RESIZE - FIXED
 app.post("/upload-profile-picture", validateSession, upload.single('profile_picture'), async (req, res) => {
     try {
         if (!req.file) {
@@ -579,28 +603,37 @@ app.post("/upload-profile-picture", validateSession, upload.single('profile_pict
         const { username } = req.body;
         
         if (!username) {
+            // Clean up file if no username
             if (req.file.path) {
                 await fs.unlink(req.file.path).catch(() => {});
             }
             return res.status(400).json({ success: false, error: "Username required" });
         }
         
+        console.log("📸 Processing uploaded image:", req.file.filename, "for user:", username);
+        
+        // 🔥 AUTO-RESIZE τη φωτογραφία
         const resizedImagePath = await processAndResizeImage(req.file.path);
         
+        // Δημιουργία relative path για το resized image
         const fileName = path.basename(resizedImagePath);
         const profilePicture = '/uploads/' + fileName;
         
+        // Save to database
         await dbHelpers.updateUser(username, { profile_picture: profilePicture });
+        
+        console.log("✅ Profile picture saved for user:", username, "path:", profilePicture);
         
         res.json({
             success: true,
-            profile_picture: profilePicture + "?t=" + Date.now(),
+            profile_picture: profilePicture + "?t=" + Date.now(), // Προσθήκη timestamp για cache busting
             message: "Profile picture updated successfully"
         });
         
     } catch (error) {
-        console.error("Error uploading profile picture:", error);
+        console.error("❌ Error uploading profile picture:", error);
         
+        // Clean up αν υπάρχει πρόβλημα
         if (req.file && req.file.path) {
             try {
                 await fs.unlink(req.file.path);
@@ -616,14 +649,15 @@ app.post("/upload-profile-picture", validateSession, upload.single('profile_pict
     }
 });
 
-// Registration endpoint
+// 🔥 ΒΕΛΤΙΩΣΗ: Updated registration endpoint με AUTO-RESIZE avatar - FIXED
 app.post("/register", upload.single('avatar'), async (req, res) => {
     try {
         const { email, username, password } = req.body;
 
-        console.log("Registration attempt:", { email, username });
+        console.log("🔍 Registration attempt:", { email, username });
 
         if (!email || !username || !password) {
+            // Clean up uploaded file if validation fails
             if (req.file && req.file.path) {
                 await fs.unlink(req.file.path).catch(() => {});
             }
@@ -642,7 +676,7 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
             existingEmail = await dbHelpers.findUserByEmail(email);
             existingUsername = await dbHelpers.findUserByUsername(username);
         } catch (dbError) {
-            console.error("Database error during user check:", dbError);
+            console.error("❌ Database error during user check:", dbError);
             if (req.file && req.file.path) {
                 await fs.unlink(req.file.path).catch(() => {});
             }
@@ -668,26 +702,32 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
 
         try {
             let profilePicture = null;
+            // 🔥 Handle avatar με AUTO-RESIZE αν παρέχεται
             if (req.file) {
-                console.log("Processing avatar for registration:", req.file.filename);
+                console.log("📸 Processing avatar for registration:", req.file.filename);
                 
                 try {
+                    // AUTO-RESIZE τη φωτογραφία
                     const resizedImagePath = await processAndResizeImage(req.file.path);
                     
+                    // Δημιουργία relative path
                     const fileName = path.basename(resizedImagePath);
                     profilePicture = '/uploads/' + fileName;
                     
-                    console.log("Avatar resized and saved:", profilePicture);
+                    console.log("✅ Avatar resized and saved:", profilePicture);
                 } catch (resizeError) {
-                    console.error("Error resizing avatar:", resizeError);
+                    console.error("❌ Error resizing avatar:", resizeError);
+                    // Συνέχισε χωρίς avatar αν υπάρχει πρόβλημα
+                    // Clean up the file if resize failed
                     if (req.file && req.file.path) {
                         await fs.unlink(req.file.path).catch(() => {});
                     }
                 }
             }
 
+            // Create user with profile picture
             await dbHelpers.createUser(email, username, password, profilePicture);
-            console.log("User created successfully:", username);
+            console.log("✅ User created successfully:", username);
 
             res.json({
                 success: true,
@@ -695,7 +735,8 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
                 profile_picture: profilePicture
             });
         } catch (createError) {
-            console.error("Error creating user in database:", createError);
+            console.error("❌ Error creating user in database:", createError);
+            // Clean up uploaded file
             if (req.file && req.file.path) {
                 await fs.unlink(req.file.path).catch(() => {});
             }
@@ -705,7 +746,8 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
             });
         }
     } catch (error) {
-        console.error("Unexpected error during registration:", error);
+        console.error("❌ Unexpected error during registration:", error);
+        // Clean up uploaded file
         if (req.file && req.file.path) {
             await fs.unlink(req.file.path).catch(() => {});
         }
@@ -716,7 +758,9 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
     }
 });
 
-// ===== LOGIN ENDPOINT - ΕΔΩ ΕΙΝΑΙ ΤΟ ΚΥΡΙΟ ΦΙΞ =====
+// ===== ΥΠΑΡΧΟΝΤΑ ENDPOINTS (ΜΕΝΟΥΝ ΑΚΛΑΔΑ) =====
+
+// Authentication routes
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -749,13 +793,14 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ success: false, error: "Invalid email or password" });
     }
 
-    // Create session
+    // Create session - SAVE TO DATABASE
     const sessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
     const sessionData = {
       username: user.username,
       createdAt: Date.now(),
     };
 
+    // Save to both database and memory (fallback)
     await dbHelpers.saveSession(sessionId, sessionData);
     userSessions.set(sessionId, sessionData);
 
@@ -766,17 +811,15 @@ app.post("/login", async (req, res) => {
       console.error("⚠️ Could not update user status:", statusError);
     }
 
-    // 🔥 ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΚΥΡΙΟ ΦΙΞ: ΒΕΒΑΙΩΣΟΥ ΟΤΙ ΣΤΕΛΝΕΙΣ ΤΟ profile_picture
     res.json({
       success: true,
       user: {
         email: user.email,
         username: user.username,
-        profile_picture: user.profile_picture || null  // ΒΕΒΑΙΩΣΟΥ ΟΤΙ ΕΧΕΙ ΑΥΤΟ ΤΟ FIELD
+        profile_picture: user.profile_picture
       },
       sessionId: sessionId,
     });
-    
   } catch (error) {
     console.error("❌ Unexpected error during login:", error);
     res.status(500).json({
@@ -786,16 +829,19 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Verify session
+// FIXED session verification endpoint
 app.get("/verify-session/:username", async (req, res) => {
   try {
     const { username } = req.params;
     const sessionId = req.headers["x-session-id"];
 
+    console.log("🔍 Verifying session for:", username, "session:", sessionId);
+
     if (!sessionId) {
       return res.status(401).json({ success: false, error: "Session ID required" });
     }
 
+    // Check both database and memory
     const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     const user = await dbHelpers.findUserByUsername(username);
 
@@ -806,11 +852,12 @@ app.get("/verify-session/:username", async (req, res) => {
         user: {
           username: user.username,
           email: user.email,
-          profile_picture: user.profile_picture || null  // ΒΕΒΑΙΩΣΟΥ ΚΑΙ ΕΔΩ
+          profile_picture: user.profile_picture
         },
       });
     } else {
       console.log("❌ Invalid session for:", username);
+      // Clean up invalid session
       await dbHelpers.deleteSession(sessionId);
       userSessions.delete(sessionId);
       res.status(401).json({ success: false, error: "Invalid session" });
@@ -821,7 +868,7 @@ app.get("/verify-session/:username", async (req, res) => {
   }
 });
 
-// Logout
+// Logout endpoint
 app.post("/logout", async (req, res) => {
   try {
     const { username } = req.body;
@@ -843,7 +890,7 @@ app.post("/logout", async (req, res) => {
   }
 });
 
-// Leave room
+// ===== ΝΕΟ ENDPOINT: LEAVE ROOM =====
 app.post("/leave-room", validateSession, async (req, res) => {
   try {
     const { roomId, username } = req.body;
@@ -852,6 +899,7 @@ app.post("/leave-room", validateSession, async (req, res) => {
       return res.status(400).json({ success: false, error: "Room ID and username required" });
     }
 
+    // Αφαίρεση χρήστη από το δωμάτιο
     await dbHelpers.removeUserFromRoom(roomId, username);
     
     console.log(`✅ ${username} left room ${roomId}`);
@@ -866,7 +914,7 @@ app.post("/leave-room", validateSession, async (req, res) => {
   }
 });
 
-// Create room
+// Protected routes with session validation
 app.post("/create-room", validateSession, async (req, res) => {
   try {
     const { name, username } = req.body;
@@ -890,7 +938,6 @@ app.post("/create-room", validateSession, async (req, res) => {
   }
 });
 
-// Join room
 app.post("/join-room", validateSession, async (req, res) => {
   try {
     const { inviteCode, username } = req.body;
@@ -918,7 +965,6 @@ app.post("/join-room", validateSession, async (req, res) => {
   }
 });
 
-// User rooms
 app.get("/user-rooms/:username", validateSession, async (req, res) => {
   try {
     const { username } = req.params;
@@ -930,7 +976,7 @@ app.get("/user-rooms/:username", validateSession, async (req, res) => {
   }
 });
 
-// Friend request
+// Friend routes with session validation
 app.post("/send-friend-request", validateSession, async (req, res) => {
   try {
     const { fromUser, toUser } = req.body;
@@ -975,7 +1021,6 @@ app.post("/send-friend-request", validateSession, async (req, res) => {
   }
 });
 
-// Respond to friend request
 app.post("/respond-friend-request", validateSession, async (req, res) => {
   try {
     const { username, friendUsername, accept } = req.body;
@@ -1001,7 +1046,6 @@ app.post("/respond-friend-request", validateSession, async (req, res) => {
   }
 });
 
-// Pending requests
 app.get("/pending-requests/:username", validateSession, async (req, res) => {
   try {
     const { username } = req.params;
@@ -1013,7 +1057,6 @@ app.get("/pending-requests/:username", validateSession, async (req, res) => {
   }
 });
 
-// Friends
 app.get("/friends/:username", validateSession, async (req, res) => {
   try {
     const { username } = req.params;
@@ -1025,7 +1068,6 @@ app.get("/friends/:username", validateSession, async (req, res) => {
   }
 });
 
-// Remove friend
 app.post("/remove-friend", validateSession, async (req, res) => {
   try {
     const { username, friendUsername } = req.body;
@@ -1046,7 +1088,6 @@ app.post("/remove-friend", validateSession, async (req, res) => {
   }
 });
 
-// Private messages
 app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => {
   try {
     const { user1, user2 } = req.params;
@@ -1064,7 +1105,7 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
   }
 });
 
-// ===== SOCKET.IO =====
+// ===== SOCKET.IO CONNECTION WITH ENHANCED UNREAD SYSTEM =====
 
 io.on("connection", async (socket) => {
   console.log("🔗 User connected:", socket.id);
@@ -1094,6 +1135,7 @@ io.on("connection", async (socket) => {
       await dbHelpers.saveUser({ username, status: "Online" });
       console.log("✅ User authenticated:", username);
       
+      // Στέλνουμε unread summary μόλις συνδεθεί ο χρήστης
       const unreadSummary = await dbHelpers.getUnreadSummary(username);
       socket.emit("unread_summary", unreadSummary);
       
@@ -1106,6 +1148,7 @@ io.on("connection", async (socket) => {
   socket.on("join room", async (data) => {
     try {
       const { roomId, username, sessionId } = data;
+      console.log("🚀 Attempting to join room:", { roomId, username });
 
       const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
       if (!session || session.username !== username) {
@@ -1115,12 +1158,14 @@ io.on("connection", async (socket) => {
 
       const room = await dbHelpers.getRoomById(roomId);
       if (!room) {
+        console.log("❌ Room not found:", roomId);
         socket.emit("error", { message: "Room not found" });
         return;
       }
 
       const isMember = await dbHelpers.isUserInRoom(roomId, username);
       if (!isMember) {
+        console.log("❌ User not member of room:", { username, roomId });
         socket.emit("error", { message: "You are not a member of this room" });
         return;
       }
@@ -1151,6 +1196,7 @@ io.on("connection", async (socket) => {
       const userJoinedAt = members.find((m) => m.username === username)?.joined_at;
       const messages = await dbHelpers.getRoomMessages(roomId, userJoinedAt);
 
+      // 🔥 Mark group messages as read όταν μπαίνεις στο room
       await dbHelpers.markAsRead(username, null, 'group', roomId);
       socket.emit("unread_cleared", { type: 'group', roomId: roomId });
 
@@ -1165,43 +1211,6 @@ io.on("connection", async (socket) => {
     } catch (error) {
       console.error("❌ Error joining room:", error);
       socket.emit("error", { message: "Failed to join room: " + error.message });
-    }
-  });
-
-  socket.on("leave room", async (data) => {
-    try {
-      const { roomId, username } = data;
-      
-      if (!roomId || !username) return;
-
-      if (socket.rooms.has(roomId)) {
-        socket.leave(roomId);
-      }
-
-      const roomSocketSet = roomSockets.get(roomId);
-      if (roomSocketSet) {
-        roomSocketSet.delete(socket.id);
-        if (roomSocketSet.size === 0) {
-          roomSockets.delete(roomId);
-        }
-      }
-
-      if (onlineUsers.has(username)) {
-        onlineUsers.get(username).currentRoom = null;
-      }
-
-      socket.to(roomId).emit("room_member_left", {
-        username: username,
-        roomId: roomId,
-        message: `${username} has left the room`
-      });
-
-      if (currentRoomId === roomId && currentUsername === username) {
-        currentRoomId = null;
-      }
-
-    } catch (error) {
-      console.error("❌ Error in leave room socket event:", error);
     }
   });
 
@@ -1227,6 +1236,9 @@ io.on("connection", async (socket) => {
       await dbHelpers.saveMessage(messageData);
       io.to(currentRoomId).emit("chat message", messageData);
 
+      console.log(`💬 Message in ${currentRoomId} from ${currentUsername}`);
+
+      // 🔥 UNREAD SYSTEM: Προσθήκη unread για όλους εκτός από τον αποστολέα
       const roomMembers = await dbHelpers.getRoomMembers(currentRoomId);
       const messageId = `gm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
@@ -1245,6 +1257,7 @@ io.on("connection", async (socket) => {
           
           const memberData = onlineUsers.get(member.username);
           if (memberData) {
+            // Στέλνουμε real-time notification μόνο αν δεν είναι στο ίδιο room
             if (memberData.currentRoom !== currentRoomId) {
               io.to(memberData.socketId).emit("notification", {
                 type: "group_message",
@@ -1261,6 +1274,7 @@ io.on("connection", async (socket) => {
               });
             }
             
+            // Στέλνουμε unread update
             io.to(memberData.socketId).emit("unread_update", {
               type: 'group',
               roomId: currentRoomId,
@@ -1299,6 +1313,7 @@ io.on("connection", async (socket) => {
 
       await dbHelpers.savePrivateMessage({ sender, receiver, text, time });
       
+      // 🔥 UNREAD SYSTEM: Προσθήκη unread για τον receiver
       const messageId = `pm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       await dbHelpers.addUnreadMessage(receiver, sender, 'private', null, {
         text,
@@ -1309,6 +1324,7 @@ io.on("connection", async (socket) => {
       if (receiverData) {
         io.to(receiverData.socketId).emit("private message", data);
         
+        // Στέλνουμε notification
         io.to(receiverData.socketId).emit("notification", {
           type: "private_message",
           sender: sender,
@@ -1320,6 +1336,7 @@ io.on("connection", async (socket) => {
           }
         });
         
+        // Στέλνουμε unread update
         io.to(receiverData.socketId).emit("unread_update", {
           type: 'private',
           sender: sender,
@@ -1328,12 +1345,14 @@ io.on("connection", async (socket) => {
       }
 
       socket.emit("private message", data);
+      console.log("🔒 Private message from:", sender, "to:", receiver);
       
     } catch (error) {
       console.error("❌ Error saving private message:", getErrorMessage(error));
     }
   });
 
+  // 🔥 ΝΕΟ EVENT: Mark messages as read
   socket.on("mark_as_read", async (data) => {
     try {
       const { type, sender, roomId } = data;
@@ -1342,6 +1361,7 @@ io.on("connection", async (socket) => {
       
       await dbHelpers.markAsRead(currentUsername, sender, type, roomId);
       
+      // Ενημέρωση client - μόνο στον συγκεκριμένο χρήστη
       socket.emit("unread_cleared", { type, sender, roomId });
       
     } catch (error) {
@@ -1349,6 +1369,7 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // 🔥 ΝΕΟ EVENT: Get unread summary
   socket.on("get_unread_summary", async () => {
     try {
       if (!currentUsername) return;
@@ -1411,7 +1432,7 @@ io.on("connection", async (socket) => {
   });
 });
 
-// Clean up expired sessions
+// Clean up expired sessions periodically
 setInterval(async () => {
   try {
     await dbHelpers.cleanupExpiredSessions();
@@ -1429,19 +1450,27 @@ setInterval(async () => {
   }
 }, 60 * 60 * 1000);
 
-// 🔥 FIXED: Start server
+// 🔥 FIXED: Start server ONLY after database connection
 async function startServer() {
   try {
+    // Wait for database to connect
     await initializeDatabase();
     
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 RatScape Server running on port ${PORT}`);
       console.log(`📱 Available at: http://localhost:${PORT}`);
-      console.log(`🌐 WebSocket ready at: https://ratscape.onrender.com`);
-      console.log(`🔒 CORS enabled for: ${allowedOrigins.join(', ')}`);
-      console.log(`🔔 UNREAD SYSTEM: ENABLED`);
+      console.log(`💬 Enhanced security with session management`);
+      console.log(`📬 UNREAD MESSAGES SYSTEM: ENABLED`);
       console.log(`👤 PROFILE SYSTEM: ENABLED`);
+      console.log(`👤 USER INFO SYSTEM: ENABLED`);
+      console.log(`🔔 NOTIFICATION TIMEOUT: 5 SECONDS`);
+      console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
+      console.log(`📸 IMAGE AUTO-RESIZE: ENABLED (150x150 pixels)`);
+      console.log(`👥 ROOM CAPACITY: UNLIMITED`);
+      console.log(`📁 SUPPORTED IMAGES: JPEG, PNG, GIF, WebP, BMP, TIFF`);
+      console.log(`💾 MAX FILE SIZE: 10MB`);
+      console.log(`🖼️ AVATAR SYSTEM: ENABLED`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
