@@ -1,4 +1,4 @@
-// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED FOR LEAVE ROOM
+// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED FOR LEAVE ROOM WITH FRIEND REMOVAL
 const socket = io();
 
 // Current user state
@@ -1786,7 +1786,7 @@ async function handleJoinRoom(inviteCode) {
     }
 }
 
-// 🔥 FIXED: LEAVE ROOM FUNCTION - COMPLETELY FIXED
+// 🔥 FIXED: LEAVE ROOM FUNCTION - WITH FRIEND REMOVAL FOR PRIVATE CHATS
 async function handleLeaveRoom() {
     // Έλεγχος αν είμαστε σε private chat ή κανονικό room
     if (!currentRoom.id) {
@@ -1795,19 +1795,85 @@ async function handleLeaveRoom() {
     }
     
     if (currentRoom.isPrivate) {
-        // Για private chats, απλά επιστροφή στη σελίδα φίλων
-        showNotification("Private chat closed", "info", "Chat Closed");
-        showPage("friends-page");
-        loadUserFriends();
+        // Για private chats - ΑΦΑΙΡΕΣΗ ΦΙΛΟΥ
+        const friendUsername = currentRoom.name;
         
-        // Reset current room
-        currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
-        // Επαναφορά του invite code section
-        document.getElementById("invite-code-container").classList.remove("hide-for-private");
-        document.getElementById("copy-invite-btn").style.display = "flex";
-        document.getElementById("copy-invite-btn").disabled = false;
-        document.getElementById("room-status").textContent = "Not in a room";
-        document.getElementById("room-status").classList.remove("private-chat");
+        showConfirmationModal(
+            `Are you sure you want to leave the private chat with ${friendUsername} and remove them as friend?`,
+            "Leave Private Chat",
+            async () => {
+                try {
+                    // 1. Αφαίρεση φίλου
+                    const response = await fetch("/remove-friend", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Session-ID": currentUser.sessionId,
+                        },
+                        body: JSON.stringify({
+                            username: currentUser.username,
+                            friendUsername: friendUsername,
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("Failed to remove friend");
+                    }
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // 2. Επιστροφή στη σελίδα φίλων
+                        showNotification(
+                            `Left private chat with ${friendUsername} and removed as friend`,
+                            "info",
+                            "Chat Closed"
+                        );
+                        
+                        showPage("friends-page");
+                        loadUserFriends();
+                        
+                        // 3. Reset current room
+                        currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
+                        
+                        // 4. Επαναφορά UI
+                        document.getElementById("room-name-sidebar").textContent = "RatScape";
+                        document.getElementById("room-name-header").textContent = "Room Name";
+                        document.getElementById("room-invite-code").textContent = "------";
+                        document.getElementById("room-description").textContent = "Group chat";
+                        document.getElementById("room-status").textContent = "Not in a room";
+                        document.getElementById("room-status").classList.remove("private-chat");
+                        
+                        // 5. Επαναφορά του invite code section
+                        document.getElementById("invite-code-container").classList.remove("hide-for-private");
+                        document.getElementById("copy-invite-btn").style.display = "flex";
+                        document.getElementById("copy-invite-btn").disabled = false;
+                        
+                        // 6. Clear messages
+                        document.getElementById("messages-container").innerHTML = "";
+                        
+                        // 7. Ενημέρωση unread messages
+                        clearUnread('private', friendUsername);
+                    } else {
+                        showNotification(data.error || "Failed to remove friend", "error", "Action Failed");
+                    }
+                } catch (error) {
+                    console.error("Error leaving private chat:", error);
+                    showNotification("Error: " + error.message, "error", "Connection Error");
+                    
+                    // Ακόμα κι αν υπάρχει error, επέστρεψε στη σελίδα friends
+                    showPage("friends-page");
+                    loadUserFriends();
+                    
+                    // Reset current room
+                    currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
+                }
+            },
+            () => {
+                // User cancelled
+                console.log("User cancelled leaving private chat");
+            }
+        );
         return;
     }
     
@@ -1868,6 +1934,9 @@ async function handleLeaveRoom() {
                     document.getElementById("invite-code-container").classList.remove("hide-for-private");
                     document.getElementById("copy-invite-btn").style.display = "flex";
                     document.getElementById("copy-invite-btn").disabled = false;
+                    
+                    // Ενημέρωση unread messages
+                    clearUnread('group', null, currentRoom.id);
                     
                 } else {
                     showNotification(data.error || "Failed to leave room", "error", "Action Failed");
