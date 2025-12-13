@@ -227,7 +227,7 @@ function hideConfirmationModal() {
 
 // ===== AVATAR SYSTEM FUNCTIONS =====
 
-// Φόρτωση avatar για έναν χρήστη
+// 🔥 ΜΙΚΡΗ ΒΕΛΤΙΩΣΗ: Φόρτωση avatar για έναν χρήστη
 async function loadUserAvatar(username, element, isCurrentUser = false) {
     if (!username) return;
     
@@ -242,7 +242,7 @@ async function loadUserAvatar(username, element, isCurrentUser = false) {
         if (response.ok) {
             const data = await response.json();
             if (data.success && data.profile_picture) {
-                // Αποθήκευση στο cache
+                // 🔥 ΕΔΩ ΑΛΛΑΓΗ: Αποθήκευση Base64 string απευθείας στο cache
                 userAvatars[username] = data.profile_picture;
                 updateAvatarElement(element, data.profile_picture, username, isCurrentUser);
             } else {
@@ -261,6 +261,7 @@ function updateAvatarElement(element, avatarUrl, username, isCurrentUser = false
     if (!element) return;
     
     if (avatarUrl) {
+        // 🔥 ΕΔΩ ΑΛΛΑΓΗ: Χειρισμός Base64 string απευθείας
         // Έλεγχος αν το element είναι div ή img
         if (element.tagName === 'DIV') {
             element.innerHTML = `<img src="${avatarUrl}" alt="${username}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
@@ -517,40 +518,40 @@ function updateRoomsListBadges() {
             
             // Αφαίρεση υπάρχοντος badge
             const existingBadge = card.querySelector('.room-badge');
-            if (existingBadge) {
-                existingBadge.remove();
-            }
-            
-            // Προσθήκη νέου badge
-            if (unreadCount > 0) {
-                const badge = document.createElement('span');
-                badge.className = 'room-badge';
-                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-                badge.style.cssText = `
-                    position: absolute;
-                    top: 10px;
-                    right: 10px;
-                    background: var(--accent-red);
-                    color: white;
-                    border-radius: 10px;
-                    min-width: 20px;
-                    height: 20px;
-                    font-size: 0.7rem;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 0 5px;
-                    font-weight: bold;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-                    z-index: 1;
-                    animation: badgePop 0.3s ease-out;
-                `;
-                
-                card.style.position = 'relative';
-                card.appendChild(badge);
-            }
+        if (existingBadge) {
+            existingBadge.remove();
         }
-    });
+        
+        // Προσθήκη νέου badge
+        if (unreadCount > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'room-badge';
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            badge.style.cssText = `
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                background: var(--accent-red);
+                color: white;
+                border-radius: 10px;
+                min-width: 20px;
+                height: 20px;
+                font-size: 0.7rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0 5px;
+                font-weight: bold;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+                z-index: 1;
+                animation: badgePop 0.3s ease-out;
+            `;
+            
+            card.style.position = 'relative';
+            card.appendChild(badge);
+        }
+    }
+});
 }
 
 // Φόρτωση offline notifications όταν συνδέεται ο χρήστης
@@ -1516,7 +1517,8 @@ function updateUserInfoModal(user) {
     // Profile picture
     const userInfoImage = document.getElementById("user-info-image");
     if (user.profile_picture) {
-        userInfoImage.src = user.profile_picture + "?t=" + Date.now();
+        // 🔥 ΕΔΩ ΑΛΛΑΓΗ: Χρήση Base64 string απευθείας
+        userInfoImage.src = user.profile_picture;
         userInfoImage.style.display = 'block';
     } else {
         // Default avatar αν δεν έχει εικόνα
@@ -2032,7 +2034,8 @@ function updateProfileUI(profile) {
     // Profile picture
     const profileImage = document.getElementById("profile-image");
     if (profile.profile_picture) {
-        profileImage.src = profile.profile_picture + "?t=" + Date.now();
+        // 🔥 ΕΔΩ ΑΛΛΑΓΗ: Χρήση Base64 string απευθείας
+        profileImage.src = profile.profile_picture;
         profileImage.style.display = 'block';
     } else {
         profileImage.style.display = 'none';
@@ -2078,17 +2081,13 @@ async function uploadProfilePicture(file) {
             if (data.success) {
                 showNotification("Profile picture updated successfully!", "avatar_upload_success", "Avatar Updated");
                 
-                // Ανανέωση με cache busting
-                const timestamp = "?t=" + Date.now();
-                const newProfilePicture = data.profile_picture + timestamp;
-                
-                // Clear cache για αυτόν τον χρήστη
+                // 🔥 ΑΛΛΑΓΗ: Clear cache και ανανέωση Base64 string
                 delete userAvatars[currentUser.username];
                 
                 // Update all avatar elements
                 await loadCurrentUserAvatar();
                 
-                // Ενημέρωση cache
+                // Ενημέρωση cache με το νέο Base64
                 userAvatars[currentUser.username] = data.profile_picture;
             }
         } else {
