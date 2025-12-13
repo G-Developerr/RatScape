@@ -2166,6 +2166,29 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.9rem;
     }
     
+    /* 🔥 FIX: Feature Cards for Mobile */
+    .features-grid {
+        grid-template-columns: 1fr !important;
+        gap: 20px;
+        padding: 40px 20px !important;
+    }
+    
+    .feature-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        padding: 25px !important;
+    }
+    
+    /* Hero Section for Mobile */
+    .hero-section {
+        padding: 60px 20px !important;
+    }
+    
+    .hero-section h1 {
+        font-size: 2rem !important;
+    }
+    
     /* Chat Layout */
     .chat-layout {
         flex-direction: row;
@@ -2271,16 +2294,16 @@ body.pwa-mode .pwa-floating-install-button {
         justify-content: space-between;
     }
     
+    .rooms-list {
+        grid-template-columns: 1fr !important;
+    }
+    
     .feature-card {
         padding: 20px;
     }
     
     .hero-section {
         padding: 60px 20px;
-    }
-    
-    .hero-section h1 {
-        font-size: 2rem;
     }
     
     /* Friends page */
@@ -2305,7 +2328,7 @@ body.pwa-mode .pwa-floating-install-button {
     }
     
     .stats-grid {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 10px;
     }
     
@@ -2431,13 +2454,32 @@ body.pwa-mode .pwa-floating-install-button {
         margin-right: auto;
     }
     
+    /* 🔥 BETTER FEATURE CARDS FOR VERY SMALL SCREENS */
     .features-grid {
-        padding: 30px 15px;
+        padding: 30px 15px !important;
         gap: 15px;
     }
     
+    .feature-card {
+        padding: 20px 15px !important;
+        width: 100% !important;
+    }
+    
+    .feature-icon i {
+        font-size: 2rem !important;
+    }
+    
+    .feature-card h3 {
+        font-size: 1.1rem !important;
+    }
+    
+    .feature-card p {
+        font-size: 0.85rem !important;
+        line-height: 1.4;
+    }
+    
     .rooms-list {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
     }
     
     /* Profile page */
@@ -2447,7 +2489,7 @@ body.pwa-mode .pwa-floating-install-button {
     }
     
     .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
         gap: 10px;
     }
     
@@ -2548,8 +2590,18 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 1.2rem;
     }
     
+    /* 🔥 FIX: Feature cards for tablets - 2 columns */
     .features-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px;
+        padding: 50px 30px !important;
+    }
+    
+    /* Αν ο αριθμός των feature cards είναι περιττός, το τελευταίο να είναι full-width */
+    .features-grid .feature-card:nth-child(3):last-child {
+        grid-column: 1 / -1;
+        max-width: 600px;
+        margin: 0 auto;
     }
 }
 
