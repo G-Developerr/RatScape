@@ -2809,11 +2809,87 @@ document.addEventListener("DOMContentLoaded", async () => {
     createNotificationContainer();
     initializeEventListeners();
 
+    // Enhanced mobile sidebar functionality
+    function initEnhancedMobileSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const isMobile = window.innerWidth <= 768;
+        
+        if (isMobile && sidebar) {
+            // Create overlay
+            let overlay = document.querySelector('.sidebar-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = 'sidebar-overlay';
+                document.body.appendChild(overlay);
+            }
+            
+            // Toggle sidebar on click (αυτό είναι για το mobile)
+            const sidebarHeader = sidebar.querySelector('.sidebar-header');
+            if (sidebarHeader) {
+                sidebarHeader.addEventListener('click', function(e) {
+                    if (!e.target.closest('.btn-icon')) {
+                        sidebar.classList.toggle('mobile-expanded');
+                        overlay.classList.toggle('active');
+                        
+                        // Όταν ανοίγει το sidebar, φορτώνουμε τα invite codes αν χρειάζεται
+                        if (sidebar.classList.contains('mobile-expanded') && currentRoom.id) {
+                            // Ενημέρωση του invite code αν υπάρχει
+                            const inviteCodeElement = document.getElementById('room-invite-code');
+                            if (inviteCodeElement && currentRoom.inviteCode && !currentRoom.isPrivate) {
+                                inviteCodeElement.textContent = currentRoom.inviteCode;
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Close sidebar when clicking overlay
+            overlay.addEventListener('click', function() {
+                sidebar.classList.remove('mobile-expanded');
+                this.classList.remove('active');
+            });
+            
+            // Close sidebar when clicking in main chat area
+            const mainChat = document.getElementById('main-chat');
+            if (mainChat) {
+                mainChat.addEventListener('click', function() {
+                    sidebar.classList.remove('mobile-expanded');
+                    overlay.classList.remove('active');
+                });
+            }
+            
+            // Close sidebar when pressing escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    sidebar.classList.remove('mobile-expanded');
+                    overlay.classList.remove('active');
+                }
+            });
+            
+        } else {
+            // Remove mobile expanded state on larger screens
+            if (sidebar) {
+                sidebar.classList.remove('mobile-expanded');
+            }
+            const overlay = document.querySelector('.sidebar-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+            }
+        }
+    }
+    
     // Initialize mobile responsive features
-    initMobileSidebar();
+    initEnhancedMobileSidebar();
+    
+    // Update on resize
+    window.addEventListener('resize', function() {
+        initEnhancedMobileSidebar();
+    });
+
+    // Initialize mobile responsive features
     updateMobileUI();
     window.addEventListener('resize', function() {
-        initMobileSidebar();
+        initEnhancedMobileSidebar();
         updateMobileUI();
     });
 
