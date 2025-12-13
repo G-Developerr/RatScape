@@ -1027,9 +1027,13 @@ function enterRoom(roomId, roomName, inviteCode) {
 
     showPage("chat-page");
     
-    // Request room data after a short delay
+    // 🔥 ΣΗΜΑΝΤΙΚΟ: Request room data αμέσως
+    // Κάνουμε τα requests μαζί για να αποφύγουμε race conditions
+    socket.emit("get room info", { roomId: roomId });
+    socket.emit("get room members", { roomId: roomId });
+    
+    // 🔥 ΕΠΙΠΛΕΟΝ: Κάνουμε ένα δεύτερο request μετά από 500ms για να είμαστε σίγουροι
     setTimeout(() => {
-        socket.emit("get room info", { roomId: roomId });
         socket.emit("get room members", { roomId: roomId });
     }, 500);
 }
@@ -2328,10 +2332,17 @@ socket.on("room members", (members) => {
         updateRoomMembers(members);
         document.getElementById("room-status").textContent = `${members.length} members`;
         
+        // Ενημέρωση κατάστασης για κάθε μέλος
+        members.forEach(member => {
+            // Υποθέτουμε ότι είναι online όταν εμφανίζεται στη λίστα
+            // Μπορείς να βελτιώσεις αυτό με WebSocket status updates
+            updateUserStatusInUI(member.username, true);
+        });
+        
         // Make member items clickable για το user info modal
         setTimeout(() => {
             makeMemberItemsClickable();
-            loadMemberAvatars(); // 🔥 Φόρτωση avatars
+            loadMemberAvatars();
         }, 100);
     }
 });
@@ -2375,7 +2386,7 @@ socket.on("friend_request_accepted", (data) => {
     }
 });
 
-// 🔥 ΠΡΟΣΘΗΚΗ: WebSocket event όταν ένας χρήστης φεύγει από το room
+// 🔥 ΕΝΗΜΕΡΩΣΗ: WebSocket event όταν ένας χρήστης φεύγει από το room ΜΑΝΟΥΑΛΙΑ
 socket.on("user_left", (data) => {
     console.log(`👋 User ${data.username} left room ${data.roomId}`);
     
@@ -2388,6 +2399,25 @@ socket.on("user_left", (data) => {
     // Εμφάνιση notification μόνο αν δεν είμαστε εμείς που φύγαμε
     if (data.username !== currentUser.username) {
         showNotification(`${data.username} left the room`, "info", "User Left");
+    }
+});
+
+// 🔥 ΠΡΟΣΘΗΚΗ: WebSocket event όταν ένας χρήστης αποσυνδέεται (αλλά παραμένει στο room)
+socket.on("user_disconnected", (data) => {
+    console.log(`📡 User ${data.username} disconnected from room ${data.roomId} (still a member)`);
+    
+    // Αν είμαστε στο ίδιο room, ενημέρωσε ότι ο χρήστης είναι offline
+    if (currentRoom.id === data.roomId) {
+        // Μπορούμε να ενημερώσουμε το UI ότι ο χρήστης είναι offline
+        // αλλά ΔΕΝ τον αφαιρούμε από τη λίστα
+        const memberItem = document.querySelector(`.member-item[data-username="${data.username}"]`);
+        if (memberItem) {
+            const statusDot = memberItem.querySelector('.status-dot');
+            if (statusDot) {
+                statusDot.style.background = 'var(--warning)';
+                statusDot.title = 'Offline';
+            }
+        }
     }
 });
 
@@ -2672,6 +2702,39 @@ function initializeProfileEventListeners() {
             reader.readAsDataURL(file);
         }
     });
+}
+
+// ===== ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ ΓΙΑ ΕΝΗΜΕΡΩΣΗ ΚΑΤΑΣΤΑΣΗΣ ΧΡΗΣΤΗ =====
+
+function updateUserStatusInUI(username, isOnline) {
+    const memberItem = document.querySelector(`.member-item[data-username="${username}"]`);
+    if (memberItem) {
+        // Προσθήκη status dot αν δεν υπάρχει
+        let statusDot = memberItem.querySelector('.status-dot');
+        if (!statusDot) {
+            const avatarContainer = memberItem.querySelector('.member-avatar');
+            if (avatarContainer) {
+                statusDot = document.createElement('div');
+                statusDot.className = 'status-dot';
+                statusDot.style.cssText = `
+                    position: absolute;
+                    bottom: 0;
+                    right: 0;
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    border: 2px solid var(--background);
+                `;
+                avatarContainer.style.position = 'relative';
+                avatarContainer.appendChild(statusDot);
+            }
+        }
+        
+        if (statusDot) {
+            statusDot.style.background = isOnline ? 'var(--success)' : 'var(--warning)';
+            statusDot.title = isOnline ? 'Online' : 'Offline';
+        }
+    }
 }
 
 // ===== MOBILE RESPONSIVE FUNCTIONALITY =====
