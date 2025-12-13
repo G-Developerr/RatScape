@@ -1,4 +1,4 @@
-// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM
+// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED FOR LEAVE ROOM
 const socket = io();
 
 // Current user state
@@ -264,6 +264,7 @@ function updateAvatarElement(element, avatarUrl, username, isCurrentUser = false
         // Έλεγχος αν το element είναι div ή img
         if (element.tagName === 'DIV') {
             element.innerHTML = `<img src="${avatarUrl}" alt="${username}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+            element.style.background = 'none';
         } else if (element.tagName === 'IMG') {
             element.src = avatarUrl;
             element.alt = username;
@@ -1785,13 +1786,34 @@ async function handleJoinRoom(inviteCode) {
     }
 }
 
-
-// 🔥 FIXED: LEAVE ROOM FUNCTION
+// 🔥 FIXED: LEAVE ROOM FUNCTION - COMPLETELY FIXED
 async function handleLeaveRoom() {
-    if (!currentRoom.id || currentRoom.isPrivate) return;
+    // Έλεγχος αν είμαστε σε private chat ή κανονικό room
+    if (!currentRoom.id) {
+        showNotification("You are not in a room", "info", "No Room");
+        return;
+    }
     
+    if (currentRoom.isPrivate) {
+        // Για private chats, απλά επιστροφή στη σελίδα φίλων
+        showNotification("Private chat closed", "info", "Chat Closed");
+        showPage("friends-page");
+        loadUserFriends();
+        
+        // Reset current room
+        currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
+        // Επαναφορά του invite code section
+        document.getElementById("invite-code-container").classList.remove("hide-for-private");
+        document.getElementById("copy-invite-btn").style.display = "flex";
+        document.getElementById("copy-invite-btn").disabled = false;
+        document.getElementById("room-status").textContent = "Not in a room";
+        document.getElementById("room-status").classList.remove("private-chat");
+        return;
+    }
+    
+    // Για κανονικά rooms, ζήτηση επιβεβαίωσης
     showConfirmationModal(
-        "Are you sure you want to leave this room?",
+        "Are you sure you want to leave this room? You can rejoin anytime with the invite code.",
         "Leave Room",
         async () => {
             try {
@@ -1808,30 +1830,58 @@ async function handleLeaveRoom() {
                 });
 
                 if (!response.ok) {
-                    throw new Error("Session expired");
+                    throw new Error("Failed to leave room");
                 }
 
                 const data = await response.json();
 
                 if (data.success) {
-                    showNotification("Left room successfully!", "info", "Room Left");
+                    showNotification("Left room successfully!", "success", "Room Left");
+                    
+                    // Κλείσιμο WebSocket connection για αυτό το room
+                    if (currentRoom.id) {
+                        socket.emit("leave_room", {
+                            roomId: currentRoom.id,
+                            username: currentUser.username
+                        });
+                    }
+                    
+                    // Επιστροφή στη σελίδα rooms
                     showPage("rooms-page");
                     loadUserRooms();
                     
                     // Reset current room
                     currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
+                    
+                    // Επαναφορά UI στο default state
+                    document.getElementById("room-name-sidebar").textContent = "RatScape";
+                    document.getElementById("room-name-header").textContent = "Room Name";
+                    document.getElementById("room-invite-code").textContent = "------";
+                    document.getElementById("room-description").textContent = "Group chat";
+                    document.getElementById("room-status").textContent = "Not in a room";
+                    document.getElementById("room-status").classList.remove("private-chat");
+                    
+                    // Clear messages
+                    document.getElementById("messages-container").innerHTML = "";
+                    
                     // Επαναφορά του invite code section
                     document.getElementById("invite-code-container").classList.remove("hide-for-private");
                     document.getElementById("copy-invite-btn").style.display = "flex";
+                    document.getElementById("copy-invite-btn").disabled = false;
+                    
                 } else {
                     showNotification(data.error || "Failed to leave room", "error", "Action Failed");
                 }
             } catch (error) {
-                if (error.message === "Session expired") {
-                    handleSessionExpired();
-                } else {
-                    showNotification("Error leaving room: " + error.message, "error", "Connection Error");
-                }
+                console.error("Error leaving room:", error);
+                showNotification("Error leaving room: " + error.message, "error", "Connection Error");
+                
+                // Ακόμα κι αν υπάρχει error, επέστρεψε στη σελίδα rooms
+                showPage("rooms-page");
+                loadUserRooms();
+                
+                // Reset current room
+                currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
             }
         }
     );
@@ -2255,6 +2305,28 @@ socket.on("friend_request_accepted", (data) => {
     if (document.getElementById("friends-page").classList.contains("active")) {
         loadUserFriends();
     }
+});
+
+// 🔥 ΠΡΟΣΘΗΚΗ: WebSocket event όταν ένας χρήστης φεύγει από το room
+socket.on("user_left", (data) => {
+    console.log(`👋 User ${data.username} left room ${data.roomId}`);
+    
+    // Αν είμαστε στο ίδιο room, ανανέωσε τη λίστα μελών
+    if (currentRoom.id === data.roomId) {
+        // Επαναφόρτωση της λίστας μελών
+        socket.emit("get room members", { roomId: currentRoom.id });
+    }
+    
+    // Εμφάνιση notification μόνο αν δεν είμαστε εμείς που φύγαμε
+    if (data.username !== currentUser.username) {
+        showNotification(`${data.username} left the room`, "info", "User Left");
+    }
+});
+
+// 🔥 ΠΡΟΣΘΗΚΗ: Εντολή για leave room στο WebSocket
+socket.on("leave_room_success", (data) => {
+    console.log("✅ Successfully left room:", data.roomId);
+    showNotification("Left room successfully", "info", "Room Left");
 });
 
 socket.on("session_expired", () => {
@@ -2746,4 +2818,3 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("✅ Ready to chat!");
 });
-
