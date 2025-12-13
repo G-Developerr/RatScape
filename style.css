@@ -2408,7 +2408,7 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
-/* Extra small devices (κινητά) */
+/* Extra small devices */
 @media (max-width: 480px) {
     .nav-brand .nav-btn {
         width: 150px;
@@ -2511,409 +2511,177 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
-/* Very small devices (πολύ μικρές οθόνες) */
+/* Extra small devices */
 @media (max-width: 360px) {
-    .nav-brand .nav-btn {
-        width: 120px;
-        min-width: 120px;
-        max-width: 120px;
+    .pwa-floating-install-button {
+        bottom: 10px;
+        right: 10px;
+        width: 50px;
+        height: 50px;
     }
     
-    .nav-actions {
-        gap: 2px;
+    .pwa-floating-install-button i {
+        font-size: 1.2rem;
     }
     
-    .nav-btn {
-        padding: 7px 8px;
-        font-size: 0.7rem;
+    .notification-container {
+        right: 5px;
+        max-width: 280px;
     }
     
-    .features-grid {
-        padding: 15px 10px;
-    }
-    
-    .feature-card {
-        padding: 15px;
-    }
-    
-    .feature-icon i {
-        font-size: 2rem;
-    }
-    
-    .feature-card h3 {
-        font-size: 1rem;
-    }
-    
-    .feature-card p {
-        font-size: 0.85rem;
-    }
-    
-    #sidebar.mobile-expanded {
-        width: 240px;
+    .notification {
+        max-width: 280px;
+        padding: 10px 14px;
     }
 }
 
-/* Tablet portrait */
-@media (min-width: 481px) and (max-width: 768px) {
-    /* Μέτριες βελτιώσεις για tablet */
+/* Tablet responsive (landscape) */
+@media (max-width: 1024px) {
+    .pwa-floating-install-button {
+        bottom: 25px;
+        right: 25px;
+        padding: 14px 20px;
+        font-size: 0.95rem;
+    }
+    
+    .pwa-floating-install-button i {
+        font-size: 1.2rem;
+    }
+    
     .features-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-    
-    .feature-card:last-child {
-        grid-column: span 2;
-        width: 100%;
-        max-width: 100%;
-    }
-    
-    /* Στο tablet το Group Collaboration box θα πάρει ολόκληρο το πλάτος */
-    .feature-card:nth-child(3) {
-        grid-column: 1 / span 2;
-    }
 }
 
-/* Βελτίωση για το sidebar overlay */
-.sidebar-overlay {
-    display: none;
+/* Special case: Avoid overlap with notification container */
+.notification-container ~ .pwa-floating-install-button {
+    bottom: 30px;
+}
+
+/* Ensure buttons with badges have proper spacing */
+.nav-btn.has-badge {
+    padding-right: 30px;
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Empty states styling */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--accent-red);
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+
+.empty-state p {
+    margin-bottom: 1.5rem;
+}
+
+/* Error states */
+.error-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--accent-red);
+}
+
+.error-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.error-state h3 {
+    margin-bottom: 0.5rem;
+}
+
+/* Success states */
+.success-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--success);
+}
+
+.success-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.success-state h3 {
+    margin-bottom: 0.5rem;
+}
+
+/* Connection status indicator */
+.connection-status {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    bottom: 10px;
+    left: 10px;
     z-index: 1000;
-    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(26, 26, 26, 0.9);
+    padding: 5px 10px;
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    color: var(--text-light);
 }
 
-.sidebar-overlay.active {
-    display: block;
-    animation: fadeIn 0.3s ease;
+.connection-status.connected {
+    color: var(--success);
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+.connection-status.disconnected {
+    color: var(--accent-red);
 }
 
-/* Βελτίωση animation για το sidebar */
-#sidebar {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.connection-status.connecting {
+    color: var(--warning);
 }
 
-/* ========================================
-   MOBILE RESPONSIVE FIXES
-   ======================================== */
-
-@media (max-width: 768px) {
-    /* 1. FIX: Για το "Group Collaboration" box να είναι πιο πλατύ */
-    .features-grid {
-        grid-template-columns: 1fr !important;
-        gap: 15px;
-        padding: 30px 20px;
-    }
-    
-    .feature-card {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 auto !important;
-    }
-    
-    .feature-card:last-child {
-        /* Group Collaboration card */
-        grid-column: 1 !important;
-        width: 100% !important;
-    }
-    
-    /* 2. FIX: Για το top navigation section - αφαίρεση κενών δεξιά */
-    .nav-actions {
-        flex-wrap: nowrap !important;
-        overflow-x: auto;
-        overflow-y: hidden;
-        white-space: nowrap;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 5px;
-        gap: 4px;
-    }
-    
-    .nav-btn {
-        padding: 10px 12px !important;
-        font-size: 0.8rem !important;
-        min-width: auto;
-        flex-shrink: 0;
-    }
-    
-    .nav-username {
-        display: none !important; /* Κρύβουμε το username σε πολύ μικρές οθόνες */
-    }
-    
-    /* 3. FIX: Για το invite code στη mobile sidebar */
-    #sidebar.mobile-expanded .invite-code-display {
-        display: flex !important;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        background: var(--primary-light);
-        padding: 10px !important;
-        border-radius: var(--radius);
-        margin-top: 10px;
-        width: 100% !important;
-    }
-    
-    #sidebar.mobile-expanded .invite-code-section label {
-        display: block !important;
-        font-size: 0.7rem;
-        color: var(--text-light);
-        text-transform: uppercase;
-        margin-bottom: 5px;
-        font-weight: 600;
-    }
-    
-    #sidebar.mobile-expanded .invite-code-display span {
-        display: block !important;
-        font-weight: 600;
-        color: var(--accent-red);
-        font-size: 0.9rem;
-        letter-spacing: 1px;
-        flex: 1;
-        text-align: center;
-        word-break: break-all;
-        padding: 0 5px;
-    }
-    
-    #sidebar.mobile-expanded .btn-icon {
-        background: transparent;
-        border: none;
-        padding: 6px;
-        border-radius: var(--radius);
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    
-    /* Βελτίωση της εμφάνισης του sidebar όταν είναι expanded */
-    #sidebar.mobile-expanded {
-        width: 280px !important;
-        z-index: 1001 !important;
-        box-shadow: 2px 0 15px rgba(0, 0, 0, 0.8) !important;
-        background: rgba(38, 38, 38, 0.95) !important;
-        backdrop-filter: blur(15px) !important;
-    }
-    
-    #sidebar.mobile-expanded .room-details {
-        display: block !important;
-        padding: 15px !important;
-        border-bottom: 1px solid var(--border-color);
-    }
-    
-    /* Καλύτερη εμφάνιση για τα μέλη */
-    #sidebar.mobile-expanded .room-members-section {
-        display: block !important;
-        padding: 15px !important;
-        flex: 1;
-        overflow-y: auto;
-    }
-    
-    #sidebar.mobile-expanded .room-members-section h3 {
-        display: block !important;
-        font-size: 0.7rem;
-        color: var(--text-light);
-        text-transform: uppercase;
-        margin-bottom: 10px;
-        font-weight: 600;
-    }
-    
-    #sidebar.mobile-expanded .member-info {
-        display: flex !important;
-        flex-direction: column;
-        flex: 1;
-    }
-    
-    #sidebar.mobile-expanded .profile-info {
-        display: flex !important;
-        flex-direction: column;
-        flex: 1;
-    }
-    
-    /* Βελτίωση scrollbar για mobile */
-    #sidebar.mobile-expanded ::-webkit-scrollbar {
-        width: 4px;
-    }
-    
-    /* Πιο συμπαγής διάταξη για τα feature cards στην αρχική σελίδα */
-    .hero-section {
-        padding: 40px 20px !important;
-    }
-    
-    .hero-section h1 {
-        font-size: 1.8rem !important;
-        line-height: 1.3;
-    }
-    
-    .hero-section p {
-        font-size: 1rem !important;
-        max-width: 100% !important;
-        padding: 0 10px;
-    }
-    
-    /* Βελτίωση για τα κουμπιά στην αρχική σελίδα */
-    .cta-btn, .cta-btn-secondary {
-        padding: 12px 20px !important;
-        font-size: 0.9rem !important;
-        margin: 5px !important;
-        display: inline-block !important;
-        width: auto !important;
-        min-width: 140px;
-    }
-    
-    /* Βελτίωση για το logo στο navigation */
-    .nav-brand .nav-btn {
-        width: 160px !important;
-        min-width: 160px !important;
-        max-width: 160px !important;
-        height: 40px !important;
-    }
-    
-    .nav-logo {
-        height: 40px !important;
-        object-fit: contain !important;
-    }
+.connection-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
 }
 
-/* Extra small devices (κινητά) */
-@media (max-width: 480px) {
-    /* 1. FIX: Ακόμα καλύτερη διάταξη για το Group Collaboration box */
-    .features-grid {
-        padding: 20px 15px !important;
-        gap: 12px !important;
-    }
-    
-    .feature-card {
-        padding: 20px !important;
-    }
-    
-    .feature-card h3 {
-        font-size: 1.1rem !important;
-    }
-    
-    .feature-card p {
-        font-size: 0.9rem !important;
-        line-height: 1.4;
-    }
-    
-    /* 2. FIX: Ακόμα πιο συμπαγές navigation */
-    .nav-actions {
-        gap: 3px !important;
-    }
-    
-    .nav-btn {
-        padding: 8px 10px !important;
-        font-size: 0.75rem !important;
-    }
-    
-    /* Πιο μικρό logo για πολύ μικρές οθόνες */
-    .nav-brand .nav-btn {
-        width: 140px !important;
-        min-width: 140px !important;
-        max-width: 140px !important;
-        height: 36px !important;
-    }
-    
-    .nav-logo {
-        height: 36px !important;
-    }
-    
-    /* 3. FIX: Πιο καλή εμφάνιση για το expanded sidebar */
-    #sidebar.mobile-expanded {
-        width: 260px !important;
-    }
-    
-    #sidebar.mobile-expanded .invite-code-display {
-        padding: 8px !important;
-    }
-    
-    #sidebar.mobile-expanded .invite-code-display span {
-        font-size: 0.85rem !important;
-        letter-spacing: 0.5px;
-    }
-    
-    /* Βελτίωση για τα κουμπιά CTA στην αρχική σελίδα */
-    .cta-btn, .cta-btn-secondary {
-        min-width: 120px !important;
-        padding: 10px 15px !important;
-        font-size: 0.85rem !important;
-        margin: 3px !important;
-    }
-    
-    /* Βελτίωση για την εμφάνιση του hero section */
-    .hero-section h1 {
-        font-size: 1.6rem !important;
-        margin-bottom: 10px;
-    }
-    
-    .hero-section p {
-        font-size: 0.9rem !important;
-        margin-bottom: 20px;
-    }
+.connection-dot.connected {
+    background: var(--success);
+    animation: pulse 2s infinite;
 }
 
-/* Very small devices (πολύ μικρές οθόνες) */
-@media (max-width: 360px) {
-    .nav-brand .nav-btn {
-        width: 120px !important;
-        min-width: 120px !important;
-        max-width: 120px !important;
-    }
-    
-    .nav-actions {
-        gap: 2px !important;
-    }
-    
-    .nav-btn {
-        padding: 7px 8px !important;
-        font-size: 0.7rem !important;
-    }
-    
-    .features-grid {
-        padding: 15px 10px !important;
-    }
-    
-    .feature-card {
-        padding: 15px !important;
-    }
-    
-    .feature-icon i {
-        font-size: 2rem !important;
-    }
-    
-    .feature-card h3 {
-        font-size: 1rem !important;
-    }
-    
-    .feature-card p {
-        font-size: 0.85rem !important;
-    }
-    
-    #sidebar.mobile-expanded {
-        width: 240px !important;
-    }
+.connection-dot.disconnected {
+    background: var(--accent-red);
 }
 
-/* Tablet portrait */
-@media (min-width: 481px) and (max-width: 768px) {
-    /* Μέτριες βελτιώσεις για tablet */
-    .features-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
-    
-    .feature-card:last-child {
-        grid-column: span 2 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-    
-    /* Στο tablet το Group Collaboration box θα πάρει ολόκληρο το πλάτος */
-    .feature-card:nth-child(3) {
-        grid-column: 1 / span 2;
-    }
+.connection-dot.connecting {
+    background: var(--warning);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Better message text wrapping */
+.message-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    line-height: 1.5;
 }
