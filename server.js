@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR PROFILE PICS & LEAVE ROOM
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -29,15 +29,105 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Βεβαιώσου ότι ο φάκελος uploads υπάρχει
+// 🔥 ΒΕΛΤΙΩΣΗ: Βεβαιώσου ότι οι φάκελοι uploads υπάρχουν
 const ensureUploadsDir = async () => {
   const uploadsDir = path.join(__dirname, 'uploads');
+  const uploadsThumbsDir = path.join(__dirname, 'uploads', 'thumbnails');
+  
   try {
     await fs.access(uploadsDir);
   } catch {
     await fs.mkdir(uploadsDir, { recursive: true });
   }
+  
+  try {
+    await fs.access(uploadsThumbsDir);
+  } catch {
+    await fs.mkdir(uploadsThumbsDir, { recursive: true });
+  }
 };
+
+// 🔥 ΣΗΜΑΝΤΙΚΗ ΔΙΟΡΘΩΣΗ: Βελτιωμένη συνάρτηση για επεξεργασία και αποθήκευση εικόνων
+async function processAndSaveImage(filePath, username) {
+  try {
+    console.log(`🖼️ Processing image for user: ${username}`);
+    
+    // Βεβαιώσου ότι το αρχικό αρχείο υπάρχει
+    await fs.access(filePath);
+    
+    // Δημιουργία μοναδικού ονόματος αρχείου
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 15);
+    const fileName = `avatar_${username}_${timestamp}_${randomString}.jpg`;
+    const outputPath = path.join(__dirname, 'uploads', fileName);
+    const thumbnailPath = path.join(__dirname, 'uploads', 'thumbnails', fileName);
+    
+    console.log(`📸 Processing image from: ${filePath} to: ${outputPath}`);
+    
+    // Επεξεργασία και αποθήκευση της πλήρους εικόνας (μέχρι 800px)
+    await sharp(filePath)
+      .resize({
+        width: 800,
+        height: 800,
+        fit: sharp.fit.inside,
+        withoutEnlargement: true
+      })
+      .toFormat('jpeg')
+      .jpeg({ 
+        quality: 85,
+        progressive: true,
+        mozjpeg: true
+      })
+      .toFile(outputPath);
+    
+    console.log(`✅ Full image saved: ${outputPath}`);
+    
+    // Δημιουργία thumbnail (150x150)
+    await sharp(filePath)
+      .resize({
+        width: 150,
+        height: 150,
+        fit: sharp.fit.cover,
+        position: 'centre'
+      })
+      .toFormat('jpeg')
+      .jpeg({ 
+        quality: 80,
+        progressive: true,
+        mozjpeg: true
+      })
+      .toFile(thumbnailPath);
+    
+    console.log(`✅ Thumbnail saved: ${thumbnailPath}`);
+    
+    // Προσπάθησε να διαγράψεις το προσωρινό αρχείο
+    try {
+      await fs.unlink(filePath);
+    } catch (cleanupError) {
+      console.warn("⚠️ Could not delete temp file:", cleanupError.message);
+    }
+    
+    // Επιστροφή του relative path για το thumbnail (αυτό χρησιμοποιείται συνήθως στο UI)
+    return `/uploads/thumbnails/${fileName}`;
+    
+  } catch (error) {
+    console.error('❌ Error processing image:', error);
+    
+    // Fallback: Αν αποτύχει η επεξεργασία, χρησιμοποίησε το αρχικό αρχείο
+    try {
+      await fs.access(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      const fileName = `avatar_${username}_${Date.now()}_fallback${ext}`;
+      const fallbackPath = path.join(__dirname, 'uploads', fileName);
+      
+      await fs.copyFile(filePath, fallbackPath);
+      return `/uploads/${fileName}`;
+    } catch (fallbackError) {
+      console.error('❌ Fallback also failed:', fallbackError);
+      throw new Error('Failed to process and save image');
+    }
+  }
+}
 
 // 🔥 ΒΕΛΤΙΩΣΗ: Configure multer με auto-resize
 const storage = multer.diskStorage({
@@ -48,7 +138,7 @@ const storage = multer.diskStorage({
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const ext = path.extname(file.originalname).toLowerCase();
-        cb(null, 'avatar-' + uniqueSuffix + ext);
+        cb(null, 'temp-' + uniqueSuffix + ext);
     }
 });
 
@@ -69,54 +159,12 @@ const upload = multer({
     }
 });
 
-// 🔥 ΒΕΛΤΙΩΣΗ: Συνάρτηση για auto-resize και optimization εικόνων
-async function processAndResizeImage(filePath) {
-  try {
-    // Βεβαιώσου ότι το αρχείο υπάρχει
-    await fs.access(filePath);
-    
-    console.log(`🖼️ Processing image: ${filePath}`);
-    
-    // Ανάγνωση metadata
-    const metadata = await sharp(filePath).metadata();
-    console.log(`📐 Original image: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);
-    
-    // Προσθήκη timestamp στο όνομα για μοναδικότητα
-    const timestamp = Date.now();
-    const ext = path.extname(filePath).toLowerCase();
-    const baseName = path.basename(filePath, ext);
-    const finalFilename = `${baseName}_${timestamp}_resized${ext}`;
-    const outputPath = path.join(path.dirname(filePath), finalFilename);
-    
-    console.log(`📏 Resizing to 150x150, output: ${outputPath}`);
-    
-    // Auto-resize
-    await sharp(filePath)
-      .resize({
-        width: 150,
-        height: 150,
-        fit: sharp.fit.cover,
-        position: 'centre'
-      })
-      .toFormat('jpeg')
-      .jpeg({ 
-        quality: 85,
-        progressive: true,
-        mozjpeg: true
-      })
-      .toFile(outputPath);
-    
-    console.log(`✅ Image processed successfully: ${outputPath}`);
-    
-    // Διαγραφή του αρχικού αρχείου
-    await fs.unlink(filePath);
-    
-    return outputPath;
-  } catch (error) {
-    console.error('❌ Error processing image:', error);
-    return filePath; // Fallback to original
-  }
-}
+// 🔥 ΣΗΜΑΝΤΙΚΟ: Static files για τα uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+    maxAge: '365d', // Cache για 1 χρόνο
+    etag: true,
+    lastModified: true
+}));
 
 // Serve static files correctly for Render
 app.use(express.static(path.join(__dirname)));
@@ -605,28 +653,28 @@ app.post("/upload-profile-picture", validateSession, upload.single('profile_pict
         if (!username) {
             // Clean up file if no username
             if (req.file.path) {
-                await fs.unlink(req.file.path).catch(() => {});
+                try {
+                    await fs.unlink(req.file.path);
+                } catch (cleanupError) {
+                    console.warn("⚠️ Could not clean up file:", cleanupError.message);
+                }
             }
             return res.status(400).json({ success: false, error: "Username required" });
         }
         
-        console.log("📸 Processing uploaded image:", req.file.filename, "for user:", username);
+        console.log("📸 Processing uploaded image for user:", username, "File:", req.file.filename);
         
-        // 🔥 AUTO-RESIZE τη φωτογραφία
-        const resizedImagePath = await processAndResizeImage(req.file.path);
+        // Επεξεργασία και αποθήκευση της εικόνας
+        const profilePicturePath = await processAndSaveImage(req.file.path, username);
         
-        // Δημιουργία relative path για το resized image
-        const fileName = path.basename(resizedImagePath);
-        const profilePicture = '/uploads/' + fileName;
+        // Αποθήκευση στο database
+        await dbHelpers.updateUser(username, { profile_picture: profilePicturePath });
         
-        // Save to database
-        await dbHelpers.updateUser(username, { profile_picture: profilePicture });
-        
-        console.log("✅ Profile picture saved for user:", username, "path:", profilePicture);
+        console.log("✅ Profile picture saved for user:", username, "Path:", profilePicturePath);
         
         res.json({
             success: true,
-            profile_picture: profilePicture + "?t=" + Date.now(), // Προσθήκη timestamp για cache busting
+            profile_picture: profilePicturePath + "?t=" + Date.now(), // Προσθήκη timestamp για cache busting
             message: "Profile picture updated successfully"
         });
         
@@ -644,7 +692,7 @@ app.post("/upload-profile-picture", validateSession, upload.single('profile_pict
         
         res.status(500).json({ 
             success: false, 
-            error: error.message || "Failed to upload and process profile picture" 
+            error: error.message || "Failed to upload profile picture" 
         });
     }
 });
@@ -659,14 +707,22 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
         if (!email || !username || !password) {
             // Clean up uploaded file if validation fails
             if (req.file && req.file.path) {
-                await fs.unlink(req.file.path).catch(() => {});
+                try {
+                    await fs.unlink(req.file.path);
+                } catch (cleanupError) {
+                    console.warn("⚠️ Could not clean up file:", cleanupError.message);
+                }
             }
             return res.status(400).json({ success: false, error: "All fields are required" });
         }
 
         if (password.length < 3) {
             if (req.file && req.file.path) {
-                await fs.unlink(req.file.path).catch(() => {});
+                try {
+                    await fs.unlink(req.file.path);
+                } catch (cleanupError) {
+                    console.warn("⚠️ Could not clean up file:", cleanupError.message);
+                }
             }
             return res.status(400).json({ success: false, error: "Password must be at least 3 characters" });
         }
@@ -678,7 +734,11 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
         } catch (dbError) {
             console.error("❌ Database error during user check:", dbError);
             if (req.file && req.file.path) {
-                await fs.unlink(req.file.path).catch(() => {});
+                try {
+                    await fs.unlink(req.file.path);
+                } catch (cleanupError) {
+                    console.warn("⚠️ Could not clean up file:", cleanupError.message);
+                }
             }
             return res.status(500).json({
                 success: false,
@@ -688,40 +748,41 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
 
         if (existingEmail) {
             if (req.file && req.file.path) {
-                await fs.unlink(req.file.path).catch(() => {});
+                try {
+                    await fs.unlink(req.file.path);
+                } catch (cleanupError) {
+                    console.warn("⚠️ Could not clean up file:", cleanupError.message);
+                }
             }
             return res.status(400).json({ success: false, error: "Email already registered" });
         }
 
         if (existingUsername) {
             if (req.file && req.file.path) {
-                await fs.unlink(req.file.path).catch(() => {});
+                try {
+                    await fs.unlink(req.file.path);
+                } catch (cleanupError) {
+                    console.warn("⚠️ Could not clean up file:", cleanupError.message);
+                }
             }
             return res.status(400).json({ success: false, error: "Username already taken" });
         }
 
         try {
             let profilePicture = null;
-            // 🔥 Handle avatar με AUTO-RESIZE αν παρέχεται
+            
+            // Επεξεργασία avatar αν παρέχεται
             if (req.file) {
                 console.log("📸 Processing avatar for registration:", req.file.filename);
                 
                 try {
-                    // AUTO-RESIZE τη φωτογραφία
-                    const resizedImagePath = await processAndResizeImage(req.file.path);
-                    
-                    // Δημιουργία relative path
-                    const fileName = path.basename(resizedImagePath);
-                    profilePicture = '/uploads/' + fileName;
-                    
-                    console.log("✅ Avatar resized and saved:", profilePicture);
+                    // Επεξεργασία και αποθήκευση της εικόνας
+                    profilePicture = await processAndSaveImage(req.file.path, username);
+                    console.log("✅ Avatar processed and saved:", profilePicture);
                 } catch (resizeError) {
-                    console.error("❌ Error resizing avatar:", resizeError);
+                    console.error("❌ Error processing avatar:", resizeError);
                     // Συνέχισε χωρίς avatar αν υπάρχει πρόβλημα
-                    // Clean up the file if resize failed
-                    if (req.file && req.file.path) {
-                        await fs.unlink(req.file.path).catch(() => {});
-                    }
+                    profilePicture = null;
                 }
             }
 
@@ -738,7 +799,11 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
             console.error("❌ Error creating user in database:", createError);
             // Clean up uploaded file
             if (req.file && req.file.path) {
-                await fs.unlink(req.file.path).catch(() => {});
+                try {
+                    await fs.unlink(req.file.path);
+                } catch (cleanupError) {
+                    console.warn("⚠️ Could not clean up file:", cleanupError.message);
+                }
             }
             return res.status(500).json({
                 success: false,
@@ -749,7 +814,11 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
         console.error("❌ Unexpected error during registration:", error);
         // Clean up uploaded file
         if (req.file && req.file.path) {
-            await fs.unlink(req.file.path).catch(() => {});
+            try {
+                await fs.unlink(req.file.path);
+            } catch (cleanupError) {
+                console.warn("⚠️ Could not clean up file:", cleanupError.message);
+            }
         }
         res.status(500).json({
             success: false,
@@ -890,7 +959,7 @@ app.post("/logout", async (req, res) => {
   }
 });
 
-// ===== ΝΕΟ ENDPOINT: LEAVE ROOM =====
+// ===== ΝΕΟ ENDPOINT: LEAVE ROOM - ENHANCED =====
 app.post("/leave-room", validateSession, async (req, res) => {
   try {
     const { roomId, username } = req.body;
@@ -899,10 +968,23 @@ app.post("/leave-room", validateSession, async (req, res) => {
       return res.status(400).json({ success: false, error: "Room ID and username required" });
     }
 
+    // Έλεγχος αν ο χρήστης είναι πράγματι στο room
+    const isMember = await dbHelpers.isUserInRoom(roomId, username);
+    if (!isMember) {
+      return res.status(400).json({ success: false, error: "You are not a member of this room" });
+    }
+
     // Αφαίρεση χρήστη από το δωμάτιο
     await dbHelpers.removeUserFromRoom(roomId, username);
     
     console.log(`✅ ${username} left room ${roomId}`);
+    
+    // Ενημέρωση WebSocket για τους υπόλοιπους χρήστες στο room
+    const roomMembers = await dbHelpers.getRoomMembers(roomId);
+    
+    // Αποστολή ενημέρωσης σε όλους στο room
+    io.to(roomId).emit("room members", roomMembers);
+    io.to(roomId).emit("user_left", { username, roomId });
 
     res.json({
       success: true,
@@ -1112,6 +1194,59 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
   }
 });
 
+// 🔥 ΣΗΜΑΝΤΙΚΟ: Cleanup function για παλιά αρχεία
+async function cleanupOldFiles() {
+  try {
+    const uploadsDir = path.join(__dirname, 'uploads');
+    const files = await fs.readdir(uploadsDir);
+    const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    
+    for (const file of files) {
+      if (file === 'thumbnails') continue; // Παράβλεψε τον φάκελο thumbnails
+      
+      const filePath = path.join(uploadsDir, file);
+      try {
+        const stats = await fs.stat(filePath);
+        
+        // Διάγραψε αρχεία που είναι παλιά και δεν χρησιμοποιούνται
+        if (stats.mtime.getTime() < oneWeekAgo) {
+          // Ελέγχουμε αν το αρχείο χρησιμοποιείται
+          const isUsed = await checkIfFileIsUsed(file);
+          if (!isUsed) {
+            await fs.unlink(filePath);
+            console.log(`🧹 Cleaned up old file: ${file}`);
+            
+            // Διάγραψε και το thumbnail αν υπάρχει
+            const thumbPath = path.join(uploadsDir, 'thumbnails', file);
+            try {
+              await fs.unlink(thumbPath);
+            } catch (thumbError) {
+              // Μην κάνεις τίποτα αν το thumbnail δεν υπάρχει
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ Could not process file ${file}:`, error.message);
+      }
+    }
+  } catch (error) {
+    console.error("❌ Error cleaning up old files:", error);
+  }
+}
+
+async function checkIfFileIsUsed(filename) {
+  try {
+    // Έλεγχος αν το αρχείο χρησιμοποιείται ως profile picture
+    const users = await dbHelpers.getAllUsers();
+    return users.some(user => 
+      user.profile_picture && user.profile_picture.includes(filename)
+    );
+  } catch (error) {
+    console.error("Error checking if file is used:", error);
+    return true; // Μην διαγράψεις αν υπάρχει λάθος
+  }
+}
+
 // ===== SOCKET.IO CONNECTION WITH ENHANCED UNREAD SYSTEM =====
 
 io.on("connection", async (socket) => {
@@ -1218,6 +1353,36 @@ io.on("connection", async (socket) => {
     } catch (error) {
       console.error("❌ Error joining room:", error);
       socket.emit("error", { message: "Failed to join room: " + error.message });
+    }
+  });
+
+  // 🔥 ΝΕΟ EVENT: Leave room through WebSocket
+  socket.on("leave_room", async (data) => {
+    try {
+      const { roomId, username } = data;
+      
+      if (!roomId || !username) {
+        console.log("❌ Invalid leave room request");
+        return;
+      }
+      
+      console.log(`🚪 User ${username} leaving room ${roomId}`);
+      
+      // Αφαίρεση χρήστη από το room
+      await dbHelpers.removeUserFromRoom(roomId, username);
+      
+      // Ενημέρωση του χρήστη
+      socket.emit("leave_room_success", { roomId });
+      
+      // Ενημέρωση των υπόλοιπων χρηστών στο room
+      const members = await dbHelpers.getRoomMembers(roomId);
+      socket.to(roomId).emit("room members", members);
+      socket.to(roomId).emit("user_left", { username, roomId });
+      
+      console.log(`✅ ${username} left room ${roomId}`);
+      
+    } catch (error) {
+      console.error("❌ Error in leave_room event:", error);
     }
   });
 
@@ -1412,6 +1577,25 @@ io.on("connection", async (socket) => {
   socket.on("disconnect", async () => {
     console.log("🔌 User disconnected:", socket.id);
 
+    if (currentUsername && currentRoomId) {
+      try {
+        // Αφαίρεση χρήστη από το room όταν αποσυνδέεται (μόνο για κανονικά rooms)
+        const room = await dbHelpers.getRoomById(currentRoomId);
+        if (room) { // Αν είναι κανονικό room (όχι private chat)
+          await dbHelpers.removeUserFromRoom(currentRoomId, currentUsername);
+          
+          console.log(`🚪 ${currentUsername} removed from room ${currentRoomId} due to disconnect`);
+          
+          // Ενημέρωση των υπόλοιπων χρηστών
+          const members = await dbHelpers.getRoomMembers(currentRoomId);
+          io.to(currentRoomId).emit("room members", members);
+          io.to(currentRoomId).emit("user_left", { username: currentUsername, roomId: currentRoomId });
+        }
+      } catch (error) {
+        console.error("❌ Error removing user from room on disconnect:", error);
+      }
+    }
+
     if (currentUsername) {
       onlineUsers.delete(currentUsername);
 
@@ -1430,9 +1614,6 @@ io.on("connection", async (socket) => {
         roomSocketSet.delete(socket.id);
         if (roomSocketSet.size === 0) {
           roomSockets.delete(currentRoomId);
-        } else {
-          const members = await dbHelpers.getRoomMembers(currentRoomId);
-          socket.to(currentRoomId).emit("room members", members);
         }
       }
     }
@@ -1457,11 +1638,17 @@ setInterval(async () => {
   }
 }, 60 * 60 * 1000);
 
+// Εκτέλεση cleanup κάθε 24 ώρες
+setInterval(cleanupOldFiles, 24 * 60 * 60 * 1000);
+
 // 🔥 FIXED: Start server ONLY after database connection
 async function startServer() {
   try {
     // Wait for database to connect
     await initializeDatabase();
+    
+    // Ensure uploads directory exists
+    await ensureUploadsDir();
     
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, '0.0.0.0', () => {
@@ -1473,11 +1660,13 @@ async function startServer() {
       console.log(`👤 USER INFO SYSTEM: ENABLED`);
       console.log(`🔔 NOTIFICATION TIMEOUT: 5 SECONDS`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
-      console.log(`📸 IMAGE AUTO-RESIZE: ENABLED (150x150 pixels)`);
+      console.log(`📸 IMAGE PROCESSING: ENABLED (800x800 full, 150x150 thumbnail)`);
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
       console.log(`📁 SUPPORTED IMAGES: JPEG, PNG, GIF, WebP, BMP, TIFF`);
       console.log(`💾 MAX FILE SIZE: 10MB`);
       console.log(`🖼️ AVATAR SYSTEM: ENABLED`);
+      console.log(`📂 UPLOADS FOLDER: ${path.join(__dirname, 'uploads')}`);
+      console.log(`🧹 FILE CLEANUP: ENABLED (every 24 hours)`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
