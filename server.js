@@ -1283,22 +1283,25 @@ io.on("connection", async (socket) => {
   socket.on("disconnect", async () => {
     console.log("🔌 User disconnected:", socket.id);
 
+    // 🔥 ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: ΔΕΝ ΑΦΑΙΡΟΥΜΕ ΤΟΝ ΧΡΗΣΤΗ ΑΠΟ ΤΟ ROOM ΌΤΑΝ ΑΠΟΣΥΝΔΕΕΤΑΙ!
+    // ΜΟΝΟ αν είναι WebSocket disconnect - ΟΧΙ manual leave
+    // ΔΕΝ αφαιρούμε τον χρήστη από το room όταν αποσυνδέεται
+    // Αφήνουμε τον χρήστη στο room για να μπορεί να επανέλθει
+    
     if (currentUsername && currentRoomId) {
+      console.log(`📡 ${currentUsername} disconnected from room ${currentRoomId} (still a member)`);
+      
+      // Ενημέρωση ότι ο χρήστης αποσυνδέθηκε (αλλά παραμένει στο room)
       try {
-        // Αφαίρεση χρήστη από το room όταν αποσυνδέεται (μόνο για κανονικά rooms)
-        const room = await dbHelpers.getRoomById(currentRoomId);
-        if (room) { // Αν είναι κανονικό room (όχι private chat)
-          await dbHelpers.removeUserFromRoom(currentRoomId, currentUsername);
-          
-          console.log(`🚪 ${currentUsername} removed from room ${currentRoomId} due to disconnect`);
-          
-          // Ενημέρωση των υπόλοιπων χρηστών
-          const members = await dbHelpers.getRoomMembers(currentRoomId);
-          io.to(currentRoomId).emit("room members", members);
-          io.to(currentRoomId).emit("user_left", { username: currentUsername, roomId: currentRoomId });
-        }
+        const members = await dbHelpers.getRoomMembers(currentRoomId);
+        // Απλά ενημερώνουμε τη λίστα χωρίς να αφαιρούμε κανέναν
+        io.to(currentRoomId).emit("room members", members);
+        io.to(currentRoomId).emit("user_disconnected", { 
+          username: currentUsername, 
+          roomId: currentRoomId 
+        });
       } catch (error) {
-        console.error("❌ Error removing user from room on disconnect:", error);
+        console.error("❌ Error updating disconnect status:", error);
       }
     }
 
@@ -1364,6 +1367,7 @@ async function startServer() {
       console.log(`💾 MAX FILE SIZE: 5MB`);
       console.log(`🖼️ AVATAR SYSTEM: ENABLED (PERMANENT STORAGE)`);
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
+      console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
