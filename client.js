@@ -30,133 +30,6 @@ let currentViewedUser = null;
 // ===== AVATAR SYSTEM =====
 let userAvatars = {}; // Cache για τα avatars των χρηστών
 
-// ===== ΒΟΗΘΗΤΙΚΕΣ ΣΥΝΑΡΤΗΣΕΙΣ ΓΙΑ LOCALSTORAGE =====
-
-// ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Αποθήκευση currentRoom στο localStorage
-function saveCurrentRoomToLocalStorage() {
-    localStorage.setItem(
-        "ratscape_current_room",
-        JSON.stringify({
-            id: currentRoom.id,
-            name: currentRoom.name,
-            inviteCode: currentRoom.inviteCode,
-            isPrivate: currentRoom.isPrivate,
-            timestamp: Date.now()
-        })
-    );
-}
-
-// ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Ανάκτηση currentRoom από localStorage
-function getCurrentRoomFromLocalStorage() {
-    const roomData = localStorage.getItem("ratscape_current_room");
-    if (!roomData) return null;
-    
-    try {
-        const room = JSON.parse(roomData);
-        const oneWeek = 7 * 24 * 60 * 60 * 1000;
-        if (Date.now() - room.timestamp > oneWeek) {
-            localStorage.removeItem("ratscape_current_room");
-            return null;
-        }
-        return room;
-    } catch (error) {
-        localStorage.removeItem("ratscape_current_room");
-        return null;
-    }
-}
-
-// ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Καθαρισμός currentRoom από localStorage
-function clearCurrentRoomFromLocalStorage() {
-    localStorage.removeItem("ratscape_current_room");
-}
-
-// 🔥 ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Αποθήκευση και επανασύνδεση στο room
-function reconnectToRoomAfterRefresh() {
-    const savedRoom = getCurrentRoomFromLocalStorage();
-    if (!savedRoom || !savedRoom.id) {
-        console.log("ℹ️ No saved room to reconnect to");
-        return false;
-    }
-    
-    console.log("🔄 Attempting to reconnect to room:", savedRoom);
-    
-    // Ενημέρωση currentRoom
-    currentRoom = {
-        id: savedRoom.id,
-        name: savedRoom.name,
-        inviteCode: savedRoom.inviteCode,
-        isPrivate: savedRoom.isPrivate || false
-    };
-    
-    // Ενημέρωση UI
-    document.getElementById("room-name-sidebar").textContent = savedRoom.name;
-    document.getElementById("room-name-header").textContent = savedRoom.isPrivate ? 
-        `Private Chat with ${savedRoom.name}` : savedRoom.name;
-    
-    if (savedRoom.isPrivate) {
-        // 🔥 ΓΙΑ PRIVATE CHATS
-        document.getElementById("room-invite-code").textContent = "Private Chat";
-        document.getElementById("invite-code-container").classList.add("hide-for-private");
-        document.getElementById("copy-invite-btn").style.display = "none";
-        document.getElementById("room-description").textContent = `Private conversation with ${savedRoom.name}`;
-        document.getElementById("room-status").textContent = "Private chat";
-        document.getElementById("room-status").classList.add("private-chat");
-        
-        // Φόρτωση private messages
-        loadPrivateMessages(savedRoom.name);
-        
-        // Private chat members
-        document.getElementById("room-members-list").innerHTML = `
-            <div class="member-item" data-username="${currentUser.username}">
-                <div class="member-avatar"></div>
-                <div class="member-info">
-                    <span class="member-name">${currentUser.username}</span>
-                    <span class="member-joined">You</span>
-                </div>
-            </div>
-            <div class="member-item" data-username="${savedRoom.name}">
-                <div class="member-avatar"></div>
-                <div class="member-info">
-                    <span class="member-name">${savedRoom.name}</span>
-                    <span class="member-joined">Friend</span>
-                </div>
-            </div>
-        `;
-        
-        // Φόρτωση avatars
-        setTimeout(() => {
-            loadMemberAvatars();
-            makeMemberItemsClickable();
-        }, 100);
-        
-    } else {
-        // 🔥 ΓΙΑ ΚΑΝΟΝΙΚΑ ROOMS
-        document.getElementById("room-invite-code").textContent = savedRoom.inviteCode;
-        document.getElementById("invite-code-container").classList.remove("hide-for-private");
-        document.getElementById("copy-invite-btn").style.display = "flex";
-        document.getElementById("copy-invite-btn").disabled = false;
-        document.getElementById("room-description").textContent = "Group chat";
-        document.getElementById("room-status").textContent = "Loading...";
-        
-        // Σύνδεση στο room μέσω WebSocket
-        console.log("📡 Emitting join room event for reconnection...");
-        socket.emit("join room", {
-            roomId: savedRoom.id,
-            username: currentUser.username,
-            sessionId: currentUser.sessionId,
-        });
-        
-        // Request room data
-        socket.emit("get room info", { roomId: savedRoom.id });
-        socket.emit("get room members", { roomId: savedRoom.id });
-    }
-    
-    // Εμφάνιση της σελίδας chat
-    showPage("chat-page");
-    
-    return true;
-}
-
 // ===== BEAUTIFUL NOTIFICATION SYSTEM WITH CLICKABLE =====
 
 function showNotification(message, type = "info", title = null, action = null, unreadCount = 1) {
@@ -645,40 +518,40 @@ function updateRoomsListBadges() {
             
             // Αφαίρεση υπάρχοντος badge
             const existingBadge = card.querySelector('.room-badge');
-        if (existingBadge) {
-            existingBadge.remove();
-        }
-        
-        // Προσθήκη νέου badge
-        if (unreadCount > 0) {
-            const badge = document.createElement('span');
-            badge.className = 'room-badge';
-            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
-            badge.style.cssText = `
-                position: absolute;
-                top: 10px;
-                right: 10px;
-                background: var(--accent-red);
-                color: white;
-                border-radius: 10px;
-                min-width: 20px;
-                height: 20px;
-                font-size: 0.7rem;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 0 5px;
-                font-weight: bold;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-                z-index: 1;
-                animation: badgePop 0.3s ease-out;
-            `;
+            if (existingBadge) {
+                existingBadge.remove();
+            }
             
-            card.style.position = 'relative';
-            card.appendChild(badge);
+            // Προσθήκη νέου badge
+            if (unreadCount > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'room-badge';
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                badge.style.cssText = `
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: var(--accent-red);
+                    color: white;
+                    border-radius: 10px;
+                    min-width: 20px;
+                    height: 20px;
+                    font-size: 0.7rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0 5px;
+                    font-weight: bold;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+                    z-index: 1;
+                    animation: badgePop 0.3s ease-out;
+                `;
+                
+                card.style.position = 'relative';
+                card.appendChild(badge);
+            }
         }
-    }
-});
+    });
 }
 
 // Φόρτωση offline notifications όταν συνδέεται ο χρήστης
@@ -1063,7 +936,7 @@ function loadUserRooms() {
                 displayUserRooms(data.rooms);
             }
         })
-        .catch((error) {
+        .catch((error) => {
             console.error("Error loading rooms:", error);
             if (error.message === "Session expired") {
                 handleSessionExpired();
@@ -1113,88 +986,56 @@ function displayUserRooms(rooms) {
     updateRoomsListBadges();
 }
 
-function enterRoom(roomId, roomName, inviteCode, isPrivate = false) {
-    console.log("🚀 Entering room:", { roomId, roomName, inviteCode, isPrivate });
+function enterRoom(roomId, roomName, inviteCode) {
+    console.log("🚀 Entering room:", { roomId, roomName, inviteCode });
     
     currentRoom = { 
         id: roomId, 
         name: roomName, 
         inviteCode: inviteCode,
-        isPrivate: isPrivate || false 
+        isPrivate: false 
     };
 
-    // 🔥 ΑΠΟΘΗΚΕΥΣΗ ΣΤΟ LOCALSTORAGE
-    saveCurrentRoomToLocalStorage();
-    
     // Update UI
     document.getElementById("room-name-sidebar").textContent = roomName;
     document.getElementById("room-name-header").textContent = roomName;
     
-    if (isPrivate) {
-        // 🔥 ΓΙΑ PRIVATE CHATS - ΚΡΥΒΟΥΜΕ ΤΟ INVITE CODE
-        document.getElementById("room-invite-code").textContent = "Private Chat";
-        document.getElementById("invite-code-container").classList.add("hide-for-private");
-        document.getElementById("copy-invite-btn").style.display = "none";
-        document.getElementById("room-description").textContent = `Private conversation with ${roomName}`;
-        document.getElementById("room-status").textContent = "Private chat";
-        document.getElementById("room-status").classList.add("private-chat");
-    } else {
-        // 🔥 ΓΙΑ ΚΑΝΟΝΙΚΑ ROOMS - ΕΜΦΑΝΙΖΟΥΜΕ ΝΟΡΜΑΛ ΤΟ INVITE CODE
-        document.getElementById("room-invite-code").textContent = inviteCode;
-        document.getElementById("invite-code-container").classList.remove("hide-for-private");
-        document.getElementById("copy-invite-btn").style.display = "flex";
-        document.getElementById("copy-invite-btn").disabled = false;
-        document.getElementById("room-description").textContent = "Group chat";
-        document.getElementById("room-status").textContent = "Loading...";
-    }
+    // 🔥 ΓΙΑ ΚΑΝΟΝΙΚΑ ROOMS - ΕΜΦΑΝΙΖΟΥΜΕ ΝΟΡΜΑΛ ΤΟ INVITE CODE
+    document.getElementById("room-invite-code").textContent = inviteCode;
+    
+    // Εμφάνιση του invite code section
+    document.getElementById("invite-code-container").classList.remove("hide-for-private");
+    
+    // Ενεργοποιούμε το copy button για κανονικά rooms
+    document.getElementById("copy-invite-btn").style.display = "flex";
+    document.getElementById("copy-invite-btn").disabled = false;
+    document.getElementById("copy-invite-btn").title = "Copy invite code";
+    document.getElementById("copy-invite-btn").style.opacity = "1";
+    document.getElementById("copy-invite-btn").style.cursor = "pointer";
 
     // Clear messages
     document.getElementById("messages-container").innerHTML = "";
 
-    // Emit join room ΜΟΝΟ αν δεν είναι private chat
-    if (!isPrivate) {
-        console.log("📡 Emitting join room event...");
-        socket.emit("join room", {
-            roomId: roomId,
-            username: currentUser.username,
-            sessionId: currentUser.sessionId,
-        });
-        
-        // 🔥 ΣΗΜΑΝΤΙΚΟ: Request room data αμέσως
-        socket.emit("get room info", { roomId: roomId });
-        socket.emit("get room members", { roomId: roomId });
-    } else {
-        // Για private chats, φόρτωση των messages
-        loadPrivateMessages(roomName);
-    }
+    // Emit join room
+    console.log("📡 Emitting join room event...");
+    
+    socket.emit("join room", {
+        roomId: roomId,
+        username: currentUser.username,
+        sessionId: currentUser.sessionId,
+    });
 
     showPage("chat-page");
     
-    if (isPrivate) {
-        // Private chat members
-        document.getElementById("room-members-list").innerHTML = `
-            <div class="member-item" data-username="${currentUser.username}">
-                <div class="member-avatar"></div>
-                <div class="member-info">
-                    <span class="member-name">${currentUser.username}</span>
-                    <span class="member-joined">You</span>
-                </div>
-            </div>
-            <div class="member-item" data-username="${roomName}">
-                <div class="member-avatar"></div>
-                <div class="member-info">
-                    <span class="member-name">${roomName}</span>
-                    <span class="member-joined">Friend</span>
-                </div>
-            </div>
-        `;
-        
-        // Φόρτωση avatars
-        setTimeout(() => {
-            loadMemberAvatars();
-            makeMemberItemsClickable();
-        }, 100);
-    }
+    // 🔥 ΣΗΜΑΝΤΙΚΟ: Request room data αμέσως
+    // Κάνουμε τα requests μαζί για να αποφύγουμε race conditions
+    socket.emit("get room info", { roomId: roomId });
+    socket.emit("get room members", { roomId: roomId });
+    
+    // 🔥 ΕΠΙΠΛΕΟΝ: Κάνουμε ένα δεύτερο request μετά από 500ms για να είμαστε σίγουροι
+    setTimeout(() => {
+        socket.emit("get room members", { roomId: roomId });
+    }, 500);
 }
 
 // ===== FRIENDS SYSTEM FUNCTIONS =====
@@ -1499,11 +1340,23 @@ function startPrivateChatWithFriend(friendUsername) {
     // Δημιουργία μοναδικού κωδικού για το private chat ΧΩΡΙΣ invite code
     const privateChatId = `private_${currentUser.username}_${friendUsername}`;
     
-    // 🔥 ΧΡΗΣΙΜΟΠΟΙΗΣΗ ΤΗΣ ΝΕΑΣ enterRoom() ΓΙΑ ΝΑ ΑΠΟΘΗΚΕΥΕΤΑΙ ΣΤΟ LOCALSTORAGE
-    enterRoom(privateChatId, friendUsername, null, true);
-    
-    // Ειδική ρύθμιση UI για private chat
+    currentRoom = {
+        id: privateChatId,
+        name: friendUsername,
+        inviteCode: null,
+        isPrivate: true,
+    };
+
+    document.getElementById("room-name-sidebar").textContent = friendUsername;
     document.getElementById("room-name-header").textContent = `Private Chat with ${friendUsername}`;
+    
+    // 🔥 ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΚΥΡΙΟ ΦΙΞ - ΚΡΥΒΟΥΜΕ ΟΛΟΚΛΗΡΟ ΤΟ INVITE CODE SECTION
+    document.getElementById("room-invite-code").textContent = "";
+    document.getElementById("invite-code-container").classList.add("hide-for-private");
+    
+    // Απενεργοποιούμε εντελώς το copy button για private chats
+    document.getElementById("copy-invite-btn").style.display = "none";
+    
     document.getElementById("sidebar-username").textContent = currentUser.username;
     
     // Φόρτωση του avatar του χρήστη
@@ -1511,6 +1364,39 @@ function startPrivateChatWithFriend(friendUsername) {
     if (sidebarAvatar) {
         loadUserAvatar(currentUser.username, sidebarAvatar, true);
     }
+
+    document.getElementById("room-description").textContent =
+        `Private conversation with ${friendUsername}`;
+    document.getElementById("room-status").textContent = "Private chat";
+    document.getElementById("room-status").classList.add("private-chat");
+
+    // Make the private chat members clickable too
+    document.getElementById("room-members-list").innerHTML = `
+        <div class="member-item" data-username="${currentUser.username}">
+            <div class="member-avatar"></div>
+            <div class="member-info">
+                <span class="member-name">${currentUser.username}</span>
+                <span class="member-joined">You</span>
+            </div>
+        </div>
+        <div class="member-item" data-username="${friendUsername}">
+            <div class="member-avatar"></div>
+            <div class="member-info">
+                <span class="member-name">${friendUsername}</span>
+                <span class="member-joined">Friend</span>
+            </div>
+        </div>
+    `;
+
+    document.getElementById("messages-container").innerHTML = "";
+    loadPrivateMessages(friendUsername);
+    showPage("chat-page");
+    
+    // Φόρτωση avatars για τα μέλη
+    setTimeout(() => {
+        loadMemberAvatars();
+        makeMemberItemsClickable();
+    }, 100);
 }
 
 async function loadPrivateMessages(friendUsername) {
@@ -1805,9 +1691,6 @@ function handleLogout() {
     currentUser = { username: null, email: null, authenticated: false, sessionId: null };
     currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
     
-    // 🔥 ΠΡΟΣΘΗΚΗ: Καθαρισμός room από localStorage
-    clearCurrentRoomFromLocalStorage();
-    
     // Clear local unread data
     unreadMessages = { private: {}, groups: {}, total: 0 };
     updateUnreadBadges();
@@ -1956,9 +1839,8 @@ async function handleLeaveRoom() {
                         showPage("friends-page");
                         loadUserFriends();
                         
-                        // 3. Reset current room και καθαρισμός localStorage
+                        // 3. Reset current room
                         currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
-                        clearCurrentRoomFromLocalStorage();
                         
                         // 4. Επαναφορά UI
                         document.getElementById("room-name-sidebar").textContent = "RatScape";
@@ -1989,9 +1871,8 @@ async function handleLeaveRoom() {
                     showPage("friends-page");
                     loadUserFriends();
                     
-                    // Reset current room και καθαρισμός localStorage
+                    // Reset current room
                     currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
-                    clearCurrentRoomFromLocalStorage();
                 }
             },
             () => {
@@ -2041,9 +1922,8 @@ async function handleLeaveRoom() {
                     showPage("rooms-page");
                     loadUserRooms();
                     
-                    // Reset current room και καθαρισμός localStorage
+                    // Reset current room
                     currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
-                    clearCurrentRoomFromLocalStorage();
                     
                     // Επαναφορά UI στο default state
                     document.getElementById("room-name-sidebar").textContent = "RatScape";
@@ -2075,9 +1955,8 @@ async function handleLeaveRoom() {
                 showPage("rooms-page");
                 loadUserRooms();
                 
-                // Reset current room και καθαρισμός localStorage
+                // Reset current room
                 currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
-                clearCurrentRoomFromLocalStorage();
             }
         }
     );
@@ -2315,9 +2194,6 @@ async function changePassword(currentPassword, newPassword, confirmPassword) {
 
 // ===== SOCKET EVENT HANDLERS =====
 
-// 🔥 ΚΑΤΑΣΚΕΥΗ: Χρησιμοποιούμε μια flag για να ξέρουμε αν έχουμε ήδη προσπαθήσει να επανασυνδεθούμε
-let hasAttemptedReconnection = false;
-
 socket.on("connect", () => {
     console.log("🔗 Connected to server");
     if (currentUser.authenticated) {
@@ -2325,32 +2201,6 @@ socket.on("connect", () => {
             username: currentUser.username,
             sessionId: currentUser.sessionId,
         });
-        
-        // 🔥 ΚΑΤΑΣΚΕΥΗ: ΕΠΑΝΑΣΥΝΔΕΣΗ ΣΕ ROOM ΜΟΝΟ ΜΙΑ ΦΟΡΑ
-        if (!hasAttemptedReconnection) {
-            hasAttemptedReconnection = true;
-            
-            // Περιμένουμε 500ms για να είμαστε σίγουροι ότι η authentication έχει ολοκληρωθεί
-            setTimeout(() => {
-                const savedRoom = getCurrentRoomFromLocalStorage();
-                if (savedRoom && savedRoom.id && !savedRoom.isPrivate) {
-                    console.log("🔄 Attempting automatic reconnection to room after socket connect...");
-                    
-                    // Επανασύνδεση στο room
-                    socket.emit("join room", {
-                        roomId: savedRoom.id,
-                        username: currentUser.username,
-                        sessionId: currentUser.sessionId,
-                    });
-                    
-                    // Request room data
-                    setTimeout(() => {
-                        socket.emit("get room info", { roomId: savedRoom.id });
-                        socket.emit("get room members", { roomId: savedRoom.id });
-                    }, 300);
-                }
-            }, 500);
-        }
     }
 });
 
@@ -3057,24 +2907,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     };
                     updateUIForAuthState();
 
-                    // 🔥 ΚΑΤΑΣΚΕΥΗ: ΕΠΑΝΑΦΟΡΑ ΤΟΥ CURRENT ROOM ΑΠΟ LOCALSTORAGE
-                    const savedRoom = getCurrentRoomFromLocalStorage();
-                    if (savedRoom && savedRoom.id) {
-                        console.log("🔄 Found saved room, reconnecting...");
-                        
-                        // Χρήση της νέας συνάρτησης για επανασύνδεση
-                        const reconnected = reconnectToRoomAfterRefresh();
-                        
-                        if (!reconnected) {
-                            // Αν αποτύχει η επανασύνδεση, πήγαινε στη τελευταία σελίδα
-                            const lastPage = getLastPage();
-                            showPage(lastPage);
-                        }
-                    } else {
-                        // Αν δεν υπάρχει saved room, πήγαινε στη τελευταία σελίδα
-                        const lastPage = getLastPage();
-                        showPage(lastPage);
-                    }
+                    const lastPage = getLastPage();
+                    showPage(lastPage);
 
                     socket.emit("authenticate", {
                         username: currentUser.username,
@@ -3087,33 +2921,42 @@ document.addEventListener("DOMContentLoaded", async () => {
                     // 🔥 Φόρτωση offline notifications
                     await loadOfflineNotifications();
 
-                    if (!savedRoom && (lastPage === "rooms-page" || lastPage === "home-page")) {
-                        loadUserRooms();
-                    } else if (!savedRoom && lastPage === "friends-page") {
-                        loadUserFriends();
+                    if (lastPage === "rooms-page") {
+                        setTimeout(() => {
+                            loadUserRooms();
+                        }, 500);
+                    } else if (lastPage === "friends-page") {
+                        setTimeout(() => {
+                            loadUserFriends();
+                        }, 500);
+                    } else if (lastPage === "chat-page") {
+                        // Αν ο χρήστης ήταν σε chat, πήγαινε πρώτα στη home
+                        // και έπειτα μπορεί να επανέλθει στο chat
+                        setTimeout(() => {
+                            showPage("home-page");
+                        }, 100);
                     }
 
                     console.log("✅ User session restored");
                 } else {
                     clearUserFromLocalStorage();
-                    clearCurrentRoomFromLocalStorage();
                     showPage("home-page");
                     console.log("❌ Session verification failed");
                 }
             } else {
                 clearUserFromLocalStorage();
-                clearCurrentRoomFromLocalStorage();
                 showPage("home-page");
                 console.log("❌ Session verification failed - server error");
             }
         } catch (error) {
             console.error("Error verifying user session:", error);
             clearUserFromLocalStorage();
-            clearCurrentRoomFromLocalStorage();
             showPage("home-page");
         }
     } else {
-        showPage("home-page");
+        // 🔥 ΑΥΤΗ ΕΙΝΑΙ Η ΣΩΣΤΗ ΑΛΛΑΓΗ: Μην αλλάζεις σελίδα αν ο χρήστης δεν είναι συνδεδεμένος
+        // Απλά μείνε στην τρέχουσα σελίδα (home-page είναι default)
+        console.log("ℹ️ No saved user, staying on current page");
     }
 
     console.log("✅ Ready to chat!");
