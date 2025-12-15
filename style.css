@@ -49,6 +49,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
+    overflow-x: auto; /* Προσθήκη scroll για πολύ μικρές οθόνες */
 }
 
 .nav-brand .nav-btn {
@@ -66,6 +67,7 @@ body {
     min-width: 250px;
     max-width: 250px;
     overflow: hidden;
+    flex-shrink: 0; /* Σημαντικό: να μην συμπιέζεται */
 }
 
 .nav-logo {
@@ -86,12 +88,32 @@ body {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: nowrap; /* Σημαντική αλλαγή: τώρα δεν θα τυλίγονται */
+    overflow-x: auto; /* Επιτρέπει horizontal scroll αν χρειαστεί */
+    -webkit-overflow-scrolling: touch; /* Καλύτερο scroll σε iOS */
+    padding-bottom: 4px; /* Χώρος για scrollbar */
+}
+
+/* Κρύβουμε το scrollbar αλλά το κρατάμε functional */
+.nav-actions::-webkit-scrollbar {
+    height: 3px;
+}
+
+.nav-actions::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.nav-actions::-webkit-scrollbar-thumb {
+    background: rgba(139, 0, 0, 0.3);
+    border-radius: 3px;
 }
 
 .nav-username {
     color: var(--text);
     font-weight: 600;
     padding: 0 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .nav-btn {
@@ -105,7 +127,10 @@ body {
     font-weight: 600;
     font-size: 0.9rem;
     position: relative;
+    white-space: nowrap;
+    flex-shrink: 0; /* Σημαντικό: τα κουμπιά δεν θα συμπιέζονται */
 }
+
 
 .nav-btn:hover {
     background: var(--accent-red);
@@ -2245,54 +2270,120 @@ body.pwa-mode .pwa-floating-install-button {
    ======================================== */
 
 @media (max-width: 768px) {
-    /* Navigation */
+    /* ΣΗΜΑΝΤΙΚΕΣ ΑΛΛΑΓΕΣ ΓΙΑ ΤΟ NAVIGATION */
     #main-nav {
-        padding: 8px 15px;
-        flex-wrap: wrap;
+        padding: 8px 10px; /* Μείωση padding για περισσότερο χώρο */
+        flex-wrap: nowrap; /* Τώρα δεν θα τυλίγεται */
+        overflow-x: auto; /* Επιτρέπει horizontal scroll αν χρειαστεί */
+        -webkit-overflow-scrolling: touch; /* Καλύτερο scroll σε iOS */
     }
+    
     .nav-brand .nav-btn {
-        width: 180px;
-        min-width: 180px;
-        max-width: 180px;
+        width: 150px; /* Μείωση πλάτους */
+        min-width: 150px;
+        max-width: 150px;
         height: 40px;
+        margin-right: 10px; /* Προσθήκη margin για να μην κολλάει */
     }
+    
     .nav-actions {
         gap: 6px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
+        flex-wrap: nowrap; /* ΣΗΜΑΝΤΙΚΟ: Τα κουμπιά τώρα θα είναι σε μια γραμμή */
+        justify-content: flex-start; /* Αλλάζουμε από flex-end σε flex-start */
+        overflow-x: auto; /* Επιτρέπει scroll αν χρειάζεται */
+        -webkit-overflow-scrolling: touch;
+        padding-right: 5px; /* Χώρος για scroll */
+        flex: 1; /* Αυτό θα κάνει το container να πάρει όλο τον διαθέσιμο χώρο */
+        min-width: 0; /* Σημαντικό για flexbox */
     }
+    
     .nav-btn {
-        padding: 10px 14px;
-        font-size: 0.8rem;
+        padding: 10px 12px; /* Μείωση padding για μικρότερα κουμπιά */
+        font-size: 0.75rem; /* Ακόμα μικρότερο font */
+        white-space: nowrap; /* Αποτρέπει το wrap του κειμένου */
+        flex-shrink: 0; /* ΣΗΜΑΝΤΙΚΟ: Τα κουμπιά δεν θα συμπιέζονται */
     }
+    
+    .nav-btn i {
+        font-size: 0.7rem; /* Μικρότερα icons */
+        margin-right: 4px; /* Λιγότερο χώρο */
+    }
+    
     .nav-username {
-        padding: 0 8px;
-        font-size: 0.9rem;
+        padding: 0 6px;
+        font-size: 0.75rem; /* Μικρότερο font */
+        display: none; /* Κρύβουμε το username για να κερδίσουμε χώρο */
     }
-    /* 🔥 FIX: Feature Cards for Mobile */
+    
+    /* Απόκρυψη του κειμένου στα κουμπιά και εμφάνιση μόνο των icons */
+    .nav-btn span {
+        display: none;
+    }
+    
+    .nav-btn i {
+        margin-right: 0;
+    }
+    
+    /* Εμφάνιση tooltip για τα κουμπιά */
+    .nav-btn::after {
+        content: attr(data-title);
+        position: absolute;
+        bottom: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(26, 26, 26, 0.9);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        z-index: 1000;
+    }
+    
+    .nav-btn:hover::after {
+        opacity: 1;
+    }
+    
+    /* Προσθήκη data-title στα κουμπιά */
+    #my-friends-btn { data-title: "Friends"; }
+    #my-rooms-btn { data-title: "Rooms"; }
+    #my-profile-btn { data-title: "Profile"; }
+    #logout-btn { data-title: "Logout"; }
+    #login-nav-btn { data-title: "Login"; }
+    #register-nav-btn { data-title: "Register"; }
+    
+    /* Feature Cards for Mobile */
     .features-grid {
         grid-template-columns: 1fr !important;
         gap: 20px;
         padding: 40px 20px !important;
     }
+    
     .feature-card {
         width: 100% !important;
         max-width: 100% !important;
         margin: 0 auto !important;
         padding: 25px !important;
     }
+    
     /* Hero Section for Mobile */
     .hero-section {
         padding: 60px 20px !important;
     }
+    
     .hero-section h1 {
         font-size: 2rem !important;
     }
+    
     /* Chat Layout */
     .chat-layout {
         flex-direction: row;
         height: calc(100vh - 66px);
     }
+    
     #sidebar {
         width: 70px;
         min-width: 70px;
@@ -2300,6 +2391,7 @@ body.pwa-mode .pwa-floating-install-button {
         position: relative;
         z-index: 10;
     }
+    
     .sidebar-header h2,
     .room-info span,
     .invite-code-section label,
@@ -2309,29 +2401,35 @@ body.pwa-mode .pwa-floating-install-button {
     .profile-info {
         display: none;
     }
+    
     .sidebar-header,
     .room-details,
     .room-members-section,
     .user-profile {
         padding: 10px;
     }
+    
     .invite-code-display {
         justify-content: center;
         padding: 8px;
     }
+    
     .member-item {
         justify-content: center;
         padding: 8px;
     }
+    
     .member-avatar {
         width: 36px;
         height: 36px;
     }
+    
     /* Expanded sidebar state */
     #sidebar.mobile-expanded {
         width: 280px;
         box-shadow: 2px 0 10px rgba(0, 0, 0, 0.7);
     }
+    
     #sidebar.mobile-expanded .member-info,
     #sidebar.mobile-expanded .profile-info,
     #sidebar.mobile-expanded .sidebar-header h2,
@@ -2341,97 +2439,122 @@ body.pwa-mode .pwa-floating-install-button {
     #sidebar.mobile-expanded .room-members-section h3 {
         display: block;
     }
+    
     #sidebar.mobile-expanded .member-info,
     #sidebar.mobile-expanded .profile-info {
         display: flex;
     }
+    
     /* Messages */
     .message {
         max-width: 85%;
     }
+    
     .chat-header {
         padding: 12px 15px;
     }
+    
     .chat-info h2 {
         font-size: 1.1rem;
     }
+    
     /* Input area */
     .message-input-container {
         padding: 12px 15px;
     }
+    
     #chat-form {
         gap: 6px;
     }
+    
     .input-actions {
         flex-direction: column;
         gap: 2px;
     }
+    
     /* Rooms page */
     .rooms-header {
         flex-direction: column;
         gap: 15px;
         align-items: stretch;
     }
+    
     .rooms-actions {
         justify-content: space-between;
     }
+    
     .rooms-list {
         grid-template-columns: 1fr !important;
     }
+    
     .feature-card {
         padding: 20px;
     }
+    
     .hero-section {
         padding: 60px 20px;
     }
+    
     /* Friends page */
     .friend-card {
         padding: 1rem;
     }
+    
     .friend-actions {
         flex-direction: column;
         gap: 0.3rem;
     }
+    
     .btn-sm {
         padding: 6px 12px;
         font-size: 0.8rem;
     }
+    
     /* Profile page */
     .profile-image-wrapper {
         width: 120px;
         height: 120px;
     }
+    
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 10px;
     }
+    
     .stat-item {
         padding: 10px;
     }
+    
     .stat-value {
         font-size: 1.5rem;
     }
+    
     .profile-actions {
         flex-direction: column;
     }
+    
     .upload-preview {
         width: 120px;
         height: 120px;
     }
+    
     .user-info-picture {
         width: 100px;
         height: 100px;
     }
+    
     /* Notifications */
     .notification-container {
         top: 70px;
         right: 10px;
         max-width: 300px;
     }
+    
     .notification {
         max-width: 300px;
         padding: 12px 16px;
     }
+    
     .notification-count-badge {
         top: 8px;
         right: 30px;
@@ -2439,6 +2562,7 @@ body.pwa-mode .pwa-floating-install-button {
         height: 18px;
         font-size: 0.6rem;
     }
+    
     /* Badges */
     .nav-badge {
         min-width: 16px;
@@ -2447,6 +2571,7 @@ body.pwa-mode .pwa-floating-install-button {
         top: -3px;
         right: -3px;
     }
+    
     .friend-badge,
     .room-badge {
         top: 5px;
@@ -2455,6 +2580,7 @@ body.pwa-mode .pwa-floating-install-button {
         height: 18px;
         font-size: 0.6rem;
     }
+    
     /* PWA Button */
     .pwa-floating-install-button {
         bottom: 20px;
@@ -2463,12 +2589,15 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.9rem;
         border-radius: 45px;
     }
+    
     .pwa-floating-install-button .install-text {
         font-size: 0.85rem;
     }
+    
     .pwa-floating-install-button i {
         font-size: 1.1rem;
     }
+    
     /* Mobile sidebar overlay */
     .sidebar-overlay {
         display: none;
@@ -2480,27 +2609,43 @@ body.pwa-mode .pwa-floating-install-button {
         background: rgba(0, 0, 0, 0.7);
         z-index: 5;
     }
+    
     .sidebar-overlay.active {
         display: block;
     }
+    
     /* Private chat mobile */
     #invite-code-container.hide-for-private {
         display: none !important;
     }
 }
 
+/* Πολύ μικρές συσκευές (πάνω από 6 κουμπιά) */
+@media (max-width: 600px) {
+    .nav-btn {
+        padding: 8px 10px !important;
+        font-size: 0.7rem !important;
+    }
+    
+    .nav-brand .nav-btn {
+        width: 130px !important;
+        min-width: 130px !important;
+        max-width: 130px !important;
+    }
+}
 
 /* Extra small devices */
-
 @media (max-width: 480px) {
     .nav-brand .nav-btn {
-        width: 150px;
-        min-width: 150px;
-        max-width: 150px;
+        width: 120px !important;
+        min-width: 120px !important;
+        max-width: 120px !important;
     }
+    
     .hero-section h1 {
         font-size: 1.8rem;
     }
+    
     .cta-btn,
     .cta-btn-secondary {
         padding: 12px 20px;
@@ -2512,51 +2657,64 @@ body.pwa-mode .pwa-floating-install-button {
         margin-left: auto;
         margin-right: auto;
     }
+    
     /* 🔥 BETTER FEATURE CARDS FOR VERY SMALL SCREENS */
     .features-grid {
         padding: 30px 15px !important;
         gap: 15px;
     }
+    
     .feature-card {
         padding: 20px 15px !important;
         width: 100% !important;
     }
+    
     .feature-icon i {
         font-size: 2rem !important;
     }
+    
     .feature-card h3 {
         font-size: 1.1rem !important;
     }
+    
     .feature-card p {
         font-size: 0.85rem !important;
         line-height: 1.4;
     }
+    
     .rooms-list {
         grid-template-columns: 1fr !important;
     }
+    
     /* Profile page */
     .profile-image-wrapper {
         width: 100px;
         height: 100px;
     }
+    
     .stats-grid {
         grid-template-columns: 1fr !important;
         gap: 10px;
     }
+    
     .upload-preview {
         width: 100px;
         height: 100px;
     }
+    
     .user-info-picture {
         width: 80px;
         height: 80px;
     }
+    
     .user-info-actions {
         flex-direction: column;
     }
+    
     .user-info-actions .btn {
         width: 100%;
     }
+    
     /* PWA Button mobile */
     .pwa-floating-install-button {
         bottom: 15px;
@@ -2564,13 +2722,16 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 12px 16px;
         font-size: 0.85rem;
     }
+    
     .pwa-floating-install-button .install-text {
         display: none;
     }
+    
     .pwa-floating-install-button i {
         font-size: 1.3rem;
         margin: 0;
     }
+    
     .pwa-floating-install-button {
         width: 56px;
         height: 56px;
@@ -2579,10 +2740,12 @@ body.pwa-mode .pwa-floating-install-button {
         justify-content: center;
         align-items: center;
     }
+    
     /* Notification count badge hide on very small screens */
     .notification-count-badge {
         display: none;
     }
+    
     /* Smaller badges */
     .friend-badge,
     .room-badge {
@@ -2596,21 +2759,39 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* Extra small devices */
-
 @media (max-width: 360px) {
+    #main-nav {
+        padding: 8px 5px !important;
+    }
+    
+    .nav-brand .nav-btn {
+        width: 100px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
+        height: 35px !important;
+    }
+    
+    .nav-btn {
+        padding: 6px 8px !important;
+        font-size: 0.65rem !important;
+    }
+    
     .pwa-floating-install-button {
         bottom: 10px;
         right: 10px;
         width: 50px;
         height: 50px;
     }
+    
     .pwa-floating-install-button i {
         font-size: 1.2rem;
     }
+    
     .notification-container {
         right: 5px;
         max-width: 280px;
     }
+    
     .notification {
         max-width: 280px;
         padding: 10px 14px;
@@ -2619,7 +2800,6 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* Tablet responsive (landscape) */
-
 @media (max-width: 1024px) {
     .pwa-floating-install-button {
         bottom: 25px;
@@ -2627,15 +2807,18 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 14px 20px;
         font-size: 0.95rem;
     }
+    
     .pwa-floating-install-button i {
         font-size: 1.2rem;
     }
+    
     /* 🔥 FIX: Feature cards for tablets - 2 columns */
     .features-grid {
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 20px;
         padding: 50px 30px !important;
     }
+    
     /* Αν ο αριθμός των feature cards είναι περιττός, το τελευταίο να είναι full-width */
     .features-grid .feature-card:nth-child(3):last-child {
         grid-column: 1 / -1;
@@ -2646,21 +2829,18 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* Special case: Avoid overlap with notification container */
-
 .notification-container~.pwa-floating-install-button {
     bottom: 30px;
 }
 
 
 /* Ensure buttons with badges have proper spacing */
-
 .nav-btn.has-badge {
     padding-right: 30px;
 }
 
 
 /* Loading states */
-
 .loading {
     opacity: 0.6;
     pointer-events: none;
@@ -2668,7 +2848,6 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* Empty states styling */
-
 .empty-state {
     text-align: center;
     padding: 40px 20px;
@@ -2693,7 +2872,6 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* Error states */
-
 .error-state {
     text-align: center;
     padding: 40px 20px;
@@ -2711,7 +2889,6 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* Success states */
-
 .success-state {
     text-align: center;
     padding: 40px 20px;
@@ -2729,7 +2906,6 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* Connection status indicator */
-
 .connection-status {
     position: fixed;
     bottom: 10px;
@@ -2789,7 +2965,6 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* Better message text wrapping */
-
 .message-text {
     white-space: pre-wrap;
     word-wrap: break-word;
