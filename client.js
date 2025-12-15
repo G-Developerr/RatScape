@@ -30,6 +30,42 @@ let currentViewedUser = null;
 // ===== AVATAR SYSTEM =====
 let userAvatars = {}; // Cache για τα avatars των χρηστών
 
+// ===== CHAT STATE PERSISTENCE =====
+
+function saveChatState() {
+    if (currentRoom.id) {
+        const chatState = {
+            roomId: currentRoom.id,
+            roomName: currentRoom.name,
+            inviteCode: currentRoom.inviteCode,
+            isPrivate: currentRoom.isPrivate,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('ratscape_chat_state', JSON.stringify(chatState));
+        console.log('💾 Chat state saved:', chatState);
+    }
+}
+
+function loadChatState() {
+    const savedState = localStorage.getItem('ratscape_chat_state');
+    if (savedState) {
+        try {
+            const state = JSON.parse(savedState);
+            const oneHour = 60 * 60 * 1000; // 1 ώρα expiry
+            if (Date.now() - state.timestamp < oneHour) {
+                return state;
+            }
+        } catch (error) {
+            console.error('Error loading chat state:', error);
+        }
+    }
+    return null;
+}
+
+function clearChatState() {
+    localStorage.removeItem('ratscape_chat_state');
+}
+
 // ===== BEAUTIFUL NOTIFICATION SYSTEM WITH CLICKABLE =====
 
 function showNotification(message, type = "info", title = null, action = null, unreadCount = 1) {
@@ -744,6 +780,22 @@ function showPage(pageId) {
     if (currentUser.authenticated) {
         saveCurrentPage(pageId);
     }
+    
+    // 🔥 ΠΡΟΣΘΗΚΗ: Αποθήκευση της σελίδας για refresh
+    if (typeof setCurrentPageId === 'function') {
+        setCurrentPageId(pageId);
+    }
+    
+    // 🔥 Επίσης αποθήκευση στο localStorage
+    localStorage.setItem('ratscape_last_page', pageId);
+    
+    // 🔥 ΕΙΔΙΚΟ: Αν φεύγουμε από chat page, αποθηκεύουμε την κατάσταση
+    if (pageId === 'chat-page') {
+        saveChatState();
+    } else if (pageId !== 'chat-page' && currentRoom.id) {
+        // Αν φεύγουμε από chat page προς άλλη σελίδα, κρατάμε την κατάσταση
+        saveChatState();
+    }
 }
 
 function showModal(modalId) {
@@ -1026,6 +1078,9 @@ function enterRoom(roomId, roomName, inviteCode) {
     });
 
     showPage("chat-page");
+    
+    // 🔥 ΣΗΜΑΝΤΙΚΟ: Αποθήκευση της κατάστασης
+    saveChatState();
     
     // 🔥 ΣΗΜΑΝΤΙΚΟ: Request room data αμέσως
     // Κάνουμε τα requests μαζί για να αποφύγουμε race conditions
@@ -1392,6 +1447,9 @@ function startPrivateChatWithFriend(friendUsername) {
     loadPrivateMessages(friendUsername);
     showPage("chat-page");
     
+    // 🔥 Αποθήκευση της κατάστασης
+    saveChatState();
+    
     // Φόρτωση avatars για τα μέλη
     setTimeout(() => {
         loadMemberAvatars();
@@ -1699,6 +1757,7 @@ function handleLogout() {
     userAvatars = {};
     
     clearUserFromLocalStorage();
+    clearChatState(); // 🔥 ΚΑΙΝΟΥΡΓΙΟ: Καθαρισμός chat state
     updateUIForAuthState();
     showPage("home-page");
     showNotification("Logged out successfully!", "info", "Goodbye!");
@@ -1842,7 +1901,10 @@ async function handleLeaveRoom() {
                         // 3. Reset current room
                         currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
                         
-                        // 4. Επαναφορά UI
+                        // 4. Clear chat state
+                        clearChatState();
+                        
+                        // 5. Επαναφορά UI
                         document.getElementById("room-name-sidebar").textContent = "RatScape";
                         document.getElementById("room-name-header").textContent = "Room Name";
                         document.getElementById("room-invite-code").textContent = "------";
@@ -1850,15 +1912,15 @@ async function handleLeaveRoom() {
                         document.getElementById("room-status").textContent = "Not in a room";
                         document.getElementById("room-status").classList.remove("private-chat");
                         
-                        // 5. Επαναφορά του invite code section
+                        // 6. Επαναφορά του invite code section
                         document.getElementById("invite-code-container").classList.remove("hide-for-private");
                         document.getElementById("copy-invite-btn").style.display = "flex";
                         document.getElementById("copy-invite-btn").disabled = false;
                         
-                        // 6. Clear messages
+                        // 7. Clear messages
                         document.getElementById("messages-container").innerHTML = "";
                         
-                        // 7. Ενημέρωση unread messages
+                        // 8. Ενημέρωση unread messages
                         clearUnread('private', friendUsername);
                     } else {
                         showNotification(data.error || "Failed to remove friend", "error", "Action Failed");
@@ -1873,6 +1935,7 @@ async function handleLeaveRoom() {
                     
                     // Reset current room
                     currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
+                    clearChatState();
                 }
             },
             () => {
@@ -1925,6 +1988,9 @@ async function handleLeaveRoom() {
                     // Reset current room
                     currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
                     
+                    // Clear chat state
+                    clearChatState();
+                    
                     // Επαναφορά UI στο default state
                     document.getElementById("room-name-sidebar").textContent = "RatScape";
                     document.getElementById("room-name-header").textContent = "Room Name";
@@ -1957,6 +2023,7 @@ async function handleLeaveRoom() {
                 
                 // Reset current room
                 currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
+                clearChatState();
             }
         }
     );
@@ -2888,6 +2955,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.head.appendChild(unreadStyle);
 
     const savedUser = getUserFromLocalStorage();
+    
+    // 🔥 ΕΙΔΙΚΗ ΕΠΕΞΕΡΓΑΣΙΑ: Έλεγχος αν πρέπει να επαναφέρουμε chat
+    const chatState = loadChatState();
+    const lastPageId = localStorage.getItem('ratscape_last_page') || 'home-page';
+    
+    if (chatState && lastPageId === 'chat-page') {
+        console.log('🔄 Προσπάθεια επαναφοράς chat:', chatState);
+        
+        // Δείξε το chat page αμέσως (αλλά χωρίς περιεχόμενο ακόμα)
+        showPage('chat-page');
+    }
+
     if (savedUser && savedUser.authenticated) {
         try {
             const response = await fetch(`/verify-session/${savedUser.username}`, {
@@ -2907,8 +2986,86 @@ document.addEventListener("DOMContentLoaded", async () => {
                     };
                     updateUIForAuthState();
 
-                    const lastPage = getLastPage();
-                    showPage(lastPage);
+                    // 🔥 ΕΙΔΙΚΟ: Αν έχουμε αποθηκευμένο chat state, επαναφέρουμε το chat
+                    if (chatState && lastPageId === 'chat-page') {
+                        console.log('🚀 Επαναφορά chat από saved state...');
+                        
+                        // Ενημέρωση του currentRoom
+                        currentRoom = {
+                            id: chatState.roomId,
+                            name: chatState.roomName,
+                            inviteCode: chatState.inviteCode,
+                            isPrivate: chatState.isPrivate
+                        };
+                        
+                        // Ενημέρωση UI
+                        document.getElementById("room-name-sidebar").textContent = chatState.roomName;
+                        document.getElementById("room-name-header").textContent = chatState.roomName;
+                        
+                        if (chatState.isPrivate) {
+                            // Private chat
+                            document.getElementById("room-description").textContent = `Private conversation with ${chatState.roomName}`;
+                            document.getElementById("room-status").textContent = "Private chat";
+                            document.getElementById("room-status").classList.add("private-chat");
+                            document.getElementById("room-invite-code").textContent = "";
+                            document.getElementById("invite-code-container").classList.add("hide-for-private");
+                            document.getElementById("copy-invite-btn").style.display = "none";
+                            
+                            // Φόρτωση του avatar του χρήστη
+                            const sidebarAvatar = document.getElementById("sidebar-avatar");
+                            if (sidebarAvatar) {
+                                loadUserAvatar(currentUser.username, sidebarAvatar, true);
+                            }
+                            
+                            // Φόρτωση private messages
+                            loadPrivateMessages(chatState.roomName);
+                            
+                            // Εμφάνιση μελών
+                            document.getElementById("room-members-list").innerHTML = `
+                                <div class="member-item" data-username="${currentUser.username}">
+                                    <div class="member-avatar"></div>
+                                    <div class="member-info">
+                                        <span class="member-name">${currentUser.username}</span>
+                                        <span class="member-joined">You</span>
+                                    </div>
+                                </div>
+                                <div class="member-item" data-username="${chatState.roomName}">
+                                    <div class="member-avatar"></div>
+                                    <div class="member-info">
+                                        <span class="member-name">${chatState.roomName}</span>
+                                        <span class="member-joined">Friend</span>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // Φόρτωση avatars για τα μέλη
+                            setTimeout(() => {
+                                loadMemberAvatars();
+                                makeMemberItemsClickable();
+                            }, 100);
+                            
+                        } else {
+                            // Group room
+                            document.getElementById("room-invite-code").textContent = chatState.inviteCode || "------";
+                            document.getElementById("invite-code-container").classList.remove("hide-for-private");
+                            document.getElementById("copy-invite-btn").style.display = "flex";
+                            document.getElementById("copy-invite-btn").disabled = false;
+                            
+                            // Join στο room μέσω WebSocket
+                            socket.emit("join room", {
+                                roomId: chatState.roomId,
+                                username: currentUser.username,
+                                sessionId: currentUser.sessionId,
+                            });
+                        }
+                        
+                        showPage('chat-page');
+                        
+                    } else {
+                        // Κανονική ροή - χωρίς chat επαναφορά
+                        const lastPage = getLastPage();
+                        showPage(lastPage);
+                    }
 
                     socket.emit("authenticate", {
                         username: currentUser.username,
@@ -2921,43 +3078,49 @@ document.addEventListener("DOMContentLoaded", async () => {
                     // 🔥 Φόρτωση offline notifications
                     await loadOfflineNotifications();
 
-                    if (lastPage === "rooms-page") {
+                    if (lastPageId === "rooms-page") {
                         setTimeout(() => {
                             loadUserRooms();
                         }, 500);
-                    } else if (lastPage === "friends-page") {
+                    } else if (lastPageId === "friends-page") {
                         setTimeout(() => {
                             loadUserFriends();
                         }, 500);
-                    } else if (lastPage === "chat-page") {
-                        // Αν ο χρήστης ήταν σε chat, πήγαινε πρώτα στη home
-                        // και έπειτα μπορεί να επανέλθει στο chat
-                        setTimeout(() => {
-                            showPage("home-page");
-                        }, 100);
                     }
 
                     console.log("✅ User session restored");
                 } else {
                     clearUserFromLocalStorage();
+                    clearChatState();
                     showPage("home-page");
                     console.log("❌ Session verification failed");
                 }
             } else {
                 clearUserFromLocalStorage();
+                clearChatState();
                 showPage("home-page");
                 console.log("❌ Session verification failed - server error");
             }
         } catch (error) {
             console.error("Error verifying user session:", error);
             clearUserFromLocalStorage();
+            clearChatState();
             showPage("home-page");
         }
     } else {
-        // 🔥 ΑΥΤΗ ΕΙΝΑΙ Η ΣΩΣΤΗ ΑΛΛΑΓΗ: Μην αλλάζεις σελίδα αν ο χρήστης δεν είναι συνδεδεμένος
-        // Απλά μείνε στην τρέχουσα σελίδα (home-page είναι default)
+        // 🔥 Αν δεν υπάρχει συνδεδεμένος χρήστης, αλλά έχουμε chat state, το καθαρίζουμε
+        if (chatState) {
+            clearChatState();
+        }
         console.log("ℹ️ No saved user, staying on current page");
     }
 
     console.log("✅ Ready to chat!");
+});
+
+// Αποθήκευση κατάστασης πριν το refresh
+window.addEventListener('beforeunload', function() {
+    if (currentRoom.id) {
+        saveChatState();
+    }
 });
