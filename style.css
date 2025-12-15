@@ -2270,9 +2270,9 @@ body.pwa-mode .pwa-floating-install-button {
    ======================================== */
 
 @media (max-width: 768px) {
-    /* 🔥 ΒΕΛΤΙΩΜΕΝΟ: ΚΑΝΟΥΜΕ ΤΟ NAVIGATION ΣΥΜΠΑΓΕΣΤΕΡΟ */
+    /* 🔥 ΒΕΛΤΙΩΜΕΝΟ: ΚΑΝΟΥΜΕ ΤΟ NAVIGATION ΣΥΜΠΑΓΕΣΤΕΡΟ ΑΛΛΑ ΟΡΑΤΟ */
     #main-nav {
-        padding: 6px 8px;
+        padding: 8px 10px;
         flex-wrap: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -2285,15 +2285,15 @@ body.pwa-mode .pwa-floating-install-button {
     }
     
     .nav-brand .nav-btn {
-        width: 180px;
-        min-width: 180px;
-        max-width: 180px;
-        height: 40px;
-        margin-right: 6px;
+        width: 200px;
+        min-width: 200px;
+        max-width: 200px;
+        height: 45px;
+        margin-right: 8px;
     }
     
     .nav-actions {
-        gap: 4px;
+        gap: 6px;
         flex-wrap: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
@@ -2309,22 +2309,32 @@ body.pwa-mode .pwa-floating-install-button {
     }
     
     .nav-btn {
-        padding: 10px 14px;
-        font-size: 0.75rem;
+        padding: 12px 16px;
+        font-size: 0.85rem; /* ΑΥΞΗΣΑ - από 0.75rem */
         white-space: nowrap;
         flex-shrink: 0;
-        border-radius: 6px;
+        border-radius: 8px;
+        font-weight: 600;
+        background: var(--primary);
+        color: white;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
     .nav-btn i {
-        font-size: 0.75rem;
-        margin-right: 5px;
+        font-size: 0.85rem; /* ΑΥΞΗΣΑ - από 0.75rem */
+        margin-right: 6px; /* ΑΥΞΗΣΑ - από 5px */
     }
     
     /* Κρύβουμε το username για να κερδίσουμε χώρο */
     .nav-username {
         display: none;
     }
+    
     
     /* 🔥 ΚΡΙΤΙΚΟ: Προσθήκη tooltip για τα κουμπιά με icons */
     .nav-btn[data-title] {
@@ -2619,28 +2629,29 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
-/* Πολύ μικρές συσκευές (πάνω από 6 κουμπιά) */
-@media (max-width: 600px) {
-    /* 🔥 ΑΚΟΜΑ ΜΙΚΡΟΤΕΡΑ ΚΟΥΜΠΙΑ ΑΛΛΑ ΜΕ TEXT */
-    #main-nav {
-        padding: 5px 6px !important;
-    }
-    
-    .nav-brand .nav-btn {
-        width: 150px !important;
-        min-width: 150px !important;
-        max-width: 150px !important;
-        height: 35px !important;
-    }
-    
-    .nav-btn {
-        padding: 8px 10px !important;
-        font-size: 0.7rem !important;
-    }
-    
-    .nav-btn i {
-        font-size: 0.7rem !important;
-        margin-right: 3px !important;
+ /* 🔥 ΒΕΛΤΙΩΣΗ: Μικρότερα κουμπιά για πολύ μικρές συσκευές */
+    @media (max-width: 600px) {
+        #main-nav {
+            padding: 6px 8px;
+        }
+        
+        .nav-brand .nav-btn {
+            width: 160px;
+            min-width: 160px;
+            max-width: 160px;
+            height: 40px;
+            margin-right: 6px;
+        }
+        
+        .nav-btn {
+            padding: 10px 12px;
+            font-size: 0.8rem; /* Ακόμα ορατό */
+        }
+        
+        .nav-btn i {
+            font-size: 0.8rem;
+            margin-right: 5px;
+        }
     }
     
     /* Στο πολύ μικρό μέγεθος, κρύβουμε το κείμενο και κρατάμε μόνο τα icons */
@@ -2670,30 +2681,61 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
-/* Extra small devices */
-@media (max-width: 480px) {
-    .nav-brand .nav-btn {
-        width: 120px !important;
-        min-width: 120px !important;
-        max-width: 120px !important;
-        height: 32px !important;
+/* 🔥 EXTRA SMALL: Χωρίς κείμενο, μόνο icons */
+    @media (max-width: 480px) {
+        .nav-btn span {
+            display: none; /* Κρύβουμε το κείμενο ΜΟΝΟ εδώ */
+        }
+        
+        .nav-btn {
+            padding: 10px 12px;
+            width: 44px;
+            min-width: 44px;
+            max-width: 44px;
+            justify-content: center;
+        }
+        
+        .nav-btn i {
+            margin-right: 0;
+            font-size: 0.9rem;
+        }
+        
+        .nav-brand .nav-btn {
+            width: 140px;
+            min-width: 140px;
+            max-width: 140px;
+        }
+        
+        /* Προσθήκη tooltip για να ξέρουν οι χρήστες τι κάνει το κουμπί */
+        .nav-btn[data-title] {
+            position: relative;
+        }
+        
+        .nav-btn[data-title]::after {
+            content: attr(data-title);
+            position: absolute;
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 26, 26, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 1000;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .nav-btn[data-title]:hover::after {
+            opacity: 1;
+        }
     }
-    
-    .hero-section h1 {
-        font-size: 1.8rem;
-    }
-    
-    .cta-btn,
-    .cta-btn-secondary {
-        padding: 12px 20px;
-        font-size: 0.9rem;
-        margin: 5px;
-        display: block;
-        width: 100%;
-        max-width: 200px;
-        margin-left: auto;
-        margin-right: auto;
-    }
+
     
     /* 🔥 BETTER FEATURE CARDS FOR VERY SMALL SCREENS */
     .features-grid {
@@ -2796,54 +2838,31 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* Extra small devices */
-@media (max-width: 360px) {
-    #main-nav {
-        padding: 4px 5px !important;
-    }
-    
-    .nav-brand .nav-btn {
-        width: 100px !important;
-        min-width: 100px !important;
-        max-width: 100px !important;
-        height: 30px !important;
-    }
-    
-    /* Κουμπιά μόνο με icons σε πολύ μικρές συσκευές */
-    .nav-btn {
-        padding: 8px !important;
-        font-size: 0 !important;
-        width: 38px !important;
-        min-width: 38px !important;
-        max-width: 38px !important;
-    }
-    
-    .nav-btn i {
-        font-size: 0.8rem !important;
-        margin: 0 !important;
-    }
-    
-    .pwa-floating-install-button {
-        bottom: 10px;
-        right: 10px;
-        width: 50px;
-        height: 50px;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.2rem;
-    }
-    
-    .notification-container {
-        right: 5px;
-        max-width: 280px;
-    }
-    
-    .notification {
-        max-width: 280px;
-        padding: 10px 14px;
+   /* 🔥 SUPER SMALL: Ακόμα πιο compact */
+    @media (max-width: 360px) {
+        #main-nav {
+            padding: 5px 6px;
+        }
+        
+        .nav-btn {
+            padding: 8px 10px;
+            width: 40px;
+            min-width: 40px;
+            max-width: 40px;
+        }
+        
+        .nav-btn i {
+            font-size: 0.85rem;
+        }
+        
+        .nav-brand .nav-btn {
+            width: 120px;
+            min-width: 120px;
+            max-width: 120px;
+            height: 35px;
+        }
     }
 }
-
 
 /* Tablet responsive (landscape) */
 @media (max-width: 1024px) {
@@ -3018,3 +3037,4 @@ body.pwa-mode .pwa-floating-install-button {
     word-break: break-word;
     line-height: 1.5;
 }
+
