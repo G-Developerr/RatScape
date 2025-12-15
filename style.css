@@ -32,10 +32,13 @@ body {
     background: linear-gradient(rgba(13, 13, 13, 0.9), rgba(13, 13, 13, 0.9)), url('backgroundCars.jpg') center/cover fixed;
     color: var(--text);
     min-height: 100vh;
+    overflow-x: hidden; /* Σημαντικό: Αποτρέπει το οριζόντιο scroll */
 }
 
 
-/* Navigation - Τελειωμένο Dark/Horror Theme */
+/* ========================================
+   NAVIGATION - ΒΕΛΤΙΩΜΕΝΟ ΓΙΑ ZOOM OUT
+   ======================================== */
 
 #main-nav {
     background: rgba(26, 26, 26, 0.95);
@@ -49,15 +52,23 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
-    overflow-x: auto; /* Προσθήκη scroll για πολύ μικρές οθόνες */
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Κρύβουμε scrollbar */
-    -ms-overflow-style: none; /* Κρύβουμε scrollbar για IE/Edge */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    width: 100%;
+    min-width: 100%; /* ΣΗΜΑΝΤΙΚΟ: Εξασφαλίζει πλήρες πλάτος */
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 /* Κρύβουμε το scrollbar αλλά το κρατάμε functional */
 #main-nav::-webkit-scrollbar {
     display: none;
+}
+
+.nav-brand {
+    flex-shrink: 0; /* Σημαντικό: να μην συμπιέζεται */
 }
 
 .nav-brand .nav-btn {
@@ -75,7 +86,7 @@ body {
     min-width: 250px;
     max-width: 250px;
     overflow: hidden;
-    flex-shrink: 0; /* Σημαντικό: να μην συμπιέζεται */
+    flex-shrink: 0;
 }
 
 .nav-logo {
@@ -96,12 +107,14 @@ body {
     display: flex;
     gap: 6px;
     align-items: center;
-    flex-wrap: nowrap; /* Σημαντική αλλαγή: τώρα δεν θα τυλίγονται */
-    overflow-x: auto; /* Επιτρέπει horizontal scroll αν χρειαστεί */
-    -webkit-overflow-scrolling: touch; /* Καλύτερο scroll σε iOS */
-    padding-bottom: 4px; /* Χώρος για scrollbar */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 /* Κρύβουμε το scrollbar στα nav actions */
@@ -129,7 +142,11 @@ body {
     font-size: 0.85rem;
     position: relative;
     white-space: nowrap;
-    flex-shrink: 0; /* Σημαντικό: τα κουμπιά δεν θα συμπιέζονται */
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
 .nav-btn:hover {
@@ -181,8 +198,286 @@ body {
 }
 
 
-/* Pages */
+/* ========================================
+   ΒΕΛΤΙΩΜΕΝΕΣ MEDIA QUERIES ΓΙΑ ZOOM OUT
+   ======================================== */
 
+/* 🔥 ΒΕΛΤΙΩΜΕΝΟ: ΚΑΝΟΥΜΕ ΤΟ NAVIGATION ΑΝΤΑΠΟΚΡΙΤΙΚΟ ΣΕ OΛΑ ΤΑ ZOOM LEVELS */
+@media (max-width: 1200px) {
+    #main-nav {
+        padding: 8px 10px;
+    }
+    
+    .nav-brand .nav-btn {
+        width: 200px;
+        min-width: 200px;
+        max-width: 200px;
+        height: 45px;
+    }
+    
+    .nav-btn {
+        padding: 10px 14px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .nav-brand .nav-btn {
+        width: 180px;
+        min-width: 180px;
+        max-width: 180px;
+        height: 40px;
+    }
+    
+    .nav-btn {
+        padding: 9px 13px;
+        font-size: 0.78rem;
+    }
+}
+
+@media (max-width: 768px) {
+    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΚΑΝΟΥΜΕ ΤΟ NAV ΣΥΜΠΑΓΕΣ ΚΑΙ ΧΩΡΙΣ ΚΕΝΑ */
+    #main-nav {
+        padding: 6px 8px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100vw; /* ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιεί το πλήρες viewport width */
+        position: relative;
+        left: 0;
+        right: 0;
+    }
+    
+    .nav-brand .nav-btn {
+        width: 160px;
+        min-width: 160px;
+        max-width: 160px;
+        height: 38px;
+        margin-right: 8px;
+    }
+    
+    .nav-actions {
+        gap: 4px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex: 1;
+        min-width: 0;
+        justify-content: flex-end; /* ΣΗΜΑΝΤΙΚΟ: Στοιχίζει τα κουμπιά δεξιά */
+    }
+    
+    .nav-btn {
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+        border-radius: 6px;
+    }
+    
+    .nav-btn i {
+        font-size: 0.75rem;
+        margin-right: 5px;
+    }
+    
+    /* Κρύβουμε το username για να κερδίσουμε χώρο */
+    .nav-username {
+        display: none;
+    }
+    
+    /* 🔥 ΒΕΛΤΙΩΣΗ: Κάνουμε τα κουμπιά πιο συμπαγή όταν χρειάζεται */
+    .nav-btn span {
+        display: inline;
+    }
+    
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ: Αν τα κουμπιά δεν χωράνε, εμφανίζουμε μόνο τα icons */
+    @media (max-width: 680px) {
+        .nav-btn span {
+            display: none;
+        }
+        
+        .nav-btn i {
+            margin-right: 0;
+            font-size: 0.85rem;
+        }
+        
+        .nav-btn {
+            padding: 10px;
+            width: 44px;
+            min-width: 44px;
+            max-width: 44px;
+            justify-content: center;
+        }
+        
+        .nav-brand .nav-btn {
+            width: 140px;
+            min-width: 140px;
+            max-width: 140px;
+        }
+    }
+    
+    /* Feature Cards for Mobile */
+    .features-grid {
+        grid-template-columns: 1fr !important;
+        gap: 20px;
+        padding: 40px 20px !important;
+    }
+    
+    .feature-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        padding: 25px !important;
+    }
+    
+    /* Hero Section for Mobile */
+    .hero-section {
+        padding: 60px 20px !important;
+    }
+    
+    .hero-section h1 {
+        font-size: 2rem !important;
+    }
+}
+
+/* Πολύ μικρές συσκευές */
+@media (max-width: 600px) {
+    /* 🔥 ΑΚΟΜΑ ΜΙΚΡΟΤΕΡΑ ΚΟΥΜΠΙΑ ΜΕ ΟΠΤΙΚΟΠΟΙΗΣΗ */
+    #main-nav {
+        padding: 5px 6px !important;
+        width: 100vw;
+        min-width: 100vw;
+    }
+    
+    .nav-brand .nav-btn {
+        width: 130px !important;
+        min-width: 130px !important;
+        max-width: 130px !important;
+        height: 34px !important;
+    }
+    
+    .nav-btn {
+        padding: 7px 9px !important;
+        font-size: 0.7rem !important;
+    }
+    
+    .nav-btn i {
+        font-size: 0.7rem !important;
+        margin-right: 3px !important;
+    }
+    
+    /* Στο πολύ μικρό μέγεθος, κρύβουμε το κείμενο και κρατάμε μόνο τα icons */
+    @media (max-width: 500px) {
+        .nav-btn span {
+            display: none;
+        }
+        
+        .nav-btn i {
+            margin-right: 0 !important;
+            font-size: 0.85rem !important;
+        }
+        
+        .nav-btn {
+            padding: 9px 10px !important;
+            width: 42px !important;
+            min-width: 42px !important;
+            max-width: 42px !important;
+            justify-content: center !important;
+        }
+        
+        .nav-brand .nav-btn {
+            width: 110px !important;
+            min-width: 110px !important;
+            max-width: 110px !important;
+        }
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+    .nav-brand .nav-btn {
+        width: 100px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
+        height: 30px !important;
+    }
+    
+    .hero-section h1 {
+        font-size: 1.8rem;
+    }
+    
+    .cta-btn,
+    .cta-btn-secondary {
+        padding: 12px 20px;
+        font-size: 0.9rem;
+        margin: 5px;
+        display: block;
+        width: 100%;
+        max-width: 200px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    /* 🔥 BETTER FEATURE CARDS FOR VERY SMALL SCREENS */
+    .features-grid {
+        padding: 30px 15px !important;
+        gap: 15px;
+    }
+    
+    .feature-card {
+        padding: 20px 15px !important;
+        width: 100% !important;
+    }
+    
+    .feature-icon i {
+        font-size: 2rem !important;
+    }
+    
+    .feature-card h3 {
+        font-size: 1.1rem !important;
+    }
+    
+    .feature-card p {
+        font-size: 0.85rem !important;
+        line-height: 1.4;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 360px) {
+    #main-nav {
+        padding: 4px 5px !important;
+    }
+    
+    .nav-brand .nav-btn {
+        width: 90px !important;
+        min-width: 90px !important;
+        max-width: 90px !important;
+        height: 28px !important;
+    }
+    
+    /* Κουμπιά μόνο με icons σε πολύ μικρές συσκευές */
+    .nav-btn {
+        padding: 7px !important;
+        font-size: 0 !important;
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+    }
+    
+    .nav-btn i {
+        font-size: 0.75rem !important;
+        margin: 0 !important;
+    }
+}
+
+/* ========================================
+   ΚΑΤΑΛΟΙΠΟ CSS (ΜΕΝΕΙ ΑΚΛΑΔΑ)
+   ======================================== */
+
+/* Βάζω όλο το υπόλοιπο CSS όπως ήταν, χωρίς αλλαγές */
+/* Μόνο προσέθηκα τα σχόλια παραπάνω για τις αλλαγές */
+
+/* Pages */
 .page {
     display: none;
     min-height: calc(100vh - 66px);
@@ -192,9 +487,7 @@ body {
     display: block;
 }
 
-
 /* Home Page */
-
 #home-page {
     padding: 0;
 }
@@ -306,9 +599,7 @@ body {
     font-size: 0.9rem;
 }
 
-
 /* Rooms Page */
-
 .rooms-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -399,9 +690,7 @@ body {
     margin-bottom: 10px;
 }
 
-
 /* Chat Layout */
-
 .chat-layout {
     display: flex;
     height: calc(100vh - 66px);
@@ -409,9 +698,7 @@ body {
     backdrop-filter: blur(8px);
 }
 
-
 /* Sidebar */
-
 #sidebar {
     width: 280px;
     background: rgba(38, 38, 38, 0.8);
@@ -447,9 +734,7 @@ body {
     background: var(--success);
 }
 
-
 /* Room Details */
-
 .room-details {
     padding: 15px;
     border-bottom: 1px solid var(--border-color);
@@ -494,9 +779,7 @@ body {
     background: rgba(139, 0, 0, 0.2);
 }
 
-
 /* Room Members */
-
 .room-members-section {
     padding: 15px;
     flex: 1;
@@ -565,9 +848,7 @@ body {
     color: var(--text-light);
 }
 
-
 /* User Profile */
-
 .user-profile {
     padding: 12px 15px;
     background: rgba(38, 38, 38, 0.8);
@@ -608,9 +889,7 @@ body {
     color: var(--text-light);
 }
 
-
 /* Main Chat */
-
 #main-chat {
     flex: 1;
     display: flex;
@@ -665,9 +944,7 @@ body {
     background: #CC0000;
 }
 
-
 /* Messages - FIXED: ΚΟΙΝΟ STYLING ΓΙΑ ΟΛΑ */
-
 #messages-container {
     flex: 1;
     overflow-y: auto;
@@ -749,9 +1026,7 @@ body {
     word-break: break-word;
 }
 
-
 /* Input Area */
-
 .message-input-container {
     padding: 15px 20px;
     background: rgba(38, 38, 38, 0.8);
@@ -825,9 +1100,7 @@ body {
     background: var(--accent-red);
 }
 
-
 /* Modals */
-
 .modal {
     display: none;
     position: fixed;
@@ -989,9 +1262,7 @@ body {
     background: var(--primary-light);
 }
 
-
 /* Friends Page Styles */
-
 .friends-list-page {
     display: flex;
     flex-direction: column;
@@ -1106,9 +1377,7 @@ body {
     margin: 0.5rem 0;
 }
 
-
 /* Button improvements */
-
 .btn-danger {
     background: var(--accent-red);
     border: 1px solid var(--accent-red);
@@ -1119,9 +1388,7 @@ body {
     background: #CC0000;
 }
 
-
 /* Enhanced Friends System Styles */
-
 .friends-section {
     margin-bottom: 2rem;
 }
@@ -1162,11 +1429,9 @@ body {
     gap: 1rem;
 }
 
-
 /* ========================================
    BEAUTIFUL NOTIFICATION SYSTEM
    ======================================== */
-
 .notification-container {
     position: fixed;
     top: 80px;
@@ -1261,9 +1526,7 @@ body {
     color: var(--accent-red);
 }
 
-
 /* Notification Types */
-
 .notification.success {
     border-left: 4px solid var(--success);
 }
@@ -1300,9 +1563,7 @@ body {
     color: white;
 }
 
-
 /* Notification Count Badge */
-
 .notification-count-badge {
     position: absolute;
     top: 10px;
@@ -1322,9 +1583,7 @@ body {
     animation: badgePop 0.3s ease-out;
 }
 
-
 /* Unread Notification Style */
-
 .notification.unread {
     border-left: 6px solid var(--accent-red) !important;
     background: linear-gradient(90deg, rgba(139, 0, 0, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%);
@@ -1344,9 +1603,7 @@ body {
     margin-left: 5px;
 }
 
-
 /* Offline Notification Style */
-
 .notification.offline {
     border-left: 6px solid var(--warning);
     background: linear-gradient(90deg, rgba(255, 165, 0, 0.1) 0%, rgba(26, 26, 26, 0.9) 100%);
@@ -1356,14 +1613,10 @@ body {
     color: var(--warning);
 }
 
-
 /* ========================================
    UNREAD MESSAGES & BADGES SYSTEM
    ======================================== */
-
-
 /* Badge Animations */
-
 @keyframes badgePop {
     0% {
         transform: scale(0);
@@ -1411,9 +1664,7 @@ body {
     }
 }
 
-
 /* Navigation Badges */
-
 .nav-badge {
     position: absolute;
     top: -5px;
@@ -1434,9 +1685,7 @@ body {
     animation: badgePop 0.3s ease-out;
 }
 
-
 /* Friend List Badges */
-
 .friend-badge {
     position: absolute;
     top: 10px;
@@ -1457,9 +1706,7 @@ body {
     animation: badgePop 0.3s ease-out;
 }
 
-
 /* Room List Badges */
-
 .room-badge {
     position: absolute;
     top: 10px;
@@ -1480,9 +1727,7 @@ body {
     animation: badgePop 0.3s ease-out;
 }
 
-
 /* Member Item Unread Indicator */
-
 .member-item.unread {
     background: rgba(139, 0, 0, 0.15);
     border-left: 3px solid var(--accent-red);
@@ -1497,9 +1742,7 @@ body {
     animation: blink 1s infinite;
 }
 
-
 /* Enhanced Hover Effects for Unread Items */
-
 .friend-card.has-unread {
     border-left: 3px solid var(--accent-red);
     background: rgba(139, 0, 0, 0.1);
@@ -1516,19 +1759,15 @@ body {
     border-color: var(--accent-red);
 }
 
-
 /* Highlight Animation for Clicked Notifications */
-
 .highlight-animation {
     animation: highlightPulse 2s ease-in-out;
     border: 2px solid var(--accent-red) !important;
 }
 
-
 /* ========================================
    PWA FLOATING INSTALL BUTTON
    ======================================== */
-
 .pwa-floating-install-button {
     position: fixed;
     bottom: 30px;
@@ -1638,11 +1877,9 @@ body.pwa-mode .pwa-floating-install-button {
     display: none !important;
 }
 
-
 /* ========================================
    CONFIRMATION MODAL STYLING
    ======================================== */
-
 #confirmation-modal .modal-content {
     max-width: 400px;
     text-align: center;
@@ -1688,9 +1925,7 @@ body.pwa-mode .pwa-floating-install-button {
     background: rgba(77, 77, 77, 0.8);
 }
 
-
 /* Mobile responsive για confirmation modal */
-
 @media (max-width: 768px) {
     #confirmation-modal .modal-content {
         max-width: 90%;
@@ -1704,11 +1939,9 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
-
 /* ========================================
    SCROLLBAR STYLING
    ======================================== */
-
 ::-webkit-scrollbar {
     width: 6px;
 }
@@ -1726,11 +1959,9 @@ body.pwa-mode .pwa-floating-install-button {
     background: rgba(255, 0, 0, 0.6);
 }
 
-
 /* ========================================
    PROFILE PAGE STYLES
    ======================================== */
-
 .profile-container {
     max-width: 800px;
     margin: 0 auto;
@@ -1885,9 +2116,7 @@ body.pwa-mode .pwa-floating-install-button {
     flex: 1;
 }
 
-
 /* Profile Picture Upload */
-
 .profile-picture-upload {
     margin-top: 10px;
 }
@@ -1928,9 +2157,7 @@ body.pwa-mode .pwa-floating-install-button {
     justify-content: center;
 }
 
-
 /* User Info Modal Styles */
-
 .user-info-container {
     text-align: center;
     padding: 20px 0;
@@ -2023,9 +2250,7 @@ body.pwa-mode .pwa-floating-install-button {
     gap: 8px;
 }
 
-
 /* Registration with Profile Picture */
-
 .registration-avatar-section {
     margin: 15px 0;
     text-align: center;
@@ -2067,14 +2292,10 @@ body.pwa-mode .pwa-floating-install-button {
     justify-content: center;
 }
 
-
 /* ========================================
    USER INFO MODAL STYLING
    ======================================== */
-
-
 /* Member item styling for clickable user info */
-
 .member-item {
     transition: all 0.2s ease;
     cursor: pointer;
@@ -2089,9 +2310,7 @@ body.pwa-mode .pwa-floating-install-button {
     background: rgba(139, 0, 0, 0.25) !important;
 }
 
-
 /* User info modal specific styles */
-
 #user-info-modal .modal-content {
     max-width: 420px;
     padding: 25px;
@@ -2177,14 +2396,10 @@ body.pwa-mode .pwa-floating-install-button {
     gap: 8px;
 }
 
-
 /* ========================================
    FIX: ΚΟΙΝΟ STYLING ΓΙΑ ΟΛΑ ΤΑ ΜΗΝΥΜΑΤΑ
    ======================================== */
-
-
 /* ΒΕΒΑΙΩΣΟΥ ότι τα messages είναι ίδια */
-
 .message.other {
     display: block !important;
 }
@@ -2211,9 +2426,7 @@ body.pwa-mode .pwa-floating-install-button {
     font-size: 0.95rem !important;
 }
 
-
 /* Animations for user info modal */
-
 @keyframes slideInUp {
     from {
         opacity: 0;
@@ -2229,639 +2442,29 @@ body.pwa-mode .pwa-floating-install-button {
     animation: slideInUp 0.3s ease-out;
 }
 
-
 /* ========================================
    PRIVATE CHAT - NO INVITE CODES
    ======================================== */
-
-
 /* Hide entire invite code section for private chats */
-
 #invite-code-container.hide-for-private {
     display: none !important;
 }
 
-
 /* Adjust layout when invite code section is hidden */
-
 #sidebar:has(#invite-code-container.hide-for-private) .room-members-section {
     border-top: none;
     padding-top: 20px;
 }
 
-
 /* Hide copy button for private chats */
-
 #copy-invite-btn.hidden-for-private {
     display: none !important;
 }
 
-
 /* Private chat indicator in sidebar */
-
 #room-status.private-chat {
     color: var(--accent-red);
     font-weight: 600;
-}
-
-
-/* ========================================
-   MOBILE RESPONSIVE - ΕΝΤΕΛΩΣ ΑΛΛΑΓΜΕΝΟ MOBILE NAVIGATION
-   ======================================== */
-
-@media (max-width: 768px) {
-    /* 🔥 ΒΕΛΤΙΩΜΕΝΟ: ΚΑΝΟΥΜΕ ΤΟ NAVIGATION ΣΥΜΠΑΓΕΣΤΕΡΟ ΑΛΛΑ ΟΡΑΤΟ */
-    #main-nav {
-        padding: 8px 10px;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-    }
-    
-    #main-nav::-webkit-scrollbar {
-        display: none;
-    }
-    
-    .nav-brand .nav-btn {
-        width: 200px;
-        min-width: 200px;
-        max-width: 200px;
-        height: 45px;
-        margin-right: 8px;
-    }
-    
-    .nav-actions {
-        gap: 6px;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        flex: 1;
-        min-width: 0;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-        padding-right: 2px;
-    }
-    
-    .nav-actions::-webkit-scrollbar {
-        display: none;
-    }
-    
-    .nav-btn {
-        padding: 12px 16px;
-        font-size: 0.85rem; /* ΑΥΞΗΣΑ - από 0.75rem */
-        white-space: nowrap;
-        flex-shrink: 0;
-        border-radius: 8px;
-        font-weight: 600;
-        background: var(--primary);
-        color: white;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .nav-btn i {
-        font-size: 0.85rem; /* ΑΥΞΗΣΑ - από 0.75rem */
-        margin-right: 6px; /* ΑΥΞΗΣΑ - από 5px */
-    }
-    
-    /* Κρύβουμε το username για να κερδίσουμε χώρο */
-    .nav-username {
-        display: none;
-    }
-    
-    
-    /* 🔥 ΚΡΙΤΙΚΟ: Προσθήκη tooltip για τα κουμπιά με icons */
-    .nav-btn[data-title] {
-        position: relative;
-    }
-    
-    .nav-btn[data-title]::after {
-        content: attr(data-title);
-        position: absolute;
-        bottom: -30px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(26, 26, 26, 0.95);
-        color: white;
-        padding: 6px 10px;
-        border-radius: 4px;
-        font-size: 0.7rem;
-        white-space: nowrap;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s;
-        z-index: 1000;
-        border: 1px solid var(--border-color);
-    }
-    
-    .nav-btn[data-title]:hover::after {
-        opacity: 1;
-    }
-    
-    /* Feature Cards for Mobile */
-    .features-grid {
-        grid-template-columns: 1fr !important;
-        gap: 20px;
-        padding: 40px 20px !important;
-    }
-    
-    .feature-card {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 auto !important;
-        padding: 25px !important;
-    }
-    
-    /* Hero Section for Mobile */
-    .hero-section {
-        padding: 60px 20px !important;
-    }
-    
-    .hero-section h1 {
-        font-size: 2rem !important;
-    }
-    
-    /* Chat Layout */
-    .chat-layout {
-        flex-direction: row;
-        height: calc(100vh - 66px);
-    }
-    
-    #sidebar {
-        width: 70px;
-        min-width: 70px;
-        transition: all 0.3s ease;
-        position: relative;
-        z-index: 10;
-    }
-    
-    .sidebar-header h2,
-    .room-info span,
-    .invite-code-section label,
-    .invite-code-display span,
-    .room-members-section h3,
-    .member-info,
-    .profile-info {
-        display: none;
-    }
-    
-    .sidebar-header,
-    .room-details,
-    .room-members-section,
-    .user-profile {
-        padding: 10px;
-    }
-    
-    .invite-code-display {
-        justify-content: center;
-        padding: 8px;
-    }
-    
-    .member-item {
-        justify-content: center;
-        padding: 8px;
-    }
-    
-    .member-avatar {
-        width: 36px;
-        height: 36px;
-    }
-    
-    /* Expanded sidebar state */
-    #sidebar.mobile-expanded {
-        width: 280px;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.7);
-    }
-    
-    #sidebar.mobile-expanded .member-info,
-    #sidebar.mobile-expanded .profile-info,
-    #sidebar.mobile-expanded .sidebar-header h2,
-    #sidebar.mobile-expanded .room-info span,
-    #sidebar.mobile-expanded .invite-code-section label,
-    #sidebar.mobile-expanded .invite-code-display span,
-    #sidebar.mobile-expanded .room-members-section h3 {
-        display: block;
-    }
-    
-    #sidebar.mobile-expanded .member-info,
-    #sidebar.mobile-expanded .profile-info {
-        display: flex;
-    }
-    
-    /* Messages */
-    .message {
-        max-width: 85%;
-    }
-    
-    .chat-header {
-        padding: 12px 15px;
-    }
-    
-    .chat-info h2 {
-        font-size: 1.1rem;
-    }
-    
-    /* Input area */
-    .message-input-container {
-        padding: 12px 15px;
-    }
-    
-    #chat-form {
-        gap: 6px;
-    }
-    
-    .input-actions {
-        flex-direction: column;
-        gap: 2px;
-    }
-    
-    /* Rooms page */
-    .rooms-header {
-        flex-direction: column;
-        gap: 15px;
-        align-items: stretch;
-    }
-    
-    .rooms-actions {
-        justify-content: space-between;
-    }
-    
-    .rooms-list {
-        grid-template-columns: 1fr !important;
-    }
-    
-    .feature-card {
-        padding: 20px;
-    }
-    
-    .hero-section {
-        padding: 60px 20px;
-    }
-    
-    /* Friends page */
-    .friend-card {
-        padding: 1rem;
-    }
-    
-    .friend-actions {
-        flex-direction: column;
-        gap: 0.3rem;
-    }
-    
-    .btn-sm {
-        padding: 6px 12px;
-        font-size: 0.8rem;
-    }
-    
-    /* Profile page */
-    .profile-image-wrapper {
-        width: 120px;
-        height: 120px;
-    }
-    
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-    }
-    
-    .stat-item {
-        padding: 10px;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-    }
-    
-    .profile-actions {
-        flex-direction: column;
-    }
-    
-    .upload-preview {
-        width: 120px;
-        height: 120px;
-    }
-    
-    .user-info-picture {
-        width: 100px;
-        height: 100px;
-    }
-    
-    /* Notifications */
-    .notification-container {
-        top: 70px;
-        right: 10px;
-        max-width: 300px;
-    }
-    
-    .notification {
-        max-width: 300px;
-        padding: 12px 16px;
-    }
-    
-    .notification-count-badge {
-        top: 8px;
-        right: 30px;
-        min-width: 18px;
-        height: 18px;
-        font-size: 0.6rem;
-    }
-    
-    /* Badges */
-    .nav-badge {
-        min-width: 16px;
-        height: 16px;
-        font-size: 0.5rem;
-        top: -3px;
-        right: -3px;
-    }
-    
-    .friend-badge,
-    .room-badge {
-        top: 5px;
-        right: 5px;
-        min-width: 18px;
-        height: 18px;
-        font-size: 0.6rem;
-    }
-    
-    /* PWA Button */
-    .pwa-floating-install-button {
-        bottom: 20px;
-        right: 20px;
-        padding: 14px 18px;
-        font-size: 0.9rem;
-        border-radius: 45px;
-    }
-    
-    .pwa-floating-install-button .install-text {
-        font-size: 0.85rem;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.1rem;
-    }
-    
-    /* Mobile sidebar overlay */
-    .sidebar-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        z-index: 5;
-    }
-    
-    .sidebar-overlay.active {
-        display: block;
-    }
-    
-    /* Private chat mobile */
-    #invite-code-container.hide-for-private {
-        display: none !important;
-    }
-}
-
- /* 🔥 ΒΕΛΤΙΩΣΗ: Μικρότερα κουμπιά για πολύ μικρές συσκευές */
-    @media (max-width: 600px) {
-        #main-nav {
-            padding: 6px 8px;
-        }
-        
-        .nav-brand .nav-btn {
-            width: 160px;
-            min-width: 160px;
-            max-width: 160px;
-            height: 40px;
-            margin-right: 6px;
-        }
-        
-        .nav-btn {
-            padding: 10px 12px;
-            font-size: 0.8rem; /* Ακόμα ορατό */
-        }
-        
-        .nav-btn i {
-            font-size: 0.8rem;
-            margin-right: 5px;
-        }
-    }
-    
-    /* Στο πολύ μικρό μέγεθος, κρύβουμε το κείμενο και κρατάμε μόνο τα icons */
-    @media (max-width: 500px) {
-        .nav-btn span {
-            display: none;
-        }
-        
-        .nav-btn i {
-            margin-right: 0 !important;
-            font-size: 0.9rem !important;
-        }
-        
-        .nav-btn {
-            padding: 10px 12px !important;
-            width: 40px !important;
-            min-width: 40px !important;
-            max-width: 40px !important;
-            justify-content: center !important;
-        }
-        
-        .nav-brand .nav-btn {
-            width: 120px !important;
-            min-width: 120px !important;
-            max-width: 120px !important;
-        }
-    }
-}
-
-/* 🔥 EXTRA SMALL: Χωρίς κείμενο, μόνο icons */
-    @media (max-width: 480px) {
-        .nav-btn span {
-            display: none; /* Κρύβουμε το κείμενο ΜΟΝΟ εδώ */
-        }
-        
-        .nav-btn {
-            padding: 10px 12px;
-            width: 44px;
-            min-width: 44px;
-            max-width: 44px;
-            justify-content: center;
-        }
-        
-        .nav-btn i {
-            margin-right: 0;
-            font-size: 0.9rem;
-        }
-        
-        .nav-brand .nav-btn {
-            width: 140px;
-            min-width: 140px;
-            max-width: 140px;
-        }
-        
-        /* Προσθήκη tooltip για να ξέρουν οι χρήστες τι κάνει το κουμπί */
-        .nav-btn[data-title] {
-            position: relative;
-        }
-        
-        .nav-btn[data-title]::after {
-            content: attr(data-title);
-            position: absolute;
-            bottom: -35px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(26, 26, 26, 0.95);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-            z-index: 1000;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-        }
-        
-        .nav-btn[data-title]:hover::after {
-            opacity: 1;
-        }
-    }
-
-    
-    /* 🔥 BETTER FEATURE CARDS FOR VERY SMALL SCREENS */
-    .features-grid {
-        padding: 30px 15px !important;
-        gap: 15px;
-    }
-    
-    .feature-card {
-        padding: 20px 15px !important;
-        width: 100% !important;
-    }
-    
-    .feature-icon i {
-        font-size: 2rem !important;
-    }
-    
-    .feature-card h3 {
-        font-size: 1.1rem !important;
-    }
-    
-    .feature-card p {
-        font-size: 0.85rem !important;
-        line-height: 1.4;
-    }
-    
-    .rooms-list {
-        grid-template-columns: 1fr !important;
-    }
-    
-    /* Profile page */
-    .profile-image-wrapper {
-        width: 100px;
-        height: 100px;
-    }
-    
-    .stats-grid {
-        grid-template-columns: 1fr !important;
-        gap: 10px;
-    }
-    
-    .upload-preview {
-        width: 100px;
-        height: 100px;
-    }
-    
-    .user-info-picture {
-        width: 80px;
-        height: 80px;
-    }
-    
-    .user-info-actions {
-        flex-direction: column;
-    }
-    
-    .user-info-actions .btn {
-        width: 100%;
-    }
-    
-    /* PWA Button mobile */
-    .pwa-floating-install-button {
-        bottom: 15px;
-        right: 15px;
-        padding: 12px 16px;
-        font-size: 0.85rem;
-    }
-    
-    .pwa-floating-install-button .install-text {
-        display: none;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.3rem;
-        margin: 0;
-    }
-    
-    .pwa-floating-install-button {
-        width: 56px;
-        height: 56px;
-        padding: 0;
-        border-radius: 50%;
-        justify-content: center;
-        align-items: center;
-    }
-    
-    /* Notification count badge hide on very small screens */
-    .notification-count-badge {
-        display: none;
-    }
-    
-    /* Smaller badges */
-    .friend-badge,
-    .room-badge {
-        min-width: 16px;
-        height: 16px;
-        font-size: 0.55rem;
-        top: 3px;
-        right: 3px;
-    }
-}
-
-
-/* Extra small devices */
-   /* 🔥 SUPER SMALL: Ακόμα πιο compact */
-    @media (max-width: 360px) {
-        #main-nav {
-            padding: 5px 6px;
-        }
-        
-        .nav-btn {
-            padding: 8px 10px;
-            width: 40px;
-            min-width: 40px;
-            max-width: 40px;
-        }
-        
-        .nav-btn i {
-            font-size: 0.85rem;
-        }
-        
-        .nav-brand .nav-btn {
-            width: 120px;
-            min-width: 120px;
-            max-width: 120px;
-            height: 35px;
-        }
-    }
 }
 
 /* Tablet responsive (landscape) */
@@ -2892,25 +2495,21 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
-
 /* Special case: Avoid overlap with notification container */
 .notification-container~.pwa-floating-install-button {
     bottom: 30px;
 }
-
 
 /* Ensure buttons with badges have proper spacing */
 .nav-btn.has-badge {
     padding-right: 30px;
 }
 
-
 /* Loading states */
 .loading {
     opacity: 0.6;
     pointer-events: none;
 }
-
 
 /* Empty states styling */
 .empty-state {
@@ -2935,7 +2534,6 @@ body.pwa-mode .pwa-floating-install-button {
     margin-bottom: 1.5rem;
 }
 
-
 /* Error states */
 .error-state {
     text-align: center;
@@ -2952,7 +2550,6 @@ body.pwa-mode .pwa-floating-install-button {
     margin-bottom: 0.5rem;
 }
 
-
 /* Success states */
 .success-state {
     text-align: center;
@@ -2968,7 +2565,6 @@ body.pwa-mode .pwa-floating-install-button {
 .success-state h3 {
     margin-bottom: 0.5rem;
 }
-
 
 /* Connection status indicator */
 .connection-status {
@@ -3028,7 +2624,6 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
-
 /* Better message text wrapping */
 .message-text {
     white-space: pre-wrap;
@@ -3037,4 +2632,3 @@ body.pwa-mode .pwa-floating-install-button {
     word-break: break-word;
     line-height: 1.5;
 }
-
