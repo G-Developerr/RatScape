@@ -2266,74 +2266,88 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* ========================================
-   MOBILE RESPONSIVE
+   MOBILE RESPONSIVE - ΕΝΤΕΛΩΣ ΑΛΛΑΓΜΕΝΟ MOBILE NAVIGATION
    ======================================== */
 
 @media (max-width: 768px) {
-    /* ΣΗΜΑΝΤΙΚΕΣ ΑΛΛΑΓΕΣ ΓΙΑ ΤΟ NAVIGATION */
+    /* 🔥 ΝΕΟ: ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ - ΚΑΝΟΥΜΕ ΤΟ NAVIGATION ΠΕΡΙΣΣΟΤΕΡΟ COMPACT */
     #main-nav {
-        padding: 8px 10px; /* Μείωση padding για περισσότερο χώρο */
-        flex-wrap: nowrap; /* Τώρα δεν θα τυλίγεται */
-        overflow-x: auto; /* Επιτρέπει horizontal scroll αν χρειαστεί */
-        -webkit-overflow-scrolling: touch; /* Καλύτερο scroll σε iOS */
+        padding: 8px 10px; /* Μειώνουμε padding */
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Κρύβουμε scrollbar για Firefox */
+        -ms-overflow-style: none; /* Κρύβουμε scrollbar για IE/Edge */
+    }
+    
+    /* Κρύβουμε το scrollbar αλλά το κρατάμε functional */
+    #main-nav::-webkit-scrollbar {
+        display: none;
     }
     
     .nav-brand .nav-btn {
-        width: 150px; /* Μείωση πλάτους */
-        min-width: 150px;
-        max-width: 150px;
+        width: 130px; /* Μικρότερο width */
+        min-width: 130px;
+        max-width: 130px;
         height: 40px;
-        margin-right: 10px; /* Προσθήκη margin για να μην κολλάει */
+        margin-right: 8px;
     }
     
     .nav-actions {
-        gap: 6px;
-        flex-wrap: nowrap; /* ΣΗΜΑΝΤΙΚΟ: Τα κουμπιά τώρα θα είναι σε μια γραμμή */
-        justify-content: flex-start; /* Αλλάζουμε από flex-end σε flex-start */
-        overflow-x: auto; /* Επιτρέπει scroll αν χρειάζεται */
+        gap: 4px; /* Λιγότερο gap */
+        flex-wrap: nowrap;
+        overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        padding-right: 5px; /* Χώρος για scroll */
-        flex: 1; /* Αυτό θα κάνει το container να πάρει όλο τον διαθέσιμο χώρο */
+        flex: 1; /* Αυτό κάνει το container να γεμίζει το διαθέσιμο χώρο */
         min-width: 0; /* Σημαντικό για flexbox */
+        scrollbar-width: none; /* Κρύβουμε scrollbar */
+        -ms-overflow-style: none;
+    }
+    
+    /* Κρύβουμε το scrollbar στα nav actions */
+    .nav-actions::-webkit-scrollbar {
+        display: none;
     }
     
     .nav-btn {
-        padding: 10px 12px; /* Μείωση padding για μικρότερα κουμπιά */
-        font-size: 0.75rem; /* Ακόμα μικρότερο font */
-        white-space: nowrap; /* Αποτρέπει το wrap του κειμένου */
-        flex-shrink: 0; /* ΣΗΜΑΝΤΙΚΟ: Τα κουμπιά δεν θα συμπιέζονται */
+        padding: 10px 12px; /* Μικρότερο padding */
+        font-size: 0.7rem; /* Μικρότερο font */
+        white-space: nowrap;
+        flex-shrink: 0;
+        background: var(--primary);
+        color: white;
+        border-radius: 6px; /* Μικρότερο radius */
     }
     
     .nav-btn i {
         font-size: 0.7rem; /* Μικρότερα icons */
-        margin-right: 4px; /* Λιγότερο χώρο */
+        margin-right: 4px;
     }
     
     .nav-username {
-        padding: 0 6px;
-        font-size: 0.75rem; /* Μικρότερο font */
         display: none; /* Κρύβουμε το username για να κερδίσουμε χώρο */
     }
     
-    /* Απόκρυψη του κειμένου στα κουμπιά και εμφάνιση μόνο των icons */
+    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΜΕΙΩΝΟΥΜΕ ΤΟ ΜΕΓΕΘΟΣ ΤΩΝ ΚΟΥΜΠΙΩΝ ΑΚΟΜΑ ΠΕΡΙΣΣΟΤΕΡΟ */
     .nav-btn span {
-        display: none;
+        display: none; /* Κρύβουμε το κείμενο */
     }
     
     .nav-btn i {
-        margin-right: 0;
+        margin-right: 0; /* Αφαιρούμε margin */
+        font-size: 0.9rem; /* Ενισχύουμε λίγο τα icons για ορατότητα */
     }
     
-    /* Εμφάνιση tooltip για τα κουμπιά */
+    /* Προσθήκη tooltip για να ξέρουν οι χρήστες τι κάνει το κουμπί */
     .nav-btn::after {
         content: attr(data-title);
         position: absolute;
         bottom: -30px;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(26, 26, 26, 0.9);
+        background: rgba(26, 26, 26, 0.95);
         color: white;
-        padding: 4px 8px;
+        padding: 6px 10px;
         border-radius: 4px;
         font-size: 0.7rem;
         white-space: nowrap;
@@ -2341,13 +2355,14 @@ body.pwa-mode .pwa-floating-install-button {
         pointer-events: none;
         transition: opacity 0.2s;
         z-index: 1000;
+        border: 1px solid var(--border-color);
     }
     
     .nav-btn:hover::after {
         opacity: 1;
     }
     
-    /* Προσθήκη data-title στα κουμπιά */
+    /* Προσθήκη data-title στα κουμπιά (θα γίνει με JavaScript) */
     #my-friends-btn { data-title: "Friends"; }
     #my-rooms-btn { data-title: "Rooms"; }
     #my-profile-btn { data-title: "Profile"; }
@@ -2622,24 +2637,35 @@ body.pwa-mode .pwa-floating-install-button {
 
 /* Πολύ μικρές συσκευές (πάνω από 6 κουμπιά) */
 @media (max-width: 600px) {
+    /* 🔥 ΑΚΟΜΑ ΜΙΚΡΟΤΕΡΑ ΚΟΥΜΠΙΑ */
     .nav-btn {
         padding: 8px 10px !important;
-        font-size: 0.7rem !important;
+        font-size: 0.6rem !important;
+    }
+    
+    .nav-btn i {
+        font-size: 0.8rem !important;
     }
     
     .nav-brand .nav-btn {
-        width: 130px !important;
-        min-width: 130px !important;
-        max-width: 130px !important;
+        width: 100px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
+        height: 35px !important;
+    }
+    
+    #main-nav {
+        padding: 6px 8px !important;
     }
 }
 
 /* Extra small devices */
 @media (max-width: 480px) {
     .nav-brand .nav-btn {
-        width: 120px !important;
-        min-width: 120px !important;
-        max-width: 120px !important;
+        width: 90px !important;
+        min-width: 90px !important;
+        max-width: 90px !important;
+        height: 32px !important;
     }
     
     .hero-section h1 {
@@ -2761,19 +2787,23 @@ body.pwa-mode .pwa-floating-install-button {
 /* Extra small devices */
 @media (max-width: 360px) {
     #main-nav {
-        padding: 8px 5px !important;
+        padding: 4px 6px !important;
     }
     
     .nav-brand .nav-btn {
-        width: 100px !important;
-        min-width: 100px !important;
-        max-width: 100px !important;
-        height: 35px !important;
+        width: 80px !important;
+        min-width: 80px !important;
+        max-width: 80px !important;
+        height: 30px !important;
     }
     
     .nav-btn {
-        padding: 6px 8px !important;
-        font-size: 0.65rem !important;
+        padding: 5px 7px !important;
+        font-size: 0.55rem !important;
+    }
+    
+    .nav-btn i {
+        font-size: 0.7rem !important;
     }
     
     .pwa-floating-install-button {
