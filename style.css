@@ -40,7 +40,7 @@ body {
 #main-nav {
     background: rgba(26, 26, 26, 0.95);
     backdrop-filter: blur(12px);
-    padding: 8px 20px;
+    padding: 8px 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -50,6 +50,14 @@ body {
     top: 0;
     z-index: 100;
     overflow-x: auto; /* Προσθήκη scroll για πολύ μικρές οθόνες */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Κρύβουμε scrollbar */
+    -ms-overflow-style: none; /* Κρύβουμε scrollbar για IE/Edge */
+}
+
+/* Κρύβουμε το scrollbar αλλά το κρατάμε functional */
+#main-nav::-webkit-scrollbar {
+    display: none;
 }
 
 .nav-brand .nav-btn {
@@ -86,26 +94,19 @@ body {
 
 .nav-actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     flex-wrap: nowrap; /* Σημαντική αλλαγή: τώρα δεν θα τυλίγονται */
     overflow-x: auto; /* Επιτρέπει horizontal scroll αν χρειαστεί */
     -webkit-overflow-scrolling: touch; /* Καλύτερο scroll σε iOS */
     padding-bottom: 4px; /* Χώρος για scrollbar */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
-/* Κρύβουμε το scrollbar αλλά το κρατάμε functional */
+/* Κρύβουμε το scrollbar στα nav actions */
 .nav-actions::-webkit-scrollbar {
-    height: 3px;
-}
-
-.nav-actions::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.nav-actions::-webkit-scrollbar-thumb {
-    background: rgba(139, 0, 0, 0.3);
-    border-radius: 3px;
+    display: none;
 }
 
 .nav-username {
@@ -120,17 +121,16 @@ body {
     background: var(--primary);
     color: white;
     border: none;
-    padding: 12px 24px;
+    padding: 12px 16px;
     border-radius: var(--radius);
     cursor: pointer;
     transition: all 0.2s ease;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     position: relative;
     white-space: nowrap;
     flex-shrink: 0; /* Σημαντικό: τα κουμπιά δεν θα συμπιέζονται */
 }
-
 
 .nav-btn:hover {
     background: var(--accent-red);
@@ -2270,76 +2270,68 @@ body.pwa-mode .pwa-floating-install-button {
    ======================================== */
 
 @media (max-width: 768px) {
-    /* 🔥 ΝΕΟ: ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ - ΚΑΝΟΥΜΕ ΤΟ NAVIGATION ΠΕΡΙΣΣΟΤΕΡΟ COMPACT */
+    /* 🔥 ΒΕΛΤΙΩΜΕΝΟ: ΚΑΝΟΥΜΕ ΤΟ NAVIGATION ΣΥΜΠΑΓΕΣΤΕΡΟ */
     #main-nav {
-        padding: 8px 10px; /* Μειώνουμε padding */
+        padding: 6px 8px;
         flex-wrap: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        scrollbar-width: none; /* Κρύβουμε scrollbar για Firefox */
-        -ms-overflow-style: none; /* Κρύβουμε scrollbar για IE/Edge */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
     }
     
-    /* Κρύβουμε το scrollbar αλλά το κρατάμε functional */
     #main-nav::-webkit-scrollbar {
         display: none;
     }
     
     .nav-brand .nav-btn {
-        width: 130px; /* Μικρότερο width */
-        min-width: 130px;
-        max-width: 130px;
+        width: 180px;
+        min-width: 180px;
+        max-width: 180px;
         height: 40px;
-        margin-right: 8px;
+        margin-right: 6px;
     }
     
     .nav-actions {
-        gap: 4px; /* Λιγότερο gap */
+        gap: 4px;
         flex-wrap: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        flex: 1; /* Αυτό κάνει το container να γεμίζει το διαθέσιμο χώρο */
-        min-width: 0; /* Σημαντικό για flexbox */
-        scrollbar-width: none; /* Κρύβουμε scrollbar */
+        flex: 1;
+        min-width: 0;
+        scrollbar-width: none;
         -ms-overflow-style: none;
+        padding-right: 2px;
     }
     
-    /* Κρύβουμε το scrollbar στα nav actions */
     .nav-actions::-webkit-scrollbar {
         display: none;
     }
     
     .nav-btn {
-        padding: 10px 12px; /* Μικρότερο padding */
-        font-size: 0.7rem; /* Μικρότερο font */
+        padding: 10px 14px;
+        font-size: 0.75rem;
         white-space: nowrap;
         flex-shrink: 0;
-        background: var(--primary);
-        color: white;
-        border-radius: 6px; /* Μικρότερο radius */
+        border-radius: 6px;
     }
     
     .nav-btn i {
-        font-size: 0.7rem; /* Μικρότερα icons */
-        margin-right: 4px;
+        font-size: 0.75rem;
+        margin-right: 5px;
     }
     
+    /* Κρύβουμε το username για να κερδίσουμε χώρο */
     .nav-username {
-        display: none; /* Κρύβουμε το username για να κερδίσουμε χώρο */
+        display: none;
     }
     
-    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΜΕΙΩΝΟΥΜΕ ΤΟ ΜΕΓΕΘΟΣ ΤΩΝ ΚΟΥΜΠΙΩΝ ΑΚΟΜΑ ΠΕΡΙΣΣΟΤΕΡΟ */
-    .nav-btn span {
-        display: none; /* Κρύβουμε το κείμενο */
+    /* 🔥 ΚΡΙΤΙΚΟ: Προσθήκη tooltip για τα κουμπιά με icons */
+    .nav-btn[data-title] {
+        position: relative;
     }
     
-    .nav-btn i {
-        margin-right: 0; /* Αφαιρούμε margin */
-        font-size: 0.9rem; /* Ενισχύουμε λίγο τα icons για ορατότητα */
-    }
-    
-    /* Προσθήκη tooltip για να ξέρουν οι χρήστες τι κάνει το κουμπί */
-    .nav-btn::after {
+    .nav-btn[data-title]::after {
         content: attr(data-title);
         position: absolute;
         bottom: -30px;
@@ -2358,17 +2350,9 @@ body.pwa-mode .pwa-floating-install-button {
         border: 1px solid var(--border-color);
     }
     
-    .nav-btn:hover::after {
+    .nav-btn[data-title]:hover::after {
         opacity: 1;
     }
-    
-    /* Προσθήκη data-title στα κουμπιά (θα γίνει με JavaScript) */
-    #my-friends-btn { data-title: "Friends"; }
-    #my-rooms-btn { data-title: "Rooms"; }
-    #my-profile-btn { data-title: "Profile"; }
-    #logout-btn { data-title: "Logout"; }
-    #login-nav-btn { data-title: "Login"; }
-    #register-nav-btn { data-title: "Register"; }
     
     /* Feature Cards for Mobile */
     .features-grid {
@@ -2637,34 +2621,61 @@ body.pwa-mode .pwa-floating-install-button {
 
 /* Πολύ μικρές συσκευές (πάνω από 6 κουμπιά) */
 @media (max-width: 600px) {
-    /* 🔥 ΑΚΟΜΑ ΜΙΚΡΟΤΕΡΑ ΚΟΥΜΠΙΑ */
-    .nav-btn {
-        padding: 8px 10px !important;
-        font-size: 0.6rem !important;
-    }
-    
-    .nav-btn i {
-        font-size: 0.8rem !important;
+    /* 🔥 ΑΚΟΜΑ ΜΙΚΡΟΤΕΡΑ ΚΟΥΜΠΙΑ ΑΛΛΑ ΜΕ TEXT */
+    #main-nav {
+        padding: 5px 6px !important;
     }
     
     .nav-brand .nav-btn {
-        width: 100px !important;
-        min-width: 100px !important;
-        max-width: 100px !important;
+        width: 150px !important;
+        min-width: 150px !important;
+        max-width: 150px !important;
         height: 35px !important;
     }
     
-    #main-nav {
-        padding: 6px 8px !important;
+    .nav-btn {
+        padding: 8px 10px !important;
+        font-size: 0.7rem !important;
+    }
+    
+    .nav-btn i {
+        font-size: 0.7rem !important;
+        margin-right: 3px !important;
+    }
+    
+    /* Στο πολύ μικρό μέγεθος, κρύβουμε το κείμενο και κρατάμε μόνο τα icons */
+    @media (max-width: 500px) {
+        .nav-btn span {
+            display: none;
+        }
+        
+        .nav-btn i {
+            margin-right: 0 !important;
+            font-size: 0.9rem !important;
+        }
+        
+        .nav-btn {
+            padding: 10px 12px !important;
+            width: 40px !important;
+            min-width: 40px !important;
+            max-width: 40px !important;
+            justify-content: center !important;
+        }
+        
+        .nav-brand .nav-btn {
+            width: 120px !important;
+            min-width: 120px !important;
+            max-width: 120px !important;
+        }
     }
 }
 
 /* Extra small devices */
 @media (max-width: 480px) {
     .nav-brand .nav-btn {
-        width: 90px !important;
-        min-width: 90px !important;
-        max-width: 90px !important;
+        width: 120px !important;
+        min-width: 120px !important;
+        max-width: 120px !important;
         height: 32px !important;
     }
     
@@ -2787,23 +2798,28 @@ body.pwa-mode .pwa-floating-install-button {
 /* Extra small devices */
 @media (max-width: 360px) {
     #main-nav {
-        padding: 4px 6px !important;
+        padding: 4px 5px !important;
     }
     
     .nav-brand .nav-btn {
-        width: 80px !important;
-        min-width: 80px !important;
-        max-width: 80px !important;
+        width: 100px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
         height: 30px !important;
     }
     
+    /* Κουμπιά μόνο με icons σε πολύ μικρές συσκευές */
     .nav-btn {
-        padding: 5px 7px !important;
-        font-size: 0.55rem !important;
+        padding: 8px !important;
+        font-size: 0 !important;
+        width: 38px !important;
+        min-width: 38px !important;
+        max-width: 38px !important;
     }
     
     .nav-btn i {
-        font-size: 0.7rem !important;
+        font-size: 0.8rem !important;
+        margin: 0 !important;
     }
     
     .pwa-floating-install-button {
