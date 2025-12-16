@@ -40,7 +40,7 @@ body {
     overflow-x: hidden;
 }
 
-/* Navigation - Τελειωμένο Dark/Horror Theme */
+/* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΑΠΟΚΡΥΨΗ ΚΟΚΚΙΝΟΥ ΣΚΡΟΛ ΜΠΑΡ ΣΤΟ NAVIGATION */
 #main-nav {
     background: rgba(26, 26, 26, 0.95);
     backdrop-filter: blur(12px);
@@ -55,6 +55,14 @@ body {
     z-index: 100;
     width: 100%;
     overflow-x: hidden;
+    /* 🔥 ΑΠΟΚΡΥΨΗ ΚΟΚΚΙΝΟΥ ΣΚΡΟΛ ΜΠΑΡ */
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΑΠΟΚΡΥΨΗ ΚΟΚΚΙΝΟΥ ΣΚΡΟΛ ΜΠΑΡ ΓΙΑ Chrome, Safari, Opera */
+#main-nav::-webkit-scrollbar {
+    display: none;
 }
 
 .nav-brand .nav-btn {
@@ -206,6 +214,15 @@ body {
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
+/* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΠΡΟΣΘΗΚΗ ΚΕΝΟΥ ΑΝΑΜΕΣΑ ΣΤΑ ΚΟΥΜΠΙΑ */
+.home-cta-logged-out,
+.home-cta-logged-in {
+    display: flex;
+    gap: 15px; /* 🔥 Προσθήκη κενού αναμεσα στα κουμπιά */
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
 .cta-btn {
     background: var(--primary);
     color: white;
@@ -216,7 +233,8 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    margin: 0 8px;
+    margin: 0 !important; /* 🔥 Μηδενισμός margin για να λειτουργεί το gap */
+    flex: 0 0 auto;
 }
 
 .cta-btn:hover {
@@ -235,7 +253,8 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    margin: 0 8px;
+    margin: 0 !important; /* 🔥 Μηδενισμός margin για να λειτουργεί το gap */
+    flex: 0 0 auto;
 }
 
 .cta-btn-secondary:hover {
@@ -1145,6 +1164,7 @@ body {
 /* ========================================
    BEAUTIFUL NOTIFICATION SYSTEM
    ======================================== */
+
 .notification-container {
     position: fixed;
     top: 80px;
@@ -1329,6 +1349,7 @@ body {
 /* ========================================
    UNREAD MESSAGES & BADGES SYSTEM
    ======================================== */
+
 /* Badge Animations */
 @keyframes badgePop {
     0% {
@@ -1481,6 +1502,7 @@ body {
 /* ========================================
    PWA FLOATING INSTALL BUTTON
    ======================================== */
+
 .pwa-floating-install-button {
     position: fixed;
     bottom: 30px;
@@ -1593,6 +1615,7 @@ body.pwa-mode .pwa-floating-install-button {
 /* ========================================
    CONFIRMATION MODAL STYLING
    ======================================== */
+
 #confirmation-modal .modal-content {
     max-width: 400px;
     text-align: center;
@@ -1655,6 +1678,7 @@ body.pwa-mode .pwa-floating-install-button {
 /* ========================================
    SCROLLBAR STYLING
    ======================================== */
+
 ::-webkit-scrollbar {
     width: 6px;
 }
@@ -1675,6 +1699,7 @@ body.pwa-mode .pwa-floating-install-button {
 /* ========================================
    PROFILE PAGE STYLES
    ======================================== */
+
 .profile-container {
     max-width: 800px;
     margin: 0 auto;
@@ -2008,6 +2033,7 @@ body.pwa-mode .pwa-floating-install-button {
 /* ========================================
    USER INFO MODAL STYLING
    ======================================== */
+
 /* Member item styling for clickable user info */
 .member-item {
     transition: all 0.2s ease;
@@ -2112,6 +2138,7 @@ body.pwa-mode .pwa-floating-install-button {
 /* ========================================
    FIX: ΚΟΙΝΟ STYLING ΓΙΑ ΟΛΑ ΤΑ ΜΗΝΥΜΑΤΑ
    ======================================== */
+
 /* ΒΕΒΑΙΩΣΟΥ ότι τα messages είναι ίδια */
 .message.other {
     display: block !important;
@@ -2158,6 +2185,7 @@ body.pwa-mode .pwa-floating-install-button {
 /* ========================================
    PRIVATE CHAT - NO INVITE CODES
    ======================================== */
+
 /* Hide entire invite code section for private chats */
 #invite-code-container.hide-for-private {
     display: none !important;
@@ -2183,6 +2211,7 @@ body.pwa-mode .pwa-floating-install-button {
 /* ========================================
    🔥 ΚΡΙΤΙΚΕΣ ΑΛΛΑΓΕΣ ΓΙΑ MOBILE RESPONSIVE
    ======================================== */
+
 @media (max-width: 768px) {
     /* 🔥 ΑΠΑΓΟΡΕΥΣΗ ZOOM OUT ΣΤΑ ΚΙΝΗΤΑ */
     body {
@@ -2254,7 +2283,7 @@ body.pwa-mode .pwa-floating-install-button {
     .home-cta-logged-in {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 15px; /* 🔥 Περισσότερο κενό στα κουμπιά για mobile */
         align-items: center;
     }
     
@@ -2264,7 +2293,7 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.9rem;
         width: 100%;
         max-width: 250px;
-        margin: 0;
+        margin: 0 !important;
     }
     
     /* 🔥 ΒΕΛΤΙΩΜΕΝΑ FEATURE CARDS */
@@ -2376,6 +2405,31 @@ body.pwa-mode .pwa-floating-install-button {
     #sidebar.mobile-expanded .member-info,
     #sidebar.mobile-expanded .profile-info {
         display: flex;
+    }
+    
+    /* 🔥 ΝΕΟ: Overlay only for chat page - ΣΩΣΤΗ ΕΚΔΟΣΗ */
+    body:has(#chat-page.active) .sidebar-overlay {
+        display: block !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+    }
+    
+    body:has(#chat-page.active) #sidebar.mobile-expanded + .sidebar-overlay {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    
+    /* Hide overlay on other pages */
+    body:not(:has(#chat-page.active)) .sidebar-overlay {
+        display: none !important;
     }
     
     /* 🔥 ΜΕΓΑΛΗ ΒΕΛΤΙΩΣΗ: MESSAGES CONTAINER - ΣΩΣΤΟ ΣΚΡΟΛ ΚΑΙ ΤΕΛΕΥΤΑΙΟ ΜΗΝΥΜΑ */
@@ -2619,44 +2673,6 @@ body.pwa-mode .pwa-floating-install-button {
     
     .pwa-floating-install-button i {
         font-size: 1rem;
-    }
-    
-    /* 🔥 ΒΕΛΤΙΩΣΗ: Αφαίρεση σκούρου overlay - ΤΩΡΑ ΔΕΝ ΥΠΑΡΧΕΙ OVERLAY */
-    .sidebar-overlay {
-        display: none !important; /* 🔥 ΑΦΑΙΡΕΣΗ ΟΛΟΚΛΗΡΟΥ ΤΟΥ OVERLAY */
-    }
-    
-    /* 🔥 ΒΕΛΤΙΩΣΗ: Αλλάζουμε τη λειτουργία του sidebar - χωρίς overlay */
-    #sidebar {
-        transition: transform 0.3s ease;
-    }
-    
-    /* 🔥 ΝΕΟ: Toggle για να ανοίγει/κλείνει με swipe */
-    .mobile-sidebar-toggle {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        background: rgba(38, 38, 38, 0.8);
-        border: none;
-        border-radius: 50%;
-        width: 36px;
-        height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--text);
-        z-index: 1001;
-        cursor: pointer;
-    }
-    
-    .mobile-sidebar-toggle i {
-        font-size: 1.2rem;
-        transition: transform 0.3s ease;
-    }
-    
-    #sidebar.mobile-expanded {
-        transform: translateX(0);
-        box-shadow: 2px 0 15px rgba(0, 0, 0, 0.8);
     }
     
     /* Private chat mobile */
