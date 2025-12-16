@@ -2621,20 +2621,42 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 1rem;
     }
     
-    /* Mobile sidebar overlay */
+    /* 🔥 ΒΕΛΤΙΩΣΗ: Αφαίρεση σκούρου overlay - ΤΩΡΑ ΔΕΝ ΥΠΑΡΧΕΙ OVERLAY */
     .sidebar-overlay {
-        display: none;
-        position: fixed;
-        top: 66px;
-        left: 0;
-        width: 100%;
-        height: calc(100% - 66px);
-        background: rgba(0, 0, 0, 0.7);
-        z-index: 1;
+        display: none !important; /* 🔥 ΑΦΑΙΡΕΣΗ ΟΛΟΚΛΗΡΟΥ ΤΟΥ OVERLAY */
     }
     
-    .sidebar-overlay.active {
-        display: block;
+    /* 🔥 ΒΕΛΤΙΩΣΗ: Αλλάζουμε τη λειτουργία του sidebar - χωρίς overlay */
+    #sidebar {
+        transition: transform 0.3s ease;
+    }
+    
+    /* 🔥 ΝΕΟ: Toggle για να ανοίγει/κλείνει με swipe */
+    .mobile-sidebar-toggle {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(38, 38, 38, 0.8);
+        border: none;
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text);
+        z-index: 1001;
+        cursor: pointer;
+    }
+    
+    .mobile-sidebar-toggle i {
+        font-size: 1.2rem;
+        transition: transform 0.3s ease;
+    }
+    
+    #sidebar.mobile-expanded {
+        transform: translateX(0);
+        box-shadow: 2px 0 15px rgba(0, 0, 0, 0.8);
     }
     
     /* Private chat mobile */
@@ -2769,6 +2791,10 @@ body.pwa-mode .pwa-floating-install-button {
     .stats-grid {
         grid-template-columns: 1fr !important;
         gap: 8px;
+    }
+    
+    .stat-item {
+        padding: 10px;
     }
     
     .upload-preview {
@@ -3091,4 +3117,3 @@ body.pwa-mode .pwa-floating-install-button {
         height: -webkit-fill-available;
     }
 }
-
