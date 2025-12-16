@@ -796,6 +796,9 @@ function showPage(pageId) {
         // Αν φεύγουμε από chat page προς άλλη σελίδα, κρατάμε την κατάσταση
         saveChatState();
     }
+    
+    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Κλείσιμο mobile sidebar όταν αλλάζεις σελίδα
+    closeMobileSidebar();
 }
 
 function showModal(modalId) {
@@ -874,6 +877,28 @@ function getAvatarColor(username) {
         hash = username.charCodeAt(i) + ((hash << 5) - hash);
     }
     return colors[Math.abs(hash) % colors.length];
+}
+
+// Βοηθητική συνάρτηση για έλεγχο αν είμαστε στο chat page
+function isChatPageActive() {
+    return document.getElementById('chat-page').classList.contains('active');
+}
+
+// Βοηθητική συνάρτηση για κλείσιμο sidebar στα mobile
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    
+    if (sidebar && sidebar.classList.contains('mobile-expanded')) {
+        sidebar.classList.remove('mobile-expanded');
+    }
+    
+    if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
+    }
 }
 
 // ===== UI UPDATE FUNCTIONS =====
@@ -2811,44 +2836,82 @@ function initMobileSidebar() {
     const isMobile = window.innerWidth <= 768;
     
     if (isMobile && sidebar) {
-        // Create overlay
+        // ΒΕΛΤΙΩΣΗ: Create overlay ΜΟΝΟ αν χρειάζεται
         let overlay = document.querySelector('.sidebar-overlay');
         if (!overlay) {
             overlay = document.createElement('div');
             overlay.className = 'sidebar-overlay';
+            overlay.style.cssText = `
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 5;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            `;
             document.body.appendChild(overlay);
         }
         
-        // Toggle sidebar on click
+        // ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Toggle sidebar on click - ΜΟΝΟ στο chat page
         sidebar.addEventListener('click', function(e) {
-            if (!e.target.closest('.btn-icon') && !e.target.closest('.action-btn')) {
+            // Έλεγχος αν είμαστε στο chat page
+            const isChatPage = document.getElementById('chat-page').classList.contains('active');
+            
+            if (isChatPage && !e.target.closest('.btn-icon') && !e.target.closest('.action-btn')) {
                 this.classList.toggle('mobile-expanded');
-                overlay.classList.toggle('active');
+                
+                // Εμφάνιση overlay ΜΟΝΟ αν είμαστε στο chat page και το sidebar είναι expanded
+                if (this.classList.contains('mobile-expanded')) {
+                    overlay.style.display = 'block';
+                    // Προσθήκη fade-in animation
+                    setTimeout(() => {
+                        overlay.style.opacity = '1';
+                    }, 10);
+                } else {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                    }, 300);
+                }
             }
         });
         
-        // Close sidebar when clicking overlay
+        // ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Close sidebar when clicking overlay - ΜΟΝΟ αν υπάρχει
         overlay.addEventListener('click', function() {
             sidebar.classList.remove('mobile-expanded');
-            this.classList.remove('active');
+            this.style.opacity = '0';
+            setTimeout(() => {
+                this.style.display = 'none';
+            }, 300);
         });
         
-        // Close sidebar when clicking in main chat area
+        // ΒΕΛΤΙΩΣΗ: Close sidebar when clicking in main chat area
         const mainChat = document.getElementById('main-chat');
         if (mainChat) {
             mainChat.addEventListener('click', function() {
-                sidebar.classList.remove('mobile-expanded');
-                overlay.classList.remove('active');
+                if (sidebar.classList.contains('mobile-expanded')) {
+                    sidebar.classList.remove('mobile-expanded');
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                    }, 300);
+                }
             });
         }
     } else {
         // Remove mobile expanded state on larger screens
         if (sidebar) {
             sidebar.classList.remove('mobile-expanded');
+            sidebar.style.width = ''; // Επαναφορά default width
         }
         const overlay = document.querySelector('.sidebar-overlay');
         if (overlay) {
-            overlay.classList.remove('active');
+            overlay.style.display = 'none';
+            overlay.style.opacity = '0';
         }
     }
 }
@@ -2860,10 +2923,38 @@ function isMobileDevice() {
 
 // Update UI elements based on mobile state
 function updateMobileUI() {
-    if (isMobileDevice()) {
+    const isMobile = isMobileDevice();
+    const isChatPage = document.getElementById('chat-page').classList.contains('active');
+    
+    if (isMobile) {
         document.body.classList.add('mobile-view');
+        
+        // ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Αν ΔΕΝ είμαστε στο chat page, κλείνουμε το sidebar και overlay
+        if (!isChatPage) {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                sidebar.classList.remove('mobile-expanded');
+                sidebar.style.width = ''; // Επαναφορά default width
+            }
+            const overlay = document.querySelector('.sidebar-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+                overlay.style.opacity = '0';
+            }
+        }
     } else {
         document.body.classList.remove('mobile-view');
+        // Στην desktop view, αφαιρούμε όλα τα mobile expanded states
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            sidebar.classList.remove('mobile-expanded');
+            sidebar.style.width = ''; // Επαναφορά default width
+        }
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+            overlay.style.opacity = '0';
+        }
     }
 }
 
