@@ -27,6 +27,28 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     
+    <!-- 🔥 FIX: Αφαίρεση σκουράδινου overlay στο mobile -->
+    <style>
+        /* 🔥 FIX: Αφαίρεση σκουράδινου overlay στο mobile */
+        @media (max-width: 768px) {
+            body.sidebar-open #main-chat,
+            body.sidebar-open #messages-container,
+            body.sidebar-open .message-input-container,
+            body.sidebar-open #rooms-page,
+            body.sidebar-open .rooms-container {
+                opacity: 1 !important;
+                filter: none !important;
+                background: inherit !important;
+            }
+            
+            /* Overlay styling */
+            .sidebar-overlay {
+                background: rgba(0, 0, 0, 0.7) !important;
+                backdrop-filter: none !important;
+            }
+        }
+    </style>
+    
     <script>
         // ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Αποθήκευση της τρέχουσας σελίδας ΠΡΙΝ το refresh
         window.addEventListener('beforeunload', function() {
