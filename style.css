@@ -2295,24 +2295,39 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 0;
     }
     
-    /* 🔥 ΓΙΑ MOBILE: ΚΟΥΜΠΙΑ ΣΕ ΣΤΗΛΗ ΜΕ ΜΕΓΑΛΟ GAP */
-    .hero-section #home-cta-logged-out,
+    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: FIX FOR BUTTONS GAP ON MOBILE */
+    /* Για logged-in χρήστη στην αρχική σελίδα */
     .hero-section #home-cta-logged-in {
-        flex-direction: column; /* 🔥 Σε στήλη για mobile */
-        gap: 15px; /* 🔥 ΜΕΓΑΛΟ GAP 15px για mobile */
-        align-items: stretch; /* 🔥 Τεντώστε τα για να γεμίσουν */
+        flex-direction: column !important; /* 🔥 Στήλη για mobile */
+        gap: 15px !important; /* 🔥 ΜΕΓΑΛΟ GAP 15px μεταξύ κουμπιών */
+        align-items: stretch !important; /* 🔥 Τεντώστε τα για να γεμίσουν */
+    }
+    
+    .hero-section #home-cta-logged-in .cta-btn,
+    .hero-section #home-cta-logged-in .cta-btn-secondary {
+        width: 100% !important; /* 🔥 Πλήρες πλάτος σε mobile */
+        max-width: 280px !important; /* 🔥 Αλλά όχι πολύ μεγάλα */
+        margin: 0 auto !important; /* 🔥 Κεντράρισμα */
+        padding: 12px 20px !important;
+        font-size: 0.9rem !important;
+        min-width: auto !important; /* 🔥 Αφαίρεση min-width για mobile */
+    }
+    
+    /* 🔥 ΚΑΙ ΓΙΑ logged-out χρήστη */
+    .hero-section #home-cta-logged-out {
+        flex-direction: column !important;
+        gap: 15px !important;
+        align-items: stretch !important;
     }
     
     .hero-section #home-cta-logged-out .cta-btn,
-    .hero-section #home-cta-logged-out .cta-btn-secondary,
-    .hero-section #home-cta-logged-in .cta-btn,
-    .hero-section #home-cta-logged-in .cta-btn-secondary {
-        width: 100%; /* 🔥 Πλήρες πλάτος σε mobile */
-        max-width: 280px; /* 🔥 Αλλά όχι πολύ μεγάλα */
-        margin: 0 auto !important; /* 🔥 Κεντράρισμα */
-        padding: 12px 20px;
-        font-size: 0.9rem;
-        min-width: auto; /* 🔥 Αφαίρεση min-width για mobile */
+    .hero-section #home-cta-logged-out .cta-btn-secondary {
+        width: 100% !important;
+        max-width: 280px !important;
+        margin: 0 auto !important;
+        padding: 12px 20px !important;
+        font-size: 0.9rem !important;
+        min-width: auto !important;
     }
     
     /* 🔥 ΒΕΛΤΙΩΜΕΝΑ FEATURE CARDS */
@@ -2426,9 +2441,9 @@ body.pwa-mode .pwa-floating-install-button {
         display: flex;
     }
     
-    /* 🔥 ΝΕΟ: Overlay only for chat page - ΣΩΣΤΗ ΕΚΔΟΣΗ */
-    body:has(#chat-page.active) .sidebar-overlay {
-        display: block !important;
+    /* 🔥 Overlay styling - BETTER VERSION */
+    .sidebar-overlay {
+        display: none;
         position: fixed;
         top: 0;
         left: 0;
@@ -2441,14 +2456,15 @@ body.pwa-mode .pwa-floating-install-button {
         pointer-events: none;
     }
     
-    body:has(#chat-page.active) #sidebar.mobile-expanded + .sidebar-overlay {
-        opacity: 1;
-        pointer-events: auto;
+    /* Show overlay only when chat page is active and sidebar is expanded */
+    #chat-page.active ~ .sidebar-overlay,
+    body:has(#chat-page.active) .sidebar-overlay {
+        display: block !important;
     }
     
-    /* Hide overlay on other pages */
-    body:not(:has(#chat-page.active)) .sidebar-overlay {
-        display: none !important;
+    #sidebar.mobile-expanded ~ .sidebar-overlay {
+        opacity: 1;
+        pointer-events: auto;
     }
     
     /* 🔥 ΜΕΓΑΛΗ ΒΕΛΤΙΩΣΗ: MESSAGES CONTAINER - ΣΩΣΤΟ ΣΚΡΟΛ ΚΑΙ ΤΕΛΕΥΤΑΙΟ ΜΗΝΥΜΑ */
@@ -2748,10 +2764,15 @@ body.pwa-mode .pwa-floating-install-button {
     }
     
     /* 🔥 ΚΟΥΜΠΙΑ ΓΙΑ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
-    .hero-section #home-cta-logged-out .cta-btn,
-    .hero-section #home-cta-logged-out .cta-btn-secondary,
     .hero-section #home-cta-logged-in .cta-btn,
     .hero-section #home-cta-logged-in .cta-btn-secondary {
+        padding: 10px 16px;
+        font-size: 0.85rem;
+        max-width: 220px;
+    }
+    
+    .hero-section #home-cta-logged-out .cta-btn,
+    .hero-section #home-cta-logged-out .cta-btn-secondary {
         padding: 10px 16px;
         font-size: 0.85rem;
         max-width: 220px;
