@@ -2811,44 +2811,225 @@ function initMobileSidebar() {
     const isMobile = window.innerWidth <= 768;
     
     if (isMobile && sidebar) {
-        // Create overlay
+        // Δημιουργία overlay μόνο αν δεν υπάρχει
         let overlay = document.querySelector('.sidebar-overlay');
         if (!overlay) {
             overlay = document.createElement('div');
             overlay.className = 'sidebar-overlay';
+            overlay.style.cssText = `
+                display: none;
+                position: fixed;
+                top: 66px;
+                left: 0;
+                width: 100%;
+                height: calc(100% - 66px);
+                background: rgba(0, 0, 0, 0);
+                z-index: 1000;
+                transition: background 0.3s ease;
+            `;
             document.body.appendChild(overlay);
         }
         
-        // Toggle sidebar on click
-        sidebar.addEventListener('click', function(e) {
-            if (!e.target.closest('.btn-icon') && !e.target.closest('.action-btn')) {
-                this.classList.toggle('mobile-expanded');
-                overlay.classList.toggle('active');
+        // Δημιουργία κουμπιού toggle για mobile
+        let toggleBtn = sidebar.querySelector('.mobile-sidebar-toggle');
+        if (!toggleBtn) {
+            toggleBtn = document.createElement('div');
+            toggleBtn.className = 'mobile-sidebar-toggle';
+            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
+            toggleBtn.style.cssText = `
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                width: 40px;
+                height: 40px;
+                background: rgba(38, 38, 38, 0.9);
+                border-radius: var(--radius);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                z-index: 1001;
+                border: 1px solid var(--border-color);
+                color: var(--text);
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            `;
+            sidebar.appendChild(toggleBtn);
+        }
+        
+        // Συνάρτηση toggle sidebar
+        function toggleSidebar() {
+            const isExpanded = sidebar.classList.contains('mobile-expanded');
+            
+            if (isExpanded) {
+                // Κλείσιμο sidebar
+                sidebar.classList.remove('mobile-expanded');
+                overlay.style.display = 'none';
+                setTimeout(() => {
+                    overlay.style.background = 'rgba(0, 0, 0, 0)';
+                }, 10);
+            } else {
+                // Άνοιγμα sidebar
+                sidebar.classList.add('mobile-expanded');
+                overlay.style.display = 'block';
+                setTimeout(() => {
+                    overlay.style.background = 'rgba(0, 0, 0, 0.5)';
+                }, 10);
             }
+        }
+        
+        // Προσθήκη events στο toggle button
+        toggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleSidebar();
         });
         
-        // Close sidebar when clicking overlay
+        // Κλείσιμο sidebar όταν κλικάρεις στο overlay
         overlay.addEventListener('click', function() {
             sidebar.classList.remove('mobile-expanded');
-            this.classList.remove('active');
+            this.style.display = 'none';
+            this.style.background = 'rgba(0, 0, 0, 0)';
         });
         
-        // Close sidebar when clicking in main chat area
+        // Κλείσιμο sidebar όταν κλικάρεις σε κενό χώρο στο main chat
         const mainChat = document.getElementById('main-chat');
         if (mainChat) {
-            mainChat.addEventListener('click', function() {
-                sidebar.classList.remove('mobile-expanded');
-                overlay.classList.remove('active');
+            mainChat.addEventListener('click', function(e) {
+                if (sidebar.classList.contains('mobile-expanded')) {
+                    // Κλείνουμε μόνο αν δεν κλικάρουμε σε input ή κουμπί
+                    if (!e.target.closest('#message-input') &&
+                        !e.target.closest('.send-btn') &&
+                        !e.target.closest('.action-btn') &&
+                        !e.target.closest('.input-action-btn')) {
+                        sidebar.classList.remove('mobile-expanded');
+                        overlay.style.display = 'none';
+                        overlay.style.background = 'rgba(0, 0, 0, 0)';
+                    }
+                }
             });
         }
+        
+        // Προσθήκη custom CSS για το mobile sidebar
+        if (!document.getElementById('mobile-sidebar-css')) {
+            const style = document.createElement('style');
+            style.id = 'mobile-sidebar-css';
+            style.textContent = `
+                /* 🔥 FIXED MOBILE SIDEBAR - ΧΩΡΙΣ ΣΚΟΥΡΑΔΙΜΑ */
+                @media (max-width: 768px) {
+                    /* Βάσικο sidebar styling */
+                    #sidebar {
+                        position: fixed;
+                        left: 0;
+                        top: 66px;
+                        height: calc(100vh - 66px);
+                        z-index: 1001;
+                        transform: translateX(-100%);
+                        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                        box-shadow: 2px 0 20px rgba(0, 0, 0, 0.8);
+                        width: 280px !important;
+                        background: rgba(38, 38, 38, 0.95) !important;
+                        backdrop-filter: blur(20px) !important;
+                    }
+                    
+                    /* Άνοιγμα sidebar */
+                    #sidebar.mobile-expanded {
+                        transform: translateX(0) !important;
+                    }
+                    
+                    /* Τα στοιχεία μέσα στο sidebar */
+                    #sidebar .sidebar-header,
+                    #sidebar .room-details,
+                    #sidebar .room-members-section,
+                    #sidebar .user-profile {
+                        padding: 15px !important;
+                    }
+                    
+                    /* Compact view όταν είναι κλειστό (για να μην εμφανίζεται) */
+                    #sidebar:not(.mobile-expanded) {
+                        transform: translateX(-100%) !important;
+                    }
+                    
+                    /* Overlay styling - TRANSPARENT, δεν σκουραίνει την οθόνη */
+                    .sidebar-overlay {
+                        background: rgba(0, 0, 0, 0) !important;
+                        backdrop-filter: none !important;
+                    }
+                    
+                    /* Βεβαιώνουμε ότι το main chat δεν επηρεάζεται */
+                    #main-chat {
+                        opacity: 1 !important;
+                        filter: none !important;
+                        background: rgba(26, 26, 26, 0.5) !important;
+                    }
+                    
+                    #messages-container {
+                        background: rgba(26, 26, 26, 0.5) !important;
+                        opacity: 1 !important;
+                    }
+                    
+                    .message-input-container {
+                        background: rgba(38, 38, 38, 0.95) !important;
+                        opacity: 1 !important;
+                    }
+                    
+                    /* Βεβαιώνουμε ότι οι άλλες σελίδες δεν επηρεάζονται */
+                    #rooms-page,
+                    #friends-page,
+                    #profile-page,
+                    #home-page {
+                        opacity: 1 !important;
+                        filter: none !important;
+                        background: transparent !important;
+                    }
+                    
+                    /* Τα rooms δεν πρέπει να σκουραίνουν */
+                    .rooms-container,
+                    .rooms-list,
+                    .room-card {
+                        opacity: 1 !important;
+                        filter: none !important;
+                        background: transparent !important;
+                    }
+                }
+                
+                @media (max-width: 480px) {
+                    #sidebar {
+                        width: 250px !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
     } else {
-        // Remove mobile expanded state on larger screens
+        // Καθαρισμός για μεγάλες οθόνες
         if (sidebar) {
             sidebar.classList.remove('mobile-expanded');
+            sidebar.style.transform = '';
+            sidebar.style.position = '';
+            sidebar.style.height = '';
+            sidebar.style.top = '';
+            sidebar.style.boxShadow = '';
+            sidebar.style.width = '';
+            sidebar.style.background = '';
+            sidebar.style.backdropFilter = '';
         }
+        
+        // Αφαίρεση overlay
         const overlay = document.querySelector('.sidebar-overlay');
         if (overlay) {
-            overlay.classList.remove('active');
+            overlay.style.display = 'none';
+        }
+        
+        // Αφαίρεση toggle button
+        const toggleBtn = sidebar?.querySelector('.mobile-sidebar-toggle');
+        if (toggleBtn) {
+            toggleBtn.remove();
+        }
+        
+        // Αφαίρεση mobile CSS
+        const mobileCSS = document.getElementById('mobile-sidebar-css');
+        if (mobileCSS) {
+            mobileCSS.remove();
         }
     }
 }
