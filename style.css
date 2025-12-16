@@ -2241,18 +2241,21 @@ body.pwa-mode .pwa-floating-install-button {
 
 
 /* ========================================
-   MOBILE RESPONSIVE FIXES - UPDATED
+   MOBILE RESPONSIVE FIXES - ΒΑΣΙΚΕΣ ΔΙΟΡΘΩΣΕΙΣ
    ======================================== */
 
 @media (max-width: 768px) {
-    /* 🔥 FIX 1: Navigation - Μείωση logo για να φαίνεται το Friends tab */
+    /* 🔥 FIX 1: NAVIGATION - Χωρίς κενά δεξιά, μικρότερο logo, όλα τα tabs ορατά */
     #main-nav {
-        padding: 6px 12px;
-        flex-wrap: nowrap;
+        padding: 8px 10px;
+        display: flex;
         justify-content: space-between;
-        gap: 6px;
-        overflow-x: auto;
-        overflow-y: hidden;
+        align-items: center;
+        flex-wrap: nowrap;
+        overflow: hidden;
+        max-width: 100%;
+        width: 100%;
+        gap: 5px;
     }
     
     .nav-brand {
@@ -2261,9 +2264,9 @@ body.pwa-mode .pwa-floating-install-button {
     }
     
     .nav-brand .nav-btn {
-        width: 140px;
-        min-width: 140px;
-        max-width: 140px;
+        width: 120px;
+        min-width: 120px;
+        max-width: 120px;
         height: 35px;
         padding: 0;
         margin: 0;
@@ -2274,35 +2277,37 @@ body.pwa-mode .pwa-floating-install-button {
         height: 100%;
         object-fit: contain;
         object-position: left center;
-        min-width: auto;
-        min-height: auto;
     }
     
     .nav-actions {
         display: flex;
-        gap: 5px;
+        gap: 4px;
         flex-wrap: nowrap;
-        justify-content: flex-end;
-        flex-shrink: 0;
-        min-width: 0;
         overflow-x: auto;
+        overflow-y: hidden;
         padding: 2px 0;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        min-width: 0;
+        flex: 1;
+        justify-content: flex-end;
+    }
+    
+    .nav-actions::-webkit-scrollbar {
+        display: none;
     }
     
     .nav-btn {
         padding: 8px 10px;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         min-width: auto;
         white-space: nowrap;
         flex-shrink: 0;
         height: 35px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
     
     .nav-btn i {
-        margin-right: 5px;
+        margin-right: 4px;
         font-size: 0.8em;
     }
     
@@ -2310,13 +2315,102 @@ body.pwa-mode .pwa-floating-install-button {
         display: none;
     }
     
-    /* Βεβαιώσου ότι όλα τα buttons έχουν ίδιο ύψος */
-    #nav-logged-in, #nav-logged-out {
-        height: 35px;
-        align-items: center;
+    /* 🔥 FIX 2: CHAT LAYOUT - Ακριβώς ίδιο με desktop, ΧΩΡΙΣ κενό κάτω από το send */
+    .chat-layout {
+        flex-direction: row;
+        height: calc(100vh - 66px);
     }
     
-    /* 🔥 FIX 2: Hero Section */
+    #sidebar {
+        width: 70px;
+        min-width: 70px;
+        transition: width 0.3s ease;
+    }
+    
+    #sidebar.mobile-expanded {
+        width: 280px;
+    }
+    
+    /* Στο mobile, κρύβουμε τα labels και text όταν το sidebar είναι collapsed */
+    .sidebar-header h2,
+    .room-info span,
+    .invite-code-section label,
+    .invite-code-display span,
+    .room-members-section h3,
+    .member-info,
+    .profile-info {
+        display: none;
+    }
+    
+    #sidebar.mobile-expanded .sidebar-header h2,
+    #sidebar.mobile-expanded .room-info span,
+    #sidebar.mobile-expanded .invite-code-section label,
+    #sidebar.mobile-expanded .invite-code-display span,
+    #sidebar.mobile-expanded .room-members-section h3,
+    #sidebar.mobile-expanded .member-info,
+    #sidebar.mobile-expanded .profile-info {
+        display: block;
+    }
+    
+    #sidebar.mobile-expanded .member-info,
+    #sidebar.mobile-expanded .profile-info {
+        display: flex;
+    }
+    
+    .member-item {
+        justify-content: center;
+        padding: 10px;
+    }
+    
+    .member-avatar {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .invite-code-display {
+        justify-content: center;
+        padding: 10px;
+    }
+    
+    /* 🔥 FIX 3: ΚΑΝΕΝΑ ΚΕΝΟ ΚΑΤΩ ΑΠΟ ΤΟ SEND BUTTON */
+    .message-input-container {
+        padding: 12px 15px;
+        position: relative;
+        z-index: 5;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    #main-chat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #messages-container {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+    }
+    
+    /* 🔥 FIX 4: PREVENT ZOOM ON MOBILE */
+    @viewport {
+        width: device-width;
+        zoom: 1.0;
+        user-zoom: fixed;
+    }
+    
+    @-ms-viewport {
+        width: device-width;
+    }
+    
+    html {
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        touch-action: manipulation;
+    }
+    
+    /* 🔥 FIX 5: HERO SECTION */
     .hero-section {
         padding: 40px 15px !important;
     }
@@ -2327,122 +2421,16 @@ body.pwa-mode .pwa-floating-install-button {
     
     .hero-section p {
         font-size: 1rem !important;
-        max-width: 100%;
-        padding: 0 10px;
     }
     
-    .cta-btn, 
-    .cta-btn-secondary {
-        padding: 12px 16px;
-        font-size: 0.9rem;
-        margin: 8px auto;
-        display: block;
-        width: 90%;
-        max-width: 250px;
-    }
-    
-    /* 🔥 FIX 3: Feature Cards */
+    /* 🔥 FIX 6: FEATURE CARDS */
     .features-grid {
         grid-template-columns: 1fr !important;
         gap: 15px;
         padding: 30px 15px !important;
     }
     
-    .feature-card {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 auto !important;
-        padding: 20px !important;
-    }
-    
-    /* 🔥 FIX 4: Room Cards */
-    .rooms-list {
-        grid-template-columns: 1fr !important;
-        gap: 15px;
-        padding: 0 5px;
-    }
-    
-    .room-card {
-        margin: 0;
-        padding: 15px;
-    }
-    
-    /* 🔥 FIX 5: Friends Page */
-    .friend-card {
-        flex-direction: column;
-        gap: 10px;
-        padding: 15px;
-    }
-    
-    .friend-info {
-        width: 100%;
-        justify-content: center;
-        text-align: center;
-    }
-    
-    .friend-actions {
-        width: 100%;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 5px;
-    }
-    
-    /* 🔥 FIX 6: Chat Layout - Πιο σημαντικό για το rooms style */
-    .chat-layout {
-        flex-direction: column;
-        height: calc(100vh - 60px);
-        position: relative;
-    }
-    
-    #sidebar {
-        width: 100%;
-        height: auto;
-        max-height: 200px;
-        overflow-y: auto;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-        order: 2; /* Μετακινεί το sidebar ΚΑΤΩ στο mobile */
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 10;
-    }
-    
-    #main-chat {
-        flex: 1;
-        height: 100%;
-        order: 1; /* Το main-chat ΠΑΝΩ */
-        margin-bottom: 200px; /* Χώρος για το sidebar */
-    }
-    
-    /* 🔥 FIX 7: Βασικό fix για rooms στο mobile - ο χρήστης να είναι ΚΑΤΩ από το send */
-    .message-input-container {
-        order: 2;
-        margin-bottom: 60px; /* Χώρος για τον χρήστη */
-    }
-    
-    /* 🔥 FIX 8: User profile στο sidebar να μετακινηθεί ΚΑΤΩ στο mobile */
-    .user-profile {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: rgba(38, 38, 38, 0.95);
-        z-index: 100;
-        padding: 10px 15px;
-        border-top: 1px solid var(--border-color);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    /* 🔥 FIX 9: Βεβαιώσου ότι τα messages είναι εντός container */
-    #messages-container {
-        padding-bottom: 100px; /* Χώρος για input και user */
-    }
-    
-    /* 🔥 FIX 10: Rooms Header */
+    /* 🔥 FIX 7: ROOMS PAGE */
     .rooms-header {
         flex-direction: column;
         gap: 15px;
@@ -2458,40 +2446,35 @@ body.pwa-mode .pwa-floating-install-button {
         width: 100%;
     }
     
-    /* 🔥 FIX 11: Αφαίρεση κενών στο mobile rooms layout */
-    .chat-header {
-        padding: 10px 15px;
-        min-height: 60px;
+    .rooms-list {
+        grid-template-columns: 1fr !important;
     }
     
-    #messages-container {
-        padding: 15px 10px;
-        min-height: calc(100vh - 180px); /* Προσαρμογή ύψους */
+    /* 🔥 FIX 8: FRIENDS PAGE */
+    .friend-card {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .friend-actions {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
     }
 }
 
-/* 🔥 FIX: Extra small devices - Επιπλέον βελτιώσεις */
+/* 🔥 FIX: Extra small devices */
 @media (max-width: 480px) {
-    #main-nav {
-        padding: 5px 8px;
-        gap: 4px;
-    }
-    
     .nav-brand .nav-btn {
-        width: 110px;
-        min-width: 110px;
-        max-width: 110px;
+        width: 100px;
+        min-width: 100px;
+        max-width: 100px;
         height: 32px;
-    }
-    
-    .nav-actions {
-        gap: 3px;
     }
     
     .nav-btn {
         padding: 6px 8px;
-        font-size: 0.7rem;
-        height: 32px;
+        font-size: 0.65rem;
     }
     
     .nav-btn span:not(.nav-badge) {
@@ -2503,81 +2486,40 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.9em;
     }
     
-    /* 🔥 FIX: Show text only on hover/tap για πολύ μικρές οθόνες */
-    .nav-btn:hover span,
-    .nav-btn:active span {
+    /* Show text on tap for very small screens */
+    .nav-btn:active span,
+    .nav-btn:focus span {
         display: inline;
         margin-left: 4px;
-    }
-    
-    /* 🔥 FIX: Καλύτερο room header */
-    .rooms-header {
-        flex-direction: column;
-        gap: 10px;
-        align-items: stretch;
-    }
-    
-    .rooms-actions {
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .rooms-actions .btn {
-        width: 100%;
-    }
-    
-    /* 🔥 FIX: Feature Cards για πολύ μικρές οθόνες */
-    .features-grid {
-        padding: 20px 10px !important;
-        gap: 12px;
     }
     
     .feature-card {
         padding: 15px !important;
     }
     
-    .feature-icon i {
-        font-size: 1.8rem !important;
+    .hero-section {
+        padding: 30px 10px !important;
     }
     
-    .feature-card h3 {
-        font-size: 1.1rem !important;
+    .hero-section h1 {
+        font-size: 1.5rem !important;
     }
     
-    .feature-card p {
-        font-size: 0.85rem !important;
-        line-height: 1.4;
-    }
-    
-    /* 🔥 FIX: Mobile chat layout βελτιώσεις */
-    .chat-layout {
-        flex-direction: column;
-    }
-    
-    #main-chat {
-        margin-bottom: 160px;
-    }
-    
-    #sidebar {
-        max-height: 160px;
-    }
-    
-    .message-input-container {
-        margin-bottom: 50px;
-    }
-    
-    #messages-container {
-        padding-bottom: 80px;
+    .cta-btn, .cta-btn-secondary {
+        padding: 10px 16px;
+        font-size: 0.85rem;
+        margin: 5px 0;
+        width: 100%;
+        max-width: 200px;
     }
 }
 
-/* 🔥 FIX: Special case για πολύ στενές οθόνες */
+/* 🔥 FIX: Very small screens */
 @media (max-width: 360px) {
     .nav-brand .nav-btn {
-        width: 90px;
-        min-width: 90px;
-        max-width: 90px;
-        height: 28px;
+        width: 80px;
+        min-width: 80px;
+        max-width: 80px;
     }
     
     .nav-actions {
@@ -2586,519 +2528,91 @@ body.pwa-mode .pwa-floating-install-button {
     
     .nav-btn {
         padding: 5px 6px;
-        font-size: 0.65rem;
-        height: 28px;
+        font-size: 0.6rem;
     }
     
-    /* 🔥 FIX: Κάνε όλα τα buttons icon-only */
+    /* Make all buttons icon-only */
     .nav-btn span {
         display: none !important;
     }
     
     .nav-btn i {
         margin: 0;
-        font-size: 0.9em;
-    }
-    
-    /* 🔥 FIX: Profile page adjustments */
-    .profile-image-wrapper {
-        width: 100px;
-        height: 100px;
-    }
-    
-    .stats-grid {
-        grid-template-columns: 1fr !important;
-        gap: 10px;
-    }
-    
-    .stat-item {
-        padding: 10px;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-    }
-    
-    .profile-actions {
-        flex-direction: column;
-    }
-    
-    /* 🔥 FIX: Ακόμα πιο συμπαγές mobile chat */
-    #main-chat {
-        margin-bottom: 140px;
+        font-size: 0.8em;
     }
     
     #sidebar {
-        max-height: 140px;
+        width: 60px;
+        min-width: 60px;
     }
     
-    .user-profile {
-        padding: 8px 10px;
-    }
-    
-    .message-input-container {
-        margin-bottom: 45px;
-        padding: 10px 12px;
-    }
-    
-    #chat-form {
-        gap: 4px;
-    }
-    
-    #message-input {
-        padding: 10px 12px;
-        font-size: 0.9rem;
-    }
-    
-    .send-btn {
-        padding: 10px 16px;
-        font-size: 0.9rem;
+    #sidebar.mobile-expanded {
+        width: 260px;
     }
 }
 
-/* 🔥 FIX: Tablet landscape adjustments */
+/* 🔥 FIX: Tablet landscape */
 @media (max-width: 1024px) and (orientation: landscape) {
-    .chat-layout {
-        flex-direction: row;
-    }
-    
-    #sidebar {
-        width: 250px;
-        max-height: 100%;
-        border-right: 1px solid var(--border-color);
-        border-bottom: none;
-        position: relative;
-        order: 1;
-    }
-    
-    #main-chat {
-        height: 100%;
-        margin-bottom: 0;
-        order: 2;
-    }
-    
-    .user-profile {
-        position: relative;
-        bottom: auto;
-        left: auto;
-        right: auto;
-    }
-    
-    .message-input-container {
-        margin-bottom: 0;
-        order: 3;
-    }
-    
-    #main-nav {
-        padding: 8px 15px;
-    }
-    
-    .nav-brand .nav-btn {
-        width: 200px;
-        min-width: 200px;
-        max-width: 200px;
-    }
-    
-    /* 🔥 FIX: Feature cards για tablets - 2 columns */
     .features-grid {
         grid-template-columns: repeat(2, 1fr) !important;
-        gap: 20px;
-        padding: 50px 30px !important;
-    }
-    
-    /* Αν ο αριθμός των feature cards είναι περιττός, το τελευταίο να είναι full-width */
-    .features-grid .feature-card:nth-child(3):last-child {
-        grid-column: 1 / -1;
-        max-width: 600px;
-        margin: 0 auto;
     }
 }
 
-/* 🔥 FIX: Βεβαιώσου ότι το notification container δεν επικαλύπτει το nav */
-@media (max-width: 768px) {
-    .notification-container {
-        top: 55px;
-        right: 10px;
-        max-width: 280px;
-    }
+/* Special fixes */
+.notification-container {
+    top: 70px;
+    right: 10px;
 }
 
-/* Extra small devices */
-@media (max-width: 480px) {
-    /* 🔥 FIX: PWA Button mobile */
-    .pwa-floating-install-button {
-        bottom: 15px;
-        right: 15px;
-        padding: 12px 16px;
-        font-size: 0.85rem;
-    }
-    
-    .pwa-floating-install-button .install-text {
-        display: none;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.3rem;
-        margin: 0;
-    }
-    
-    .pwa-floating-install-button {
-        width: 56px;
-        height: 56px;
-        padding: 0;
-        border-radius: 50%;
-        justify-content: center;
-        align-items: center;
-    }
-    
-    /* 🔥 FIX: Notification count badge κρύβεται σε πολύ μικρές οθόνες */
-    .notification-count-badge {
-        display: none;
-    }
-    
-    /* 🔥 FIX: Smaller badges */
-    .friend-badge,
-    .room-badge {
-        min-width: 16px;
-        height: 16px;
-        font-size: 0.55rem;
-        top: 3px;
-        right: 3px;
-    }
-    
-    /* 🔥 FIX: Ακόμα πιο συμπαγές chat layout */
-    #messages-container {
-        padding: 12px 8px;
-        padding-bottom: 70px;
-    }
-    
-    .message {
-        max-width: 85%;
-        padding: 10px 12px;
-    }
-    
-    .message-header {
-        margin-bottom: 3px;
-    }
-    
-    .message-sender {
-        font-size: 0.8rem;
-    }
-    
-    .message-time {
-        font-size: 0.65rem;
-    }
-    
-    .message-text {
-        font-size: 0.9rem;
-        line-height: 1.3;
-    }
-}
-
-/* Extra small devices */
-@media (max-width: 360px) {
-    .pwa-floating-install-button {
-        bottom: 10px;
-        right: 10px;
-        width: 50px;
-        height: 50px;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.2rem;
-    }
-    
-    .notification-container {
-        right: 5px;
-        max-width: 280px;
-    }
-    
-    .notification {
-        max-width: 280px;
-        padding: 10px 14px;
-    }
-    
-    /* 🔥 FIX: Ελάχιστο chat layout */
-    #main-chat {
-        margin-bottom: 120px;
-    }
-    
-    #sidebar {
-        max-height: 120px;
-    }
-    
-    .member-item {
-        padding: 8px 10px;
-    }
-    
-    .member-avatar {
-        width: 28px;
-        height: 28px;
-        font-size: 0.7rem;
-    }
-    
-    .member-name {
-        font-size: 0.8rem;
-    }
-    
-    .member-joined {
-        font-size: 0.7rem;
-    }
-}
-
-/* Tablet responsive (landscape) */
-@media (max-width: 1024px) {
-    .pwa-floating-install-button {
-        bottom: 25px;
-        right: 25px;
-        padding: 14px 20px;
-        font-size: 0.95rem;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.2rem;
-    }
-}
-
-/* Special case: Αποφυγή επικάλυψης με notification container */
 .notification-container~.pwa-floating-install-button {
-    bottom: 30px;
+    bottom: 25px;
 }
 
-/* Βεβαιώσου ότι buttons με badges έχουν σωστό spacing */
-.nav-btn.has-badge {
-    padding-right: 30px;
-}
-
-/* Loading states */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-/* Empty states styling */
-.empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-muted);
-}
-
-.empty-state i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    color: var(--accent-red);
-    opacity: 0.5;
-}
-
-.empty-state h3 {
-    margin-bottom: 0.5rem;
-    color: var(--text);
-}
-
-.empty-state p {
-    margin-bottom: 1.5rem;
-}
-
-/* Error states */
-.error-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--accent-red);
-}
-
-.error-state i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-.error-state h3 {
-    margin-bottom: 0.5rem;
-}
-
-/* Success states */
-.success-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--success);
-}
-
-.success-state i {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-.success-state h3 {
-    margin-bottom: 0.5rem;
-}
-
-/* Connection status indicator */
-.connection-status {
-    position: fixed;
-    bottom: 10px;
-    left: 10px;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: rgba(26, 26, 26, 0.9);
-    padding: 5px 10px;
-    border-radius: var(--radius);
-    font-size: 0.8rem;
-    color: var(--text-light);
-}
-
-.connection-status.connected {
-    color: var(--success);
-}
-
-.connection-status.disconnected {
-    color: var(--accent-red);
-}
-
-.connection-status.connecting {
-    color: var(--warning);
-}
-
-.connection-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-
-.connection-dot.connected {
-    background: var(--success);
-    animation: pulse 2s infinite;
-}
-
-.connection-dot.disconnected {
-    background: var(--accent-red);
-}
-
-.connection-dot.connecting {
-    background: var(--warning);
-    animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-    0%,
-    100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-/* Better message text wrapping */
+/* Βεβαιώσου ότι τα messages έχουν σωστό wrapping */
 .message-text {
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow-wrap: break-word;
     word-break: break-word;
-    line-height: 1.5;
+    line-height: 1.4;
 }
 
-/* 🔥 ΒΑΣΙΚΟ FIX: Όταν είσαι στα rooms στο mobile, ο χρήστης να είναι ΚΑΤΩ από το send button */
-@media (max-width: 768px) {
-    .chat-layout {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-    }
-    
-    #sidebar {
-        order: 3; /* Τρίτο - ΚΑΤΩ */
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
-        max-height: 180px;
-        border-top: 1px solid var(--border-color);
-        border-bottom: none;
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.7);
-    }
-    
-    #main-chat {
-        order: 1; /* Πρώτο - ΠΑΝΩ */
-        height: calc(100vh - 180px);
-        margin-bottom: 0;
-    }
-    
-    .message-input-container {
-        order: 2; /* Δεύτερο - στη μέση */
-        margin-bottom: 0;
-        border-bottom: 1px solid var(--border-color);
-    }
-    
-    /* Βεβαιώσου ότι τα messages δεν επικαλύπτονται */
-    #messages-container {
-        padding-bottom: 20px;
-        max-height: calc(100vh - 250px);
-        overflow-y: auto;
-    }
-    
-    /* Βεβαιώσου ότι ο χρήστης φαίνεται στο bottom */
-    .user-profile {
-        position: relative;
-        margin-top: auto;
-    }
-    
-    /* Αν χρειάζεται, κάνε το room members list κρυφό όταν δεν χρησιμοποιείται */
-    .room-members-section {
-        max-height: 100px;
-        overflow-y: auto;
-    }
-}
-
-/* 🔥 Επιπλέον βελτιώσεις για πολύ μικρές οθόνες στα rooms */
-@media (max-width: 480px) {
-    #sidebar {
-        max-height: 160px;
-    }
-    
-    #main-chat {
-        height: calc(100vh - 160px);
-    }
-    
-    #messages-container {
-        max-height: calc(100vh - 230px);
-    }
-    
-    .chat-header {
-        min-height: 50px;
-        padding: 8px 12px;
-    }
-    
-    .chat-info h2 {
-        font-size: 1.1rem;
-    }
-    
-    .chat-description {
-        font-size: 0.75rem;
-    }
-}
-
-/* 🔥 FIX: Για να είναι ακριβώς ίδιο με τον υπολογιστή στο rooms layout */
+/* 🔥 FIX: Βεβαιώσου ότι το chat layout είναι ίδιο με desktop */
 @media (min-width: 769px) {
-    /* Στον υπολογιστή, όλα παραμένουν όπως ήταν */
+    /* Στον υπολογιστή, όλα παραμένουν ακριβώς όπως ήταν */
     .chat-layout {
         flex-direction: row;
     }
     
     #sidebar {
-        order: 1;
-        position: relative;
         width: 280px;
     }
     
     #main-chat {
-        order: 2;
-        height: auto;
-        margin-bottom: 0;
+        flex: 1;
     }
     
-    .message-input-container {
-        order: 3;
+    /* Όλα τα στοιχεία του sidebar είναι ορατά */
+    .sidebar-header h2,
+    .room-info span,
+    .invite-code-section label,
+    .invite-code-display span,
+    .room-members-section h3,
+    .member-info,
+    .profile-info {
+        display: block;
+    }
+    
+    .member-info,
+    .profile-info {
+        display: flex;
+    }
+    
+    .member-item {
+        justify-content: flex-start;
+    }
+    
+    .invite-code-display {
+        justify-content: space-between;
     }
 }
