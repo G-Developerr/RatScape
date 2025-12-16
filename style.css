@@ -214,12 +214,15 @@ body {
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
-/* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΠΡΟΣΘΗΚΗ ΚΕΝΟΥ ΑΝΑΜΕΣΑ ΣΤΑ ΚΟΥΜΠΙΑ */
-.home-cta-logged-out,
-.home-cta-logged-in {
+/* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΜΕΓΑΛΗ ΑΠΟΣΤΑΣΗ 25px ΑΝΑΜΕΣΑ ΣΕ ΟΛΑ ΤΑ ΚΟΥΜΠΙΑ ΣΤΗΝ ΑΡΧΙΚΗ ΣΕΛΙΔΑ */
+.hero-section #home-cta-logged-out,
+.hero-section #home-cta-logged-in {
     display: flex;
-    gap: 15px; /* 🔥 Προσθήκη κενού αναμεσα στα κουμπιά */
+    flex-direction: row; /* 🔥 Στήνε τα κουμπιά το ένα δίπλα στο άλλο */
+    gap: 25px; /* 🔥 ΜΕΓΑΛΗ ΑΠΟΣΤΑΣΗ 25px */
     justify-content: center;
+    align-items: center;
+    margin-top: 20px;
     flex-wrap: wrap;
 }
 
@@ -233,8 +236,10 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    margin: 0 !important; /* 🔥 Μηδενισμός margin για να λειτουργεί το gap */
-    flex: 0 0 auto;
+    margin: 0 !important; /* 🔥 Μηδενισμός κάθε margin */
+    flex: 0 0 auto; /* 🔥 Να μην αλλάζουν μέγεθος */
+    min-width: 180px; /* 🔥 Ελάχιστο πλάτος για να είναι ίδιο μέγεθος */
+    text-align: center;
 }
 
 .cta-btn:hover {
@@ -253,14 +258,25 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    margin: 0 !important; /* 🔥 Μηδενισμός margin για να λειτουργεί το gap */
-    flex: 0 0 auto;
+    margin: 0 !important; /* 🔥 Μηδενισμός κάθε margin */
+    flex: 0 0 auto; /* 🔥 Να μην αλλάζουν μέγεθος */
+    min-width: 180px; /* 🔥 Ελάχιστο πλάτος για να είναι ίδιο μέγεθος */
+    text-align: center;
 }
 
 .cta-btn-secondary:hover {
     background: var(--accent-red);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
+}
+
+/* 🔥 ΒΕΛΤΙΩΣΗ: Κινούμενη σκιά για να φαίνονται ξεχωριστά */
+.hero-section #home-cta-logged-out .cta-btn:hover,
+.hero-section #home-cta-logged-out .cta-btn-secondary:hover,
+.hero-section #home-cta-logged-in .cta-btn:hover,
+.hero-section #home-cta-logged-in .cta-btn-secondary:hover {
+    box-shadow: 0 8px 20px rgba(255, 0, 0, 0.4);
+    transform: translateY(-3px);
 }
 
 .features-grid {
@@ -2279,21 +2295,24 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 0;
     }
     
-    .home-cta-logged-out,
-    .home-cta-logged-in {
-        display: flex;
-        flex-direction: column;
-        gap: 15px; /* 🔥 Περισσότερο κενό στα κουμπιά για mobile */
-        align-items: center;
+    /* 🔥 ΓΙΑ MOBILE: ΚΟΥΜΠΙΑ ΣΕ ΣΤΗΛΗ ΜΕ ΜΕΓΑΛΟ GAP */
+    .hero-section #home-cta-logged-out,
+    .hero-section #home-cta-logged-in {
+        flex-direction: column; /* 🔥 Σε στήλη για mobile */
+        gap: 15px; /* 🔥 ΜΕΓΑΛΟ GAP 15px για mobile */
+        align-items: stretch; /* 🔥 Τεντώστε τα για να γεμίσουν */
     }
     
-    .cta-btn,
-    .cta-btn-secondary {
+    .hero-section #home-cta-logged-out .cta-btn,
+    .hero-section #home-cta-logged-out .cta-btn-secondary,
+    .hero-section #home-cta-logged-in .cta-btn,
+    .hero-section #home-cta-logged-in .cta-btn-secondary {
+        width: 100%; /* 🔥 Πλήρες πλάτος σε mobile */
+        max-width: 280px; /* 🔥 Αλλά όχι πολύ μεγάλα */
+        margin: 0 auto !important; /* 🔥 Κεντράρισμα */
         padding: 12px 20px;
         font-size: 0.9rem;
-        width: 100%;
-        max-width: 250px;
-        margin: 0 !important;
+        min-width: auto; /* 🔥 Αφαίρεση min-width για mobile */
     }
     
     /* 🔥 ΒΕΛΤΙΩΜΕΝΑ FEATURE CARDS */
@@ -2728,8 +2747,11 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.85rem;
     }
     
-    .cta-btn,
-    .cta-btn-secondary {
+    /* 🔥 ΚΟΥΜΠΙΑ ΓΙΑ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
+    .hero-section #home-cta-logged-out .cta-btn,
+    .hero-section #home-cta-logged-out .cta-btn-secondary,
+    .hero-section #home-cta-logged-in .cta-btn,
+    .hero-section #home-cta-logged-in .cta-btn-secondary {
         padding: 10px 16px;
         font-size: 0.85rem;
         max-width: 220px;
