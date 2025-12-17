@@ -2223,7 +2223,7 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 /* ========================================
-   🔥 ΚΡΙΤΙΚΕΣ ΑΛΛΑΓΕΣ ΓΙΑ MOBILE RESPONSIVE - FIXED CHAT INPUT
+   🔥 ΚΡΙΤΙΚΕΣ ΑΛΛΑΓΕΣ ΓΙΑ MOBILE RESPONSIVE - FIXED CHAT INPUT (ΧΩΡΙΣ ΔΙΑΧΩΡΙΣΤΙΚΟ)
    ======================================== */
 
 @media (max-width: 768px) {
@@ -2504,7 +2504,7 @@ body.pwa-mode .pwa-floating-install-button {
         line-height: 1.4;
     }
     
-    /* 🔥 ΣΗΜΑΝΤΙΚΟ FIX: INPUT AREA - ΣΤΑΘΕΡΟ ΣΤΟ BOTTOM, ΕΜΦΑΝΙΣΙΜΟ */
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ FIX: INPUT AREA - ΧΩΡΙΣ ΔΙΑΧΩΡΙΣΤΙΚΟ ΜΑΥΡΟ ΓΡΑΜΜΗ! */
     .message-input-container {
         position: fixed !important; /* 🔥 Σταθερό στο κάτω μέρος */
         bottom: 0 !important;
@@ -2512,7 +2512,7 @@ body.pwa-mode .pwa-floating-install-button {
         right: 0 !important;
         padding: 10px 12px 15px !important; /* 🔥 Extra padding κάτω για iOS */
         background: rgba(38, 38, 38, 0.98) !important;
-        border-top: 1px solid var(--border-color) !important;
+        border-top: none !important; /* 🔥 ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΚΥΡΙΟ ΦΙΞ - ΟΧΙ BORDER! */
         flex-shrink: 0;
         height: auto !important; /* 🔥 Αυτόματο ύψος, όχι fixed */
         max-height: 200px;
