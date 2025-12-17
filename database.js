@@ -1,4 +1,4 @@
-// database.js - RatScape MongoDB Database - FIXED CONNECTION
+// database.js - RatScape MongoDB Database - ENHANCED VERSION WITH FILE STORAGE
 const mongoose = require('mongoose');
 
 // 🔥 ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιεί το MONGODB_URI από το Render Environment
@@ -37,6 +37,14 @@ const messageSchema = new mongoose.Schema({
     sender: { type: String, required: true },
     text: { type: String, required: true },
     time: { type: String, required: true },
+    isFile: { type: Boolean, default: false },
+    file_data: {
+        fileId: { type: String },
+        fileName: { type: String },
+        fileType: { type: String },
+        fileSize: { type: String },
+        fileUrl: { type: String }
+    },
     created_at: { type: Date, default: Date.now }
 });
 
@@ -45,6 +53,14 @@ const privateMessageSchema = new mongoose.Schema({
     receiver: { type: String, required: true },
     text: { type: String, required: true },
     time: { type: String, required: true },
+    isFile: { type: Boolean, default: false },
+    file_data: {
+        fileId: { type: String },
+        fileName: { type: String },
+        fileType: { type: String },
+        fileSize: { type: String },
+        fileUrl: { type: String }
+    },
     created_at: { type: Date, default: Date.now }
 });
 
@@ -74,6 +90,19 @@ const unreadMessageSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now }
 });
 
+// 🔥 ΝΕΟ: FILE STORAGE SCHEMA
+const fileSchema = new mongoose.Schema({
+    file_id: { type: String, required: true, unique: true },
+    room_id: { type: String },
+    sender: { type: String, required: true },
+    receiver: { type: String },
+    file_name: { type: String, required: true },
+    file_type: { type: String, required: true },
+    file_size: { type: Number, required: true },
+    file_data: { type: String, required: true }, // Base64 encoded
+    created_at: { type: Date, default: Date.now }
+});
+
 // ===== MODELS =====
 const User = mongoose.model('User', userSchema);
 const Room = mongoose.model('Room', roomSchema);
@@ -83,6 +112,7 @@ const PrivateMessage = mongoose.model('PrivateMessage', privateMessageSchema);
 const Friend = mongoose.model('Friend', friendSchema);
 const Session = mongoose.model('Session', sessionSchema);
 const UnreadMessage = mongoose.model('UnreadMessage', unreadMessageSchema);
+const File = mongoose.model('File', fileSchema); // 🔥 ΝΕΟ: File model
 
 // ===== DATABASE HELPERS =====
 
@@ -254,9 +284,12 @@ const dbHelpers = {
             room_id: message.room_id,
             sender: message.sender,
             text: message.text,
-            time: message.time
+            time: message.time,
+            isFile: message.isFile || false,
+            file_data: message.file_data || null
         });
         await msg.save();
+        return msg;
     },
 
     getRoomMessages: async function(roomId, userJoinedAt = null) {
@@ -265,6 +298,45 @@ const dbHelpers = {
             query.created_at = { $gte: new Date(userJoinedAt) };
         }
         return await Message.find(query).sort({ created_at: 1 });
+    },
+
+    // 🔥 ΝΕΟ: File storage methods
+    saveFile: async function(fileData) {
+        try {
+            const file = new File({
+                file_id: fileData.fileId,
+                room_id: fileData.roomId,
+                sender: fileData.sender,
+                receiver: fileData.receiver,
+                file_name: fileData.fileName,
+                file_type: fileData.fileType,
+                file_size: fileData.fileSize,
+                file_data: fileData.base64Data
+            });
+            await file.save();
+            console.log(`✅ File saved: ${fileData.fileName} (${fileData.fileId})`);
+            return file;
+        } catch (error) {
+            console.error("❌ Error saving file:", error);
+            throw error;
+        }
+    },
+
+    getFilesByRoom: async function(roomId) {
+        return await File.find({ room_id: roomId }).sort({ created_at: -1 });
+    },
+
+    getFilesByUser: async function(username) {
+        return await File.find({ 
+            $or: [
+                { sender: username },
+                { receiver: username }
+            ]
+        }).sort({ created_at: -1 });
+    },
+
+    getFileById: async function(fileId) {
+        return await File.findOne({ file_id: fileId });
     },
 
     // Friend methods
@@ -344,9 +416,12 @@ const dbHelpers = {
             sender: message.sender,
             receiver: message.receiver,
             text: message.text,
-            time: message.time
+            time: message.time,
+            isFile: message.isFile || false,
+            file_data: message.file_data || null
         });
         await msg.save();
+        return msg;
     },
 
     getPrivateMessages: async function(user1, user2) {
@@ -504,6 +579,48 @@ const dbHelpers = {
             console.error("❌ Error getting unread summary:", error);
             return { total: 0, private: {}, groups: {} };
         }
+    },
+
+    // 🔥 ΝΕΟ: Cleanup old files (optional, για διαχείριση χώρου)
+    cleanupOldFiles: async function(days = 30) {
+        try {
+            const cutoffDate = new Date(Date.now() - (days * 24 * 60 * 60 * 1000));
+            const result = await File.deleteMany({ created_at: { $lt: cutoffDate } });
+            console.log(`🧹 Cleaned up ${result.deletedCount} old files (older than ${days} days)`);
+            return result.deletedCount;
+        } catch (error) {
+            console.error("❌ Error cleaning up old files:", error);
+            return 0;
+        }
+    },
+
+    // 🔥 ΝΕΟ: Get user upload statistics
+    getUserFileStats: async function(username) {
+        try {
+            const filesSent = await File.countDocuments({ sender: username });
+            const filesReceived = await File.countDocuments({ receiver: username });
+            const totalSize = await File.aggregate([
+                { 
+                    $match: { 
+                        $or: [
+                            { sender: username },
+                            { receiver: username }
+                        ]
+                    } 
+                },
+                { $group: { _id: null, total: { $sum: "$file_size" } } }
+            ]);
+            
+            return {
+                files_sent: filesSent,
+                files_received: filesReceived,
+                total_files: filesSent + filesReceived,
+                total_size: totalSize[0] ? totalSize[0].total : 0
+            };
+        } catch (error) {
+            console.error("❌ Error getting user file stats:", error);
+            return { files_sent: 0, files_received: 0, total_files: 0, total_size: 0 };
+        }
     }
 };
 
@@ -548,6 +665,14 @@ async function initializeDatabase() {
         mongoose.connection.on('connected', () => {
             console.log("🔗 MongoDB connection established");
         });
+
+        // 🔥 ΝΕΟ: Create indexes για καλύτερη απόδοση
+        await File.createIndexes();
+        await UnreadMessage.createIndexes();
+        
+        console.log('📈 Database indexes created successfully');
+        console.log('💾 File storage system: ENABLED');
+        console.log('📊 File schema: READY');
 
         return mongoose.connection;
     } catch (error) {
