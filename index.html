@@ -107,6 +107,48 @@
                 <p>See who's online, share messages, and collaborate with your team in dedicated rooms.</p>
             </div>
         </div>
+
+        <!-- 🔥 ΝΕΟ: SOCIAL MEDIA FOOTER SECTION -->
+        <div class="social-media-section">
+            <h2>Join Our Community</h2>
+            <p>Connect with us on social media for updates, news, and to meet other car enthusiasts!</p>
+            
+            <div class="social-icons-grid">
+                <a href="https://instagram.com" target="_blank" class="social-icon-circle instagram" title="Instagram">
+                    <i class="fab fa-instagram"></i>
+                    <span class="social-icon-label">Instagram</span>
+                </a>
+                
+                <a href="https://facebook.com" target="_blank" class="social-icon-circle facebook" title="Facebook">
+                    <i class="fab fa-facebook-f"></i>
+                    <span class="social-icon-label">Facebook</span>
+                </a>
+                
+                <a href="https://twitter.com" target="_blank" class="social-icon-circle twitter" title="Twitter">
+                    <i class="fab fa-twitter"></i>
+                    <span class="social-icon-label">Twitter</span>
+                </a>
+                
+                <a href="https://youtube.com" target="_blank" class="social-icon-circle youtube" title="YouTube">
+                    <i class="fab fa-youtube"></i>
+                    <span class="social-icon-label">YouTube</span>
+                </a>
+                
+                <a href="https://tiktok.com" target="_blank" class="social-icon-circle tiktok" title="TikTok">
+                    <i class="fab fa-tiktok"></i>
+                    <span class="social-icon-label">TikTok</span>
+                </a>
+                
+                <a href="https://discord.com" target="_blank" class="social-icon-circle discord" title="Discord">
+                    <i class="fab fa-discord"></i>
+                    <span class="social-icon-label">Discord</span>
+                </a>
+            </div>
+            
+            <p class="follow-us">
+                Follow us for the latest updates on car meets, events, and community news!
+            </p>
+        </div>
     </div>
 
     <!-- MY ROOMS PAGE -->
@@ -298,17 +340,103 @@
                     <!-- Messages will be loaded here -->
                 </div>
 
-                <!-- MESSAGE INPUT -->
+                <!-- 🔥 ΝΕΟ: FILE UPLOAD PREVIEW -->
+                <div id="file-preview" class="file-preview-container" style="display: none;">
+                    <div class="file-preview-header">
+                        <div class="file-preview-title">
+                            <i class="fas fa-file-upload"></i> Αρχείο προς αποστολή
+                        </div>
+                        <button id="cancel-upload-btn" class="btn-icon" title="Cancel">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="file-preview-content">
+                        <img id="preview-image" src="" alt="Preview">
+                        <div class="file-info">
+                            <div class="file-info-row">
+                                <span id="file-name" class="file-name"></span>
+                            </div>
+                            <div class="file-info-row">
+                                <span id="file-size" class="file-size"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="upload-progress-container">
+                        <div id="upload-progress" data-progress="0%"></div>
+                    </div>
+                    
+                    <div id="upload-status" class="upload-status"></div>
+                    
+                    <div class="file-upload-actions">
+                        <button id="send-file-btn" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Αποστολή Αρχείου
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: MESSAGE INPUT WITH FILE UPLOAD & EMOJI PICKER -->
                 <div class="message-input-container">
                     <form id="chat-form">
                         <div class="input-actions">
-                            <button type="button" class="input-action-btn"><i class="fas fa-smile"></i></button>
-                            <button type="button" class="input-action-btn"><i class="fas fa-paperclip"></i></button>
+                            <!-- 🔥 ΑΛΛΑΓΗ: File upload button αντί για τυχαία emoji -->
+                            <button type="button" class="file-upload-btn" title="Upload file">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            
+                            <!-- 🔥 ΑΛΛΑΓΗ: Emoji picker button -->
+                            <button type="button" class="emoji-picker-btn" title="Emoji picker">
+                                <i class="fas fa-smile"></i>
+                            </button>
                         </div>
+                        
+                        <!-- 🔥 ΚΡΥΦΟ FILE INPUT -->
+                        <input type="file" id="file-upload-input" accept="image/*, .pdf, .doc, .docx, .txt" style="display: none;">
+                        
                         <textarea id="message-input" autocomplete="off" placeholder="Type your message..." rows="1"></textarea>
-                        <button type="submit" class="send-btn"><i class="fas fa-paper-plane"></i> Send</button>
+                        
+                        <button type="submit" class="send-btn">
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔥 ΝΕΟ: EMOJI PICKER MODAL -->
+    <div class="modal" id="emoji-picker-modal">
+        <div class="emoji-picker-content">
+            <div class="emoji-picker-header">
+                <h3>Emoji Picker</h3>
+                <button class="close-modal-btn" id="close-emoji-picker">×</button>
+            </div>
+            
+            <div class="emoji-categories" id="emoji-categories">
+                <!-- Emoji categories will be loaded here -->
+            </div>
+            
+            <div class="emoji-grid-container">
+                <div class="emoji-grid" id="emoji-grid">
+                    <!-- Emojis will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔥 ΝΕΟ: IMAGE PREVIEW MODAL -->
+    <div class="image-preview-modal" id="image-preview-modal">
+        <div class="image-preview-content">
+            <button class="close-image-preview" onclick="closeImagePreview()">×</button>
+            <img id="full-size-preview" src="" alt="Preview" class="full-size-image">
+            <div class="image-actions">
+                <a id="download-image-link" href="" download class="btn btn-primary">
+                    <i class="fas fa-download"></i> Download
+                </a>
+                <button class="btn btn-secondary" onclick="closeImagePreview()">
+                    <i class="fas fa-times"></i> Close
+                </button>
             </div>
         </div>
     </div>
@@ -504,7 +632,7 @@
         </div>
     </div>
 
-    <!-- 🔥 NEW: USER INFO MODAL -->
+    <!-- USER INFO MODAL -->
     <div class="modal" id="user-info-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -548,6 +676,9 @@
             </div>
         </div>
     </div>
+
+    <!-- CONFIRMATION MODAL (Dynamic) -->
+    <!-- This modal is created dynamically in client.js -->
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
@@ -679,6 +810,60 @@
                 console.log('⚠️ Η σελίδα δεν βρέθηκε, επιστροφή στην home');
             }
         }, 100);
+    });
+    
+    // ===== ΒΟΗΘΗΤΙΚΕΣ ΣΥΝΑΡΤΗΣΕΙΣ ΓΙΑ IMAGE PREVIEW =====
+    function openImagePreview(imageUrl) {
+        const modal = document.getElementById('image-preview-modal');
+        const image = document.getElementById('full-size-preview');
+        const downloadLink = document.getElementById('download-image-link');
+        
+        if (modal && image && downloadLink) {
+            image.src = imageUrl;
+            downloadLink.href = imageUrl;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    
+    function closeImagePreview() {
+        const modal = document.getElementById('image-preview-modal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
+    
+    // Close image preview with ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeImagePreview();
+        }
+    });
+    
+    // Close image preview when clicking outside
+    document.getElementById('image-preview-modal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeImagePreview();
+        }
+    });
+    
+    // ===== ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ ΓΙΑ SOCIAL MEDIA LINKS =====
+    function trackSocialMediaClick(platform) {
+        console.log(`📱 Social media click: ${platform}`);
+        // Εδώ μπορείς να προσθέσεις analytics tracking
+        // π.χ. Google Analytics, Facebook Pixel, κλπ.
+    }
+    
+    // Προσθήκη event listeners στα social media links
+    document.addEventListener('DOMContentLoaded', function() {
+        const socialLinks = document.querySelectorAll('.social-icon-circle');
+        socialLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                const platform = this.classList[1]; // παίρνουμε την κλάση (instagram, facebook, κλπ.)
+                trackSocialMediaClick(platform);
+            });
+        });
     });
     </script>
 </body>
