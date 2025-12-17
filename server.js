@@ -33,17 +33,17 @@ const storage = multer.memoryStorage(); // Αποθήκευση αρχείων �
 const upload = multer({ 
     storage: storage,
     limits: { 
-      fileSize: 5 * 1024 * 1024, // 5MB limit
+      fileSize: 10 * 1024 * 1024, // Αύξηση σε 10MB για φωτογραφίες
     },
     fileFilter: function (req, file, cb) {
-        const filetypes = /jpeg|jpg|png|gif|webp/;
+        const filetypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|txt/;
         const mimetype = filetypes.test(file.mimetype);
         const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
         
         if (mimetype && extname) {
             return cb(null, true);
         }
-        cb(new Error('Only image files are allowed (JPEG, PNG, GIF, WebP)'));
+        cb(new Error('Only image, PDF, Word and text files are allowed'));
     }
 });
 
@@ -108,6 +108,142 @@ function getErrorMessage(error) {
     return error.message;
   }
   return String(error);
+}
+
+// ===== ΝΕΟ ENDPOINT: UPLOAD FILE =====
+app.post("/upload-file", validateSession, upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: "No file uploaded" });
+        }
+        
+        const { roomId, sender, type, receiver } = req.body;
+        
+        if (!sender || !type) {
+            return res.status(400).json({ success: false, error: "Missing required fields" });
+        }
+        
+        console.log("📁 File upload request:", {
+            originalName: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+            sender: sender,
+            type: type,
+            roomId: roomId || 'private'
+        });
+        
+        // Μετατροπή αρχείου σε Base64
+        const fileBuffer = req.file.buffer;
+        const base64File = `data:${req.file.mimetype};base64,${fileBuffer.toString('base64')}`;
+        
+        // Δημιουργία μοναδικού ID για το αρχείο
+        const fileId = `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        
+        // Αποθήκευση στο database
+        let savedFile = null;
+        if (type === 'private') {
+            savedFile = new PrivateMessage({
+                sender: sender,
+                receiver: receiver,
+                text: `📁 File: ${req.file.originalname}`,
+                time: new Date().toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                }),
+                file_data: {
+                    fileId: fileId,
+                    fileName: req.file.originalname,
+                    fileType: req.file.mimetype,
+                    fileSize: formatFileSize(req.file.size),
+                    base64: base64File
+                }
+            });
+            await savedFile.save();
+        } else {
+            savedFile = new Message({
+                room_id: roomId,
+                sender: sender,
+                text: `📁 File: ${req.file.originalname}`,
+                time: new Date().toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                }),
+                file_data: {
+                    fileId: fileId,
+                    fileName: req.file.originalname,
+                    fileType: req.file.mimetype,
+                    fileSize: formatFileSize(req.file.size),
+                    base64: base64File
+                }
+            });
+            await savedFile.save();
+        }
+        
+        // Ενημέρωση WebSocket για το νέο αρχείο
+        const fileData = {
+            fileId: fileId,
+            fileName: req.file.originalname,
+            fileType: req.file.mimetype,
+            fileSize: formatFileSize(req.file.size),
+            fileUrl: base64File,
+            sender: sender,
+            time: new Date().toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+            })
+        };
+        
+        if (type === 'private') {
+            fileData.receiver = receiver;
+            
+            // Στέλνουμε μέσω WebSocket
+            const receiverData = onlineUsers.get(receiver);
+            if (receiverData) {
+                io.to(receiverData.socketId).emit("file_upload", fileData);
+            }
+            
+            // Στέλνουμε και στον αποστολέα
+            const senderData = onlineUsers.get(sender);
+            if (senderData) {
+                io.to(senderData.socketId).emit("file_upload", fileData);
+            }
+        } else {
+            fileData.room_id = roomId;
+            
+            // Στέλνουμε σε όλους στο room
+            io.to(roomId).emit("file_upload", fileData);
+        }
+        
+        console.log(`✅ File uploaded successfully: ${req.file.originalname}`);
+        
+        res.json({
+            success: true,
+            fileUrl: base64File,
+            fileName: req.file.originalname,
+            fileSize: formatFileSize(req.file.size),
+            fileType: req.file.mimetype,
+            message: "File uploaded successfully"
+        });
+        
+    } catch (error) {
+        console.error("❌ Error uploading file:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || "Failed to upload file" 
+        });
+    }
+});
+
+// Βοηθητική συνάρτηση για μορφοποίηση μεγέθους αρχείου
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 // 🔥 ΝΕΟ ENDPOINT: GET PROFILE PICTURE - ΑΠΛΟΠΟΙΗΜΕΝΟ
@@ -708,7 +844,7 @@ app.post("/logout", async (req, res) => {
     }
 
     if (username) {
-      await dbHelpers.saveUser({ username, status: "Offline" });
+      await dbHelpers.saveUser({ username: username, status: "Offline" });
     }
 
     res.json({ success: true, message: "Logged out successfully" });
@@ -1116,6 +1252,11 @@ io.on("connection", async (socket) => {
 
       console.log(`💬 Message in ${currentRoomId} from ${currentUsername}`);
 
+      // 🔥 ΕΝΗΜΕΡΩΣΗ: Προσθήκη support για αρχεία
+      if (data.isFile) {
+        console.log(`📁 File sent in ${currentRoomId}: ${data.fileName || 'Unknown file'}`);
+      }
+
       // 🔥 UNREAD SYSTEM: Προσθήκη unread για όλους εκτός από τον αποστολέα
       const roomMembers = await dbHelpers.getRoomMembers(currentRoomId);
       const messageId = `gm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -1128,7 +1269,7 @@ io.on("connection", async (socket) => {
             'group', 
             currentRoomId, 
             {
-              text: data.text,
+              text: data.text || (data.isFile ? `📁 File: ${data.fileName}` : "New message"),
               message_id: messageId
             }
           );
@@ -1138,11 +1279,13 @@ io.on("connection", async (socket) => {
             // Στέλνουμε real-time notification μόνο αν δεν είναι στο ίδιο room
             if (memberData.currentRoom !== currentRoomId) {
               io.to(memberData.socketId).emit("notification", {
-                type: "group_message",
+                type: data.isFile ? "file_upload" : "group_message",
                 sender: currentUsername,
                 roomId: currentRoomId,
                 roomName: (await dbHelpers.getRoomById(currentRoomId))?.name || "Room",
-                message: data.text.substring(0, 50) + (data.text.length > 50 ? "..." : ""),
+                message: data.isFile ? 
+                  `📁 Sent a file: ${data.fileName}` : 
+                  (data.text.substring(0, 50) + (data.text.length > 50 ? "..." : "")),
                 timestamp: Date.now(),
                 action: {
                   type: 'room_message',
@@ -1227,6 +1370,38 @@ io.on("connection", async (socket) => {
       
     } catch (error) {
       console.error("❌ Error saving private message:", getErrorMessage(error));
+    }
+  });
+
+  // 🔥 ΝΕΟ EVENT: File upload από WebSocket
+  socket.on("file_upload", async (data) => {
+    try {
+      if (!currentSessionId) {
+        socket.emit("session_expired");
+        return;
+      }
+
+      const session = await dbHelpers.getSession(currentSessionId) || userSessions.get(sessionId);
+      if (!session || session.username !== data.sender) {
+        socket.emit("session_expired");
+        return;
+      }
+
+      console.log("📁 File upload via WebSocket:", data);
+
+      // Εδώ μπορείς να αποθηκεύσεις το αρχείο στο database και να το προωθήσεις
+      if (data.type === 'private') {
+        // Προώθηση private file
+        const receiverData = onlineUsers.get(data.receiver);
+        if (receiverData) {
+          io.to(receiverData.socketId).emit("file_upload", data);
+        }
+      } else {
+        // Προώθηση group file
+        io.to(data.room_id).emit("file_upload", data);
+      }
+    } catch (error) {
+      console.error("❌ Error handling file upload:", error);
     }
   });
 
@@ -1364,7 +1539,9 @@ async function startServer() {
       console.log(`🔔 NOTIFICATION TIMEOUT: 5 SECONDS`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
       console.log(`📸 IMAGE STORAGE: BASE64 IN MONGODB`);
-      console.log(`💾 MAX FILE SIZE: 5MB`);
+      console.log(`💾 MAX FILE SIZE: 10MB`);
+      console.log(`📁 FILE UPLOAD SYSTEM: ENABLED`);
+      console.log(`😀 EMOJI PICKER: ENABLED`);
       console.log(`🖼️ AVATAR SYSTEM: ENABLED (PERMANENT STORAGE)`);
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
       console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
