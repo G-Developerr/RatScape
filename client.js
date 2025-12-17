@@ -1,4 +1,4 @@
-// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED FOR LEAVE ROOM WITH FRIEND REMOVAL
+// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER
 const socket = io();
 
 // Current user state
@@ -15,6 +15,21 @@ let currentRoom = {
     name: null,
     inviteCode: null,
     isPrivate: false,
+};
+
+// ===== FILE UPLOAD SYSTEM =====
+let fileUploadInProgress = false;
+let selectedFile = null;
+
+// ===== EMOJI PICKER SYSTEM =====
+const emojiCategories = {
+    smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳'],
+    hearts: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝'],
+    hands: ['👍', '👎', '👊', '✊', '🤛', '🤜', '🤞', '✌️', '🤟', '🤘', '👌', '🤏', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🖖', '👋', '🤙', '💪', '🦾'],
+    vehicles: ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🚚', '🚛', '🚜', '🛴', '🚲', '🛵', '🏍️', '🛺', '🚨', '🚔', '🚍', '🚘', '🚖', '🚡', '🚠', '🚟', '🚃', '🚋', '🚞', '🚈', '🚂', '🚆', '🚇', '🚊', '🚉', '✈️', '🛫', '🛬', '🛩️', '💺', '🛰️', '🚀', '🛸', '🚁', '🛶', '⛵', '🚤', '🛥️', '🛳️', '⛴️', '🚢'],
+    symbols: ['🔥', '💯', '✨', '🌟', '⭐', '🌠', '🎇', '🎆', '🌈', '☀️', '🌤️', '⛅', '🌥️', '☁️', '⛈️', '🌩️', '🌧️', '❄️', '☃️', '⛄', '💧', '💦', '☔', '💥', '⚡', '🎯', '🎮', '🎲', '🧩', '🎨', '🎵', '🎶', '🎸', '🎹', '🥁', '🎺', '🎻', '🎬', '🏆', '🎪', '🎭', '🩰', '🎤', '🎧', '🎼', '🎷'],
+    objects: ['🔑', '💼', '📁', '📎', '✂️', '📏', '📐', '📌', '📍', '📌', '🖍️', '🖌️', '🖊️', '✒️', '📝', '📒', '📔', '📕', '📗', '📘', '📙', '📚', '📖', '🔖', '🏷️', '💰', '💳', '💎', '⚙️', '🔧', '🔨', '⛏️', '⚒️', '🛠️', '🔗', '⛓️', '🧱', '🔩', '⚖️', '🧰', '🧲', '🔬', '🔭', '📡', '💉', '🩹', '💊'],
+    flags: ['🏁', '🚩', '🎌', '🏴', '🏳️', '🏳️‍🌈', '🏴‍☠️', '🇬🇷', '🇺🇸', '🇬🇧', '🇩🇪', '🇫🇷', '🇮🇹', '🇪🇸', '🇯🇵', '🇨🇳', '🇰🇷', '🇷🇺', '🇮🇳']
 };
 
 // ===== UNREAD MESSAGES SYSTEM =====
@@ -64,6 +79,369 @@ function loadChatState() {
 
 function clearChatState() {
     localStorage.removeItem('ratscape_chat_state');
+}
+
+// ===== FILE UPLOAD FUNCTIONS =====
+
+function initFileUpload() {
+    const fileInput = document.getElementById('file-upload-input');
+    const filePreview = document.getElementById('file-preview');
+    const cancelUploadBtn = document.getElementById('cancel-upload-btn');
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadStatus = document.getElementById('upload-status');
+    
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Έλεγχος τύπου αρχείου
+                if (!file.type.startsWith('image/')) {
+                    showNotification('Μόνο αρχεία εικόνας επιτρέπονται!', 'error', 'Λάθος Αρχείο');
+                    this.value = '';
+                    return;
+                }
+                
+                // Έλεγχος μεγέθους αρχείου (5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    showNotification('Το αρχείο είναι πολύ μεγάλο! Μέγιστο μέγεθος: 5MB', 'error', 'Μεγάλο Αρχείο');
+                    this.value = '';
+                    return;
+                }
+                
+                selectedFile = file;
+                showFilePreview(file);
+            }
+        });
+    }
+    
+    if (cancelUploadBtn) {
+        cancelUploadBtn.addEventListener('click', function() {
+            cancelFileUpload();
+        });
+    }
+}
+
+function showFilePreview(file) {
+    const filePreview = document.getElementById('file-preview');
+    const previewImage = document.getElementById('preview-image');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+    
+    if (!filePreview || !previewImage) return;
+    
+    // Εμφάνιση preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        previewImage.src = e.target.result;
+        previewImage.style.display = 'block';
+        filePreview.style.display = 'flex';
+        
+        // Πληροφορίες αρχείου
+        if (fileName) {
+            fileName.textContent = file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name;
+        }
+        
+        if (fileSize) {
+            const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+            fileSize.textContent = sizeInMB + ' MB';
+        }
+        
+        // Αυτόματη απόκρυψη μετά από 10 δευτερόλεπτα
+        setTimeout(() => {
+            if (filePreview.style.display === 'flex') {
+                filePreview.style.opacity = '0';
+                setTimeout(() => {
+                    filePreview.style.display = 'none';
+                    filePreview.style.opacity = '1';
+                    selectedFile = null;
+                    document.getElementById('file-upload-input').value = '';
+                }, 300);
+            }
+        }, 10000);
+    };
+    reader.readAsDataURL(file);
+}
+
+function cancelFileUpload() {
+    const filePreview = document.getElementById('file-preview');
+    const fileInput = document.getElementById('file-upload-input');
+    
+    if (filePreview) {
+        filePreview.style.display = 'none';
+    }
+    
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    
+    selectedFile = null;
+    fileUploadInProgress = false;
+    
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadStatus = document.getElementById('upload-status');
+    
+    if (uploadProgress) {
+        uploadProgress.style.width = '0%';
+        uploadProgress.textContent = '';
+    }
+    
+    if (uploadStatus) {
+        uploadStatus.textContent = '';
+    }
+}
+
+async function uploadFile() {
+    if (!selectedFile || fileUploadInProgress) return;
+    
+    fileUploadInProgress = true;
+    
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadStatus = document.getElementById('upload-status');
+    const sendFileBtn = document.getElementById('send-file-btn');
+    const originalBtnText = sendFileBtn ? sendFileBtn.innerHTML : '';
+    
+    // Προετοιμασία FormData
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('roomId', currentRoom.id);
+    formData.append('sender', currentUser.username);
+    formData.append('type', currentRoom.isPrivate ? 'private' : 'group');
+    
+    if (currentRoom.isPrivate) {
+        formData.append('receiver', currentRoom.name);
+    }
+    
+    try {
+        // Προσομοίωση προόδου ανεβάσματος (για UI)
+        if (uploadProgress) {
+            uploadProgress.style.width = '30%';
+            uploadProgress.textContent = '30%';
+        }
+        
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Αποστολή αρχείου...';
+        }
+        
+        if (sendFileBtn) {
+            sendFileBtn.disabled = true;
+            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Αποστολή...';
+        }
+        
+        // Πραγματικό upload στον server
+        const response = await fetch('/upload-file', {
+            method: 'POST',
+            headers: {
+                'X-Session-ID': currentUser.sessionId
+            },
+            body: formData
+        });
+        
+        if (uploadProgress) {
+            uploadProgress.style.width = '70%';
+            uploadProgress.textContent = '70%';
+        }
+        
+        if (!response.ok) {
+            throw new Error('Αποτυχία αποστολής αρχείου');
+        }
+        
+        const data = await response.json();
+        
+        if (uploadProgress) {
+            uploadProgress.style.width = '100%';
+            uploadProgress.textContent = '100%';
+        }
+        
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Αποστολή επιτυχής!';
+        }
+        
+        if (data.success) {
+            // Προσθήκη μηνύματος στο chat
+            const messageData = {
+                text: `📁 ${selectedFile.name} (${data.fileSize})`,
+                sender: currentUser.username,
+                time: getCurrentTime(),
+                fileUrl: data.fileUrl,
+                fileName: selectedFile.name,
+                fileType: selectedFile.type,
+                isFile: true
+            };
+            
+            if (currentRoom.isPrivate) {
+                messageData.receiver = currentRoom.name;
+                socket.emit("private message", messageData);
+                addMessageToChat(messageData);
+            } else {
+                messageData.room_id = currentRoom.id;
+                socket.emit("chat message", messageData);
+                addMessageToChat(messageData);
+            }
+            
+            showNotification('Το αρχείο στάλθηκε επιτυχώς!', 'success', 'Αποστολή Αρχείου');
+            
+            // Απόκρυψη preview μετά από 1 δευτερόλεπτο
+            setTimeout(() => {
+                cancelFileUpload();
+            }, 1000);
+        }
+        
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        showNotification('Σφάλμα κατά την αποστολή αρχείου: ' + error.message, 'error', 'Σφάλμα');
+        
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Σφάλμα!';
+            uploadStatus.style.color = 'var(--accent-red)';
+        }
+    } finally {
+        fileUploadInProgress = false;
+        
+        if (sendFileBtn) {
+            sendFileBtn.disabled = false;
+            sendFileBtn.innerHTML = originalBtnText;
+        }
+        
+        // Reset progress bar μετά από 2 δευτερόλεπτα
+        setTimeout(() => {
+            cancelFileUpload();
+        }, 2000);
+    }
+}
+
+// ===== EMOJI PICKER FUNCTIONS =====
+
+function initEmojiPicker() {
+    const emojiBtn = document.querySelector('.emoji-picker-btn');
+    const emojiPicker = document.getElementById('emoji-picker-modal');
+    const closeEmojiPicker = document.getElementById('close-emoji-picker');
+    const emojiCategoriesContainer = document.getElementById('emoji-categories');
+    const emojiGrid = document.getElementById('emoji-grid');
+    const messageInput = document.getElementById('message-input');
+    
+    if (!emojiBtn || !emojiPicker) return;
+    
+    // Άνοιγμα emoji picker
+    emojiBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        showEmojiPicker();
+    });
+    
+    // Κλείσιμο emoji picker
+    if (closeEmojiPicker) {
+        closeEmojiPicker.addEventListener('click', function() {
+            hideEmojiPicker();
+        });
+    }
+    
+    // Κλείσιμο με click έξω από το modal
+    emojiPicker.addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideEmojiPicker();
+        }
+    });
+    
+    // Δημιουργία κατηγοριών emoji
+    if (emojiCategoriesContainer) {
+        Object.keys(emojiCategories).forEach((category, index) => {
+            const button = document.createElement('button');
+            button.className = `emoji-category-btn ${index === 0 ? 'active' : ''}`;
+            button.dataset.category = category;
+            button.innerHTML = emojiCategories[category][0]; // Πρώτο emoji της κατηγορίας
+            button.title = getCategoryName(category);
+            
+            button.addEventListener('click', function() {
+                // Αφαίρεση active class από όλα
+                document.querySelectorAll('.emoji-category-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                // Προσθήκη active class στο επιλεγμένο
+                this.classList.add('active');
+                // Φόρτωση emoji της κατηγορίας
+                loadEmojiCategory(category);
+            });
+            
+            emojiCategoriesContainer.appendChild(button);
+        });
+        
+        // Φόρτωση πρώτης κατηγορίας
+        loadEmojiCategory(Object.keys(emojiCategories)[0]);
+    }
+    
+    // Συνάρτηση για φόρτωση emoji κατηγορίας
+    function loadEmojiCategory(category) {
+        if (!emojiGrid) return;
+        
+        emojiGrid.innerHTML = '';
+        const emojis = emojiCategories[category];
+        
+        emojis.forEach(emoji => {
+            const emojiBtn = document.createElement('button');
+            emojiBtn.className = 'emoji-item';
+            emojiBtn.textContent = emoji;
+            emojiBtn.title = `Εισαγωγή ${emoji}`;
+            
+            emojiBtn.addEventListener('click', function() {
+                insertEmoji(emoji);
+            });
+            
+            emojiGrid.appendChild(emojiBtn);
+        });
+    }
+    
+    // Συνάρτηση για εισαγωγή emoji στο input
+    function insertEmoji(emoji) {
+        if (!messageInput) return;
+        
+        const start = messageInput.selectionStart;
+        const end = messageInput.selectionEnd;
+        const text = messageInput.value;
+        const newText = text.substring(0, start) + emoji + text.substring(end);
+        
+        messageInput.value = newText;
+        messageInput.focus();
+        messageInput.selectionStart = messageInput.selectionEnd = start + emoji.length;
+        
+        // Trigger input event για αυτόματη αλλαγή ύψους
+        messageInput.dispatchEvent(new Event('input'));
+        
+        // Κλείσιμο emoji picker μετά από επιλογή (μόνο σε mobile)
+        if (window.innerWidth <= 768) {
+            setTimeout(() => {
+                hideEmojiPicker();
+            }, 300);
+        }
+    }
+    
+    // Βοηθητική συνάρτηση για ονόματα κατηγοριών
+    function getCategoryName(category) {
+        const names = {
+            smileys: 'Smileys & People',
+            hearts: 'Hearts & Emotions',
+            hands: 'Hands & Gestures',
+            vehicles: 'Vehicles & Travel',
+            symbols: 'Symbols & Objects',
+            objects: 'Objects & Tools',
+            flags: 'Flags & Countries'
+        };
+        return names[category] || category;
+    }
+}
+
+function showEmojiPicker() {
+    const emojiPicker = document.getElementById('emoji-picker-modal');
+    if (emojiPicker) {
+        emojiPicker.classList.add('active');
+        document.body.style.overflow = 'hidden'; // Απενεργοποίηση scroll
+    }
+}
+
+function hideEmojiPicker() {
+    const emojiPicker = document.getElementById('emoji-picker-modal');
+    if (emojiPicker) {
+        emojiPicker.classList.remove('active');
+        document.body.style.overflow = ''; // Ενεργοποίηση scroll
+    }
 }
 
 // ===== BEAUTIFUL NOTIFICATION SYSTEM WITH CLICKABLE =====
@@ -924,17 +1302,93 @@ function addMessageToChat(message) {
 
     messageDiv.className = `message ${isOwn ? "own" : "other"}`;
     
-    // ΚΟΙΝΟ STYLING ΓΙΑ ΟΛΑ ΤΑ ΜΗΝΥΜΑΤΑ
-    messageDiv.innerHTML = `
-        <div class="message-header">
-            <span class="message-sender">${message.sender}</span>
-            <span class="message-time">${message.time || getCurrentTime()}</span>
-        </div>
-        <div class="message-text">${message.text}</div>
-    `;
+    // Ειδική επεξεργασία για αρχεία
+    if (message.isFile) {
+        const fileExtension = message.fileName ? message.fileName.split('.').pop().toLowerCase() : '';
+        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension);
+        
+        if (isImage && message.fileUrl) {
+            // Εικόνα - εμφάνιση preview
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span class="message-sender">${message.sender}</span>
+                    <span class="message-time">${message.time || getCurrentTime()}</span>
+                </div>
+                <div class="message-file">
+                    <div class="file-preview">
+                        <img src="${message.fileUrl}" alt="${message.fileName}" class="file-image-preview" onclick="openImagePreview('${message.fileUrl}')">
+                        <div class="file-info">
+                            <span class="file-name">${message.fileName}</span>
+                            <a href="${message.fileUrl}" download="${message.fileName}" class="file-download-btn">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Άλλο αρχείο - μόνο download link
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span class="message-sender">${message.sender}</span>
+                    <span class="message-time">${message.time || getCurrentTime()}</span>
+                </div>
+                <div class="message-file">
+                    <div class="file-item">
+                        <i class="fas fa-file"></i>
+                        <div class="file-details">
+                            <span class="file-name">${message.fileName}</span>
+                            <a href="${message.fileUrl}" download="${message.fileName}" class="file-download-link">
+                                <i class="fas fa-download"></i> Κατέβασμα
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    } else {
+        // Κανονικό μήνυμα κειμένου
+        messageDiv.innerHTML = `
+            <div class="message-header">
+                <span class="message-sender">${message.sender}</span>
+                <span class="message-time">${message.time || getCurrentTime()}</span>
+            </div>
+            <div class="message-text">${message.text}</div>
+        `;
+    }
 
     messagesContainer.appendChild(messageDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Συνάρτηση για προβολή εικόνας σε πλήρη οθόνη
+function openImagePreview(imageUrl) {
+    const modal = document.createElement('div');
+    modal.className = 'image-preview-modal active';
+    modal.innerHTML = `
+        <div class="image-preview-content">
+            <button class="close-image-preview" onclick="closeImagePreview()">×</button>
+            <img src="${imageUrl}" alt="Preview" class="full-size-image">
+            <div class="image-actions">
+                <a href="${imageUrl}" download class="btn btn-primary">
+                    <i class="fas fa-download"></i> Κατέβασμα
+                </a>
+                <button class="btn btn-secondary" onclick="closeImagePreview()">
+                    <i class="fas fa-times"></i> Κλείσιμο
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImagePreview() {
+    const modal = document.querySelector('.image-preview-modal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
+    }
 }
 
 function updateRoomMembers(members) {
@@ -2029,11 +2483,18 @@ async function handleLeaveRoom() {
     );
 }
 
-// 🔥 FIXED: Το κύριο πρόβλημα - remove duplicate addMessageToChat call
+// 🔥 FIXED: Το κύριο πρόβλημα - ΕΝΗΜΕΡΩΜΕΝΟ send message με επιλογές για αρχεία
 function handleSendMessage() {
     const input = document.getElementById("message-input");
     const text = input.value.trim();
 
+    // Αν υπάρχει επιλεγμένο αρχείο, αποστολή αρχείου
+    if (selectedFile && !fileUploadInProgress) {
+        uploadFile();
+        return;
+    }
+
+    // Αν δεν υπάρχει κείμενο ή δεν είμαστε σε room
     if (!text || !currentRoom.id) return;
 
     const messageData = {
@@ -2319,6 +2780,35 @@ socket.on("private message", (message) => {
     }
 });
 
+// 🔥 ΝΕΟ: File upload από άλλους χρήστες
+socket.on("file_upload", (data) => {
+    console.log("📁 File upload received:", data);
+    
+    if ((currentRoom.isPrivate && (data.sender === currentRoom.name || data.receiver === currentRoom.name)) ||
+        (!currentRoom.isPrivate && data.room_id === currentRoom.id)) {
+        
+        // Προσθήκη του αρχείου στο chat
+        addMessageToChat({
+            text: `📁 ${data.fileName} (${data.fileSize})`,
+            sender: data.sender,
+            time: data.time || getCurrentTime(),
+            fileUrl: data.fileUrl,
+            fileName: data.fileName,
+            fileType: data.fileType,
+            isFile: true
+        });
+        
+        // Εμφάνιση notification
+        showNotification(
+            `${data.sender} sent a file: ${data.fileName}`,
+            "info",
+            "New File",
+            null,
+            1
+        );
+    }
+});
+
 // 🔥 ΝΕΟ: Unread summary από server
 socket.on("unread_summary", (summary) => {
     console.log("📊 Received unread summary:", summary);
@@ -2381,6 +2871,10 @@ socket.on("notification", (data) => {
         case 'avatar_upload_success':
             notificationType = "success";
             title = "Profile Picture Updated";
+            break;
+        case 'file_upload':
+            notificationType = "info";
+            title = "New File";
             break;
     }
     
@@ -2663,14 +3157,47 @@ function initializeEventListeners() {
         });
     });
 
-    document.querySelectorAll(".input-action-btn").forEach((btn) => {
-        btn.addEventListener("click", () => {
-            const emojis = ["😊", "😂", "❤️", "🔥", "👍", "🎮", "💼", "🎵", "🤔"];
-            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-            messageInput.value += randomEmoji;
-            messageInput.focus();
+    // 🔥 ΕΝΗΜΕΡΩΣΗ: Αντικατάσταση τυχαίων emoji με file upload
+    const fileUploadBtn = document.querySelector('.file-upload-btn');
+    const emojiPickerBtn = document.querySelector('.emoji-picker-btn');
+    
+    if (fileUploadBtn) {
+        fileUploadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('file-upload-input').click();
         });
-    });
+    }
+    
+    if (emojiPickerBtn) {
+        emojiPickerBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            showEmojiPicker();
+        });
+    }
+
+    // ΠΡΟΣΘΗΚΗ: Send file button
+    const sendFileBtn = document.getElementById('send-file-btn');
+    if (sendFileBtn) {
+        sendFileBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            uploadFile();
+        });
+    }
+
+    // ΠΡΟΣΘΗΚΗ: Cancel upload button
+    const cancelUploadBtn = document.getElementById('cancel-upload-btn');
+    if (cancelUploadBtn) {
+        cancelUploadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            cancelFileUpload();
+        });
+    }
+
+    // Initialize file upload system
+    initFileUpload();
+    
+    // Initialize emoji picker system
+    initEmojiPicker();
 
     // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
     initializeProfileEventListeners();
@@ -2884,7 +3411,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateMobileUI();
     });
 
-    // Προσθήκη CSS animations για unread system και avatars
+    // Προσθήκη CSS animations για unread system, file upload, και emoji picker
     const unreadStyle = document.createElement('style');
     unreadStyle.textContent = `
         @keyframes highlightPulse {
@@ -2950,6 +3477,290 @@ document.addEventListener("DOMContentLoaded", async () => {
             word-wrap: break-word;
             overflow-wrap: break-word;
             word-break: break-word;
+        }
+        
+        /* File upload preview styling */
+        .file-preview-container {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(26, 26, 26, 0.7);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+        }
+        
+        .file-preview {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-image-preview {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: var(--radius);
+            cursor: pointer;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            display: block;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 5px;
+        }
+        
+        .file-size {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+        
+        .file-upload-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .file-download-btn {
+            background: var(--primary);
+            color: white;
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .file-download-btn:hover {
+            background: var(--accent-red);
+        }
+        
+        /* Image preview modal */
+        .image-preview-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .image-preview-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+        }
+        
+        .full-size-image {
+            max-width: 100%;
+            max-height: 80vh;
+            border-radius: var(--radius);
+        }
+        
+        .close-image-preview {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+        }
+        
+        .image-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        
+        /* Emoji picker styling */
+        .emoji-picker-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .emoji-picker-modal.active {
+            display: flex;
+        }
+        
+        .emoji-picker-content {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        
+        .emoji-categories {
+            display: flex;
+            gap: 5px;
+            padding: 10px;
+            background: rgba(38, 38, 38, 0.9);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .emoji-category-btn {
+            background: transparent;
+            border: none;
+            padding: 8px 12px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.2s ease;
+        }
+        
+        .emoji-category-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .emoji-category-btn:hover:not(.active) {
+            background: rgba(139, 0, 0, 0.2);
+        }
+        
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .emoji-item {
+            background: transparent;
+            border: none;
+            padding: 8px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .emoji-item:hover {
+            background: rgba(139, 0, 0, 0.2);
+            transform: scale(1.1);
+        }
+        
+        /* Social media footer */
+        .social-media-footer {
+            margin-top: 40px;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .social-media-footer h3 {
+            color: var(--text);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .social-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .social-icon:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .social-icon.instagram {
+            background: linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D);
+        }
+        
+        .social-icon.facebook {
+            background: #1877F2;
+        }
+        
+        .social-icon.twitter {
+            background: #1DA1F2;
+        }
+        
+        .social-icon.youtube {
+            background: #FF0000;
+        }
+        
+        .social-icon.tiktok {
+            background: #000000;
+        }
+        
+        .social-icon.discord {
+            background: #5865F2;
+        }
+        
+        /* File item in chat */
+        .message-file {
+            margin-top: 5px;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(38, 38, 38, 0.7);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+        }
+        
+        .file-item i {
+            font-size: 1.5rem;
+            color: var(--accent-red);
+        }
+        
+        .file-details {
+            flex: 1;
+        }
+        
+        .file-download-link {
+            color: var(--accent-red);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .file-download-link:hover {
+            text-decoration: underline;
         }
     `;
     document.head.appendChild(unreadStyle);
