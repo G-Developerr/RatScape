@@ -44,28 +44,6 @@
         function setCurrentPageId(pageId) {
             window.currentPageId = pageId;
         }
-        
-        // ΒΟΗΘΗΤΙΚΕΣ ΣΥΝΑΡΤΗΣΕΙΣ ΓΙΑ FILE UPLOAD
-        window.openImagePreview = function(imageUrl) {
-            const modal = document.getElementById('image-preview-modal');
-            const image = document.getElementById('full-size-preview');
-            const downloadLink = document.getElementById('download-image-link');
-            
-            if (modal && image && downloadLink) {
-                image.src = imageUrl;
-                downloadLink.href = imageUrl;
-                modal.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
-        };
-        
-        window.closeImagePreview = function() {
-            const modal = document.getElementById('image-preview-modal');
-            if (modal) {
-                modal.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-        };
     </script>
 </head>
 
@@ -447,9 +425,6 @@
         </div>
     </div>
 
-    <!-- 🔥 ΝΕΟ: IMAGE PREVIEW MODAL -->
-    
-
     <!-- LOGIN MODAL -->
     <div class="modal" id="login-modal">
         <div class="modal-content">
@@ -821,42 +796,6 @@
         }, 100);
     });
     
-    // ===== ΒΟΗΘΗΤΙΚΕΣ ΣΥΝΑΡΤΗΣΕΙΣ ΓΙΑ IMAGE PREVIEW =====
-    function openImagePreview(imageUrl) {
-        const modal = document.getElementById('image-preview-modal');
-        const image = document.getElementById('full-size-preview');
-        const downloadLink = document.getElementById('download-image-link');
-        
-        if (modal && image && downloadLink) {
-            image.src = imageUrl;
-            downloadLink.href = imageUrl;
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-    }
-    
-    function closeImagePreview() {
-        const modal = document.getElementById('image-preview-modal');
-        if (modal) {
-            modal.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-    }
-    
-    // Close image preview with ESC key
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeImagePreview();
-        }
-    });
-    
-    // Close image preview when clicking outside
-    document.getElementById('image-preview-modal')?.addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeImagePreview();
-        }
-    });
-    
     // ===== ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ ΓΙΑ SOCIAL MEDIA LINKS =====
     function trackSocialMediaClick(platform) {
         console.log(`📱 Social media click: ${platform}`);
@@ -878,4 +817,3 @@
 </body>
 
 </html>
-
