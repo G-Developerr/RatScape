@@ -81,64 +81,89 @@ function clearChatState() {
     localStorage.removeItem('ratscape_chat_state');
 }
 
-// ===== FILE UPLOAD FUNCTIONS =====
+// ===== INITIALIZE FILE UPLOAD & EMOJI PICKER =====
 
-function initFileUpload() {
+// 🔥 ΑΡΧΙΚΟΠΟΙΗΣΗ FILE UPLOAD SYSTEM
+function initFileUploadSystem() {
     const fileInput = document.getElementById('file-upload-input');
-    const filePreview = document.getElementById('file-preview');
-    const cancelUploadBtn = document.getElementById('cancel-upload-btn');
-    const uploadProgress = document.getElementById('upload-progress');
-    const uploadStatus = document.getElementById('upload-status');
+    const fileUploadBtn = document.querySelector('.file-upload-btn');
     
-    if (fileInput) {
+    if (fileInput && fileUploadBtn) {
+        // Ανοιγμα file dialog όταν πατιέται το απόθεμο
+        fileUploadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            fileInput.click();
+        });
+        
+        // Επεξεργασία επιλεγμένου αρχείου
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
-                // Έλεγχος τύπου αρχείου
-                if (!file.type.startsWith('image/')) {
-                    showNotification('Μόνο αρχεία εικόνας επιτρέπονται!', 'error', 'Λάθος Αρχείο');
-                    this.value = '';
-                    return;
-                }
-                
-                // Έλεγχος μεγέθους αρχείου (5MB)
-                if (file.size > 5 * 1024 * 1024) {
-                    showNotification('Το αρχείο είναι πολύ μεγάλο! Μέγιστο μέγεθος: 5MB', 'error', 'Μεγάλο Αρχείο');
-                    this.value = '';
-                    return;
-                }
-                
-                selectedFile = file;
-                showFilePreview(file);
+                handleFileSelection(file);
             }
-        });
-    }
-    
-    if (cancelUploadBtn) {
-        cancelUploadBtn.addEventListener('click', function() {
-            cancelFileUpload();
         });
     }
 }
 
+// 🔥 ΑΡΧΙΚΟΠΟΙΗΣΗ EMOJI PICKER
+function initEmojiPickerSystem() {
+    const emojiBtn = document.querySelector('.emoji-picker-btn');
+    
+    if (emojiBtn) {
+        emojiBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            showEmojiPicker();
+        });
+    }
+}
+
+// 🔥 HANDLE FILE SELECTION
+function handleFileSelection(file) {
+    // Έλεγχος τύπου αρχείου
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    
+    if (!allowedTypes.includes(file.type)) {
+        showNotification('Μόνο εικόνες, PDF και Word αρχεία επιτρέπονται!', 'error', 'Λάθος Αρχείο');
+        return;
+    }
+    
+    // Έλεγχος μεγέθους (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        showNotification('Το αρχείο είναι πολύ μεγάλο! Μέγιστο μέγεθος: 10MB', 'error', 'Μεγάλο Αρχείο');
+        return;
+    }
+    
+    selectedFile = file;
+    showFilePreview(file);
+}
+
+// 🔥 SHOW FILE PREVIEW
 function showFilePreview(file) {
     const filePreview = document.getElementById('file-preview');
     const previewImage = document.getElementById('preview-image');
     const fileName = document.getElementById('file-name');
     const fileSize = document.getElementById('file-size');
+    const uploadProgress = document.getElementById('upload-progress');
     
     if (!filePreview || !previewImage) return;
     
     // Εμφάνιση preview
     const reader = new FileReader();
     reader.onload = function(e) {
-        previewImage.src = e.target.result;
-        previewImage.style.display = 'block';
-        filePreview.style.display = 'flex';
+        // Αν είναι εικόνα, δείξε preview
+        if (file.type.startsWith('image/')) {
+            previewImage.src = e.target.result;
+            previewImage.style.display = 'block';
+        } else {
+            // Αν δεν είναι εικόνα, δείξε μόνο εικονίδιο
+            previewImage.style.display = 'none';
+        }
+        
+        filePreview.style.display = 'block';
         
         // Πληροφορίες αρχείου
         if (fileName) {
-            fileName.textContent = file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name;
+            fileName.textContent = file.name.length > 25 ? file.name.substring(0, 25) + '...' : file.name;
         }
         
         if (fileSize) {
@@ -146,25 +171,21 @@ function showFilePreview(file) {
             fileSize.textContent = sizeInMB + ' MB';
         }
         
-        // Αυτόματη απόκρυψη μετά από 10 δευτερόλεπτα
-        setTimeout(() => {
-            if (filePreview.style.display === 'flex') {
-                filePreview.style.opacity = '0';
-                setTimeout(() => {
-                    filePreview.style.display = 'none';
-                    filePreview.style.opacity = '1';
-                    selectedFile = null;
-                    document.getElementById('file-upload-input').value = '';
-                }, 300);
-            }
-        }, 10000);
+        // Reset progress bar
+        if (uploadProgress) {
+            uploadProgress.style.width = '0%';
+            uploadProgress.textContent = '0%';
+        }
     };
     reader.readAsDataURL(file);
 }
 
+// 🔥 CANCEL FILE UPLOAD
 function cancelFileUpload() {
     const filePreview = document.getElementById('file-preview');
     const fileInput = document.getElementById('file-upload-input');
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadStatus = document.getElementById('upload-status');
     
     if (filePreview) {
         filePreview.style.display = 'none';
@@ -174,12 +195,6 @@ function cancelFileUpload() {
         fileInput.value = '';
     }
     
-    selectedFile = null;
-    fileUploadInProgress = false;
-    
-    const uploadProgress = document.getElementById('upload-progress');
-    const uploadStatus = document.getElementById('upload-status');
-    
     if (uploadProgress) {
         uploadProgress.style.width = '0%';
         uploadProgress.textContent = '';
@@ -188,8 +203,12 @@ function cancelFileUpload() {
     if (uploadStatus) {
         uploadStatus.textContent = '';
     }
+    
+    selectedFile = null;
+    fileUploadInProgress = false;
 }
 
+// 🔥 UPLOAD FILE TO SERVER
 async function uploadFile() {
     if (!selectedFile || fileUploadInProgress) return;
     
@@ -203,7 +222,11 @@ async function uploadFile() {
     // Προετοιμασία FormData
     const formData = new FormData();
     formData.append('file', selectedFile);
-    formData.append('roomId', currentRoom.id);
+    
+    if (currentRoom.id) {
+        formData.append('roomId', currentRoom.id);
+    }
+    
     formData.append('sender', currentUser.username);
     formData.append('type', currentRoom.isPrivate ? 'private' : 'group');
     
@@ -212,7 +235,7 @@ async function uploadFile() {
     }
     
     try {
-        // Προσομοίωση προόδου ανεβάσματος (για UI)
+        // Προσομοίωση προόδου
         if (uploadProgress) {
             uploadProgress.style.width = '30%';
             uploadProgress.textContent = '30%';
@@ -227,7 +250,7 @@ async function uploadFile() {
             sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Αποστολή...';
         }
         
-        // Πραγματικό upload στον server
+        // Πραγματικό upload
         const response = await fetch('/upload-file', {
             method: 'POST',
             headers: {
@@ -259,13 +282,17 @@ async function uploadFile() {
         if (data.success) {
             // Προσθήκη μηνύματος στο chat
             const messageData = {
-                text: `📁 ${selectedFile.name} (${data.fileSize})`,
+                text: `📁 ${selectedFile.name}`,
                 sender: currentUser.username,
                 time: getCurrentTime(),
-                fileUrl: data.fileUrl,
-                fileName: selectedFile.name,
-                fileType: selectedFile.type,
-                isFile: true
+                isFile: true,
+                file_data: {
+                    fileId: data.fileId || `file_${Date.now()}`,
+                    fileName: selectedFile.name,
+                    fileType: selectedFile.type,
+                    fileSize: data.fileSize || formatFileSize(selectedFile.size),
+                    fileUrl: data.fileUrl
+                }
             };
             
             if (currentRoom.isPrivate) {
@@ -301,146 +328,173 @@ async function uploadFile() {
             sendFileBtn.disabled = false;
             sendFileBtn.innerHTML = originalBtnText;
         }
-        
-        // Reset progress bar μετά από 2 δευτερόλεπτα
-        setTimeout(() => {
-            cancelFileUpload();
-        }, 2000);
     }
 }
 
-// ===== EMOJI PICKER FUNCTIONS =====
-
-function initEmojiPicker() {
-    const emojiBtn = document.querySelector('.emoji-picker-btn');
-    const emojiPicker = document.getElementById('emoji-picker-modal');
-    const closeEmojiPicker = document.getElementById('close-emoji-picker');
-    const emojiCategoriesContainer = document.getElementById('emoji-categories');
-    const emojiGrid = document.getElementById('emoji-grid');
-    const messageInput = document.getElementById('message-input');
-    
-    if (!emojiBtn || !emojiPicker) return;
-    
-    // Άνοιγμα emoji picker
-    emojiBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        showEmojiPicker();
-    });
-    
-    // Κλείσιμο emoji picker
-    if (closeEmojiPicker) {
-        closeEmojiPicker.addEventListener('click', function() {
-            hideEmojiPicker();
-        });
-    }
-    
-    // Κλείσιμο με click έξω από το modal
-    emojiPicker.addEventListener('click', function(e) {
-        if (e.target === this) {
-            hideEmojiPicker();
-        }
-    });
-    
-    // Δημιουργία κατηγοριών emoji
-    if (emojiCategoriesContainer) {
-        Object.keys(emojiCategories).forEach((category, index) => {
-            const button = document.createElement('button');
-            button.className = `emoji-category-btn ${index === 0 ? 'active' : ''}`;
-            button.dataset.category = category;
-            button.innerHTML = emojiCategories[category][0]; // Πρώτο emoji της κατηγορίας
-            button.title = getCategoryName(category);
-            
-            button.addEventListener('click', function() {
-                // Αφαίρεση active class από όλα
-                document.querySelectorAll('.emoji-category-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                // Προσθήκη active class στο επιλεγμένο
-                this.classList.add('active');
-                // Φόρτωση emoji της κατηγορίας
-                loadEmojiCategory(category);
-            });
-            
-            emojiCategoriesContainer.appendChild(button);
-        });
-        
-        // Φόρτωση πρώτης κατηγορίας
-        loadEmojiCategory(Object.keys(emojiCategories)[0]);
-    }
-    
-    // Συνάρτηση για φόρτωση emoji κατηγορίας
-    function loadEmojiCategory(category) {
-        if (!emojiGrid) return;
-        
-        emojiGrid.innerHTML = '';
-        const emojis = emojiCategories[category];
-        
-        emojis.forEach(emoji => {
-            const emojiBtn = document.createElement('button');
-            emojiBtn.className = 'emoji-item';
-            emojiBtn.textContent = emoji;
-            emojiBtn.title = `Εισαγωγή ${emoji}`;
-            
-            emojiBtn.addEventListener('click', function() {
-                insertEmoji(emoji);
-            });
-            
-            emojiGrid.appendChild(emojiBtn);
-        });
-    }
-    
-    // Συνάρτηση για εισαγωγή emoji στο input
-    function insertEmoji(emoji) {
-        if (!messageInput) return;
-        
-        const start = messageInput.selectionStart;
-        const end = messageInput.selectionEnd;
-        const text = messageInput.value;
-        const newText = text.substring(0, start) + emoji + text.substring(end);
-        
-        messageInput.value = newText;
-        messageInput.focus();
-        messageInput.selectionStart = messageInput.selectionEnd = start + emoji.length;
-        
-        // Trigger input event για αυτόματη αλλαγή ύψους
-        messageInput.dispatchEvent(new Event('input'));
-        
-        // Κλείσιμο emoji picker μετά από επιλογή (μόνο σε mobile)
-        if (window.innerWidth <= 768) {
-            setTimeout(() => {
-                hideEmojiPicker();
-            }, 300);
-        }
-    }
-    
-    // Βοηθητική συνάρτηση για ονόματα κατηγοριών
-    function getCategoryName(category) {
-        const names = {
-            smileys: 'Smileys & People',
-            hearts: 'Hearts & Emotions',
-            hands: 'Hands & Gestures',
-            vehicles: 'Vehicles & Travel',
-            symbols: 'Symbols & Objects',
-            objects: 'Objects & Tools',
-            flags: 'Flags & Countries'
-        };
-        return names[category] || category;
-    }
-}
-
+// 🔥 SHOW EMOJI PICKER
 function showEmojiPicker() {
     const emojiPicker = document.getElementById('emoji-picker-modal');
     if (emojiPicker) {
         emojiPicker.classList.add('active');
-        document.body.style.overflow = 'hidden'; // Απενεργοποίηση scroll
+        document.body.style.overflow = 'hidden';
     }
 }
 
+// 🔥 HIDE EMOJI PICKER
 function hideEmojiPicker() {
     const emojiPicker = document.getElementById('emoji-picker-modal');
     if (emojiPicker) {
         emojiPicker.classList.remove('active');
-        document.body.style.overflow = ''; // Ενεργοποίηση scroll
+        document.body.style.overflow = '';
+    }
+}
+
+// 🔥 INITIALIZE EMOJI PICKER CONTENT
+function initEmojiPickerContent() {
+    const emojiCategoriesContainer = document.getElementById('emoji-categories');
+    const emojiGrid = document.getElementById('emoji-grid');
+    
+    if (!emojiCategoriesContainer || !emojiGrid) return;
+    
+    // Δημιουργία κατηγοριών
+    Object.keys(emojiCategories).forEach((category, index) => {
+        const button = document.createElement('button');
+        button.className = `emoji-category-btn ${index === 0 ? 'active' : ''}`;
+        button.dataset.category = category;
+        button.innerHTML = emojiCategories[category][0];
+        button.title = getCategoryName(category);
+        
+        button.addEventListener('click', function() {
+            // Αφαίρεση active class από όλα
+            document.querySelectorAll('.emoji-category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            // Προσθήκη active class στο επιλεγμένο
+            this.classList.add('active');
+            // Φόρτωση emoji της κατηγορίας
+            loadEmojiCategory(category);
+        });
+        
+        emojiCategoriesContainer.appendChild(button);
+    });
+    
+    // Φόρτωση πρώτης κατηγορίας
+    loadEmojiCategory(Object.keys(emojiCategories)[0]);
+    
+    // Close button
+    const closeBtn = document.getElementById('close-emoji-picker');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', hideEmojiPicker);
+    }
+    
+    // Κλείσιμο με click έξω
+    const emojiPickerModal = document.getElementById('emoji-picker-modal');
+    if (emojiPickerModal) {
+        emojiPickerModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideEmojiPicker();
+            }
+        });
+    }
+}
+
+// 🔥 LOAD EMOJI CATEGORY
+function loadEmojiCategory(category) {
+    const emojiGrid = document.getElementById('emoji-grid');
+    if (!emojiGrid) return;
+    
+    emojiGrid.innerHTML = '';
+    const emojis = emojiCategories[category];
+    
+    emojis.forEach(emoji => {
+        const emojiBtn = document.createElement('button');
+        emojiBtn.className = 'emoji-item';
+        emojiBtn.textContent = emoji;
+        emojiBtn.title = `Εισαγωγή ${emoji}`;
+        
+        emojiBtn.addEventListener('click', function() {
+            insertEmoji(emoji);
+        });
+        
+        emojiGrid.appendChild(emojiBtn);
+    });
+}
+
+// 🔥 INSERT EMOJI INTO MESSAGE INPUT
+function insertEmoji(emoji) {
+    const messageInput = document.getElementById('message-input');
+    if (!messageInput) return;
+    
+    const start = messageInput.selectionStart;
+    const end = messageInput.selectionEnd;
+    const text = messageInput.value;
+    const newText = text.substring(0, start) + emoji + text.substring(end);
+    
+    messageInput.value = newText;
+    messageInput.focus();
+    messageInput.selectionStart = messageInput.selectionEnd = start + emoji.length;
+    
+    // Trigger input event για αυτόματη αλλαγή ύψους
+    messageInput.dispatchEvent(new Event('input'));
+    
+    // Κλείσιμο emoji picker μόνο σε mobile
+    if (window.innerWidth <= 768) {
+        setTimeout(() => {
+            hideEmojiPicker();
+        }, 300);
+    }
+}
+
+// 🔥 GET CATEGORY NAME
+function getCategoryName(category) {
+    const names = {
+        smileys: 'Smileys & People',
+        hearts: 'Hearts & Emotions',
+        hands: 'Hands & Gestures',
+        vehicles: 'Vehicles & Travel',
+        symbols: 'Symbols & Objects',
+        objects: 'Objects & Tools',
+        flags: 'Flags & Countries'
+    };
+    return names[category] || category;
+}
+
+// 🔥 FORMAT FILE SIZE
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 🔥 INITIALIZE EVENT LISTENERS FOR FILE UPLOAD & EMOJI
+function initializeUploadAndEmojiListeners() {
+    // Αρχικοποίηση file upload system
+    initFileUploadSystem();
+    
+    // Αρχικοποίηση emoji picker system
+    initEmojiPickerSystem();
+    
+    // Αρχικοποίηση emoji picker content
+    initEmojiPickerContent();
+    
+    // Send file button
+    const sendFileBtn = document.getElementById('send-file-btn');
+    if (sendFileBtn) {
+        sendFileBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            uploadFile();
+        });
+    }
+    
+    // Cancel upload button
+    const cancelUploadBtn = document.getElementById('cancel-upload-btn');
+    if (cancelUploadBtn) {
+        cancelUploadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            cancelFileUpload();
+        });
     }
 }
 
@@ -3194,10 +3248,7 @@ function initializeEventListeners() {
     }
 
     // Initialize file upload system
-    initFileUpload();
-    
-    // Initialize emoji picker system
-    initEmojiPicker();
+    initializeUploadAndEmojiListeners();
 
     // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
     initializeProfileEventListeners();
