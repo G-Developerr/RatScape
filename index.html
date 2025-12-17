@@ -44,6 +44,28 @@
         function setCurrentPageId(pageId) {
             window.currentPageId = pageId;
         }
+        
+        // ΒΟΗΘΗΤΙΚΕΣ ΣΥΝΑΡΤΗΣΕΙΣ ΓΙΑ FILE UPLOAD
+        window.openImagePreview = function(imageUrl) {
+            const modal = document.getElementById('image-preview-modal');
+            const image = document.getElementById('full-size-preview');
+            const downloadLink = document.getElementById('download-image-link');
+            
+            if (modal && image && downloadLink) {
+                image.src = imageUrl;
+                downloadLink.href = imageUrl;
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        };
+        
+        window.closeImagePreview = function() {
+            const modal = document.getElementById('image-preview-modal');
+            if (modal) {
+                modal.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        };
     </script>
 </head>
 
@@ -792,12 +814,12 @@
             const lastPageId = getLastPageId();
             console.log('🔄 Επαναφορά σελίδας από το refresh:', lastPageId);
             
-            // Αφαίρεσε το "active" class από όλες τις σελίδες
+            // Αφαίρεση του "active" class από όλες τις σελίδες
             document.querySelectorAll('.page').forEach(page => {
                 page.classList.remove('active');
             });
             
-            // Πρόσθεσε το "active" class στη σωστή σελίδα
+            // Πρόσθεση του "active" class στη σωστή σελίδα
             const targetPage = document.getElementById(lastPageId);
             if (targetPage) {
                 targetPage.classList.add('active');
