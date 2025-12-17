@@ -2484,12 +2484,8 @@ body.pwa-mode .pwa-floating-install-button {
     .invite-code-section label,
     .room-members-section h3,
     .member-info,
+    .profile-info,
     .invite-code-display span {
-        display: none;
-    }
-    
-    /* 🔥 ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: ΚΡΑΤΑΜΕ ΤΟ PROFILE-INFO ΟΡΑΤΟ ΣΕ MOBILE */
-    .profile-info .profile-status {
         display: none;
     }
     
@@ -2516,50 +2512,6 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.65rem;
     }
     
-    /* 🔥 ΒΕΛΤΙΩΣΗ: USER PROFILE ΣΕ MOBILE */
-    .user-profile {
-        padding: 8px 10px !important;
-        flex-direction: row !important;
-        gap: 8px !important;
-        border-top: 1px solid var(--border-color) !important;
-    }
-    
-    .profile-avatar .avatar {
-        width: 32px !important;
-        height: 32px !important;
-        font-size: 0.8rem !important;
-    }
-    
-    .profile-info .profile-name {
-        display: block !important;
-        font-size: 0.8rem !important;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 120px;
-    }
-    
-    .profile-info .profile-status {
-        display: none !important;
-    }
-    
-    /* 🔥 ΒΕΛΤΙΩΣΗ: LEAVE ROOM BUTTON ΣΕ MOBILE */
-    #leave-room-btn {
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        width: 32px !important;
-        height: 32px !important;
-        min-width: 32px !important;
-        min-height: 32px !important;
-        font-size: 1rem !important;
-        padding: 0 !important;
-    }
-    
-    #leave-room-btn i {
-        margin: 0 !important;
-    }
-    
     /* Expanded sidebar state */
     #sidebar.mobile-expanded {
         width: 280px;
@@ -2580,27 +2532,6 @@ body.pwa-mode .pwa-floating-install-button {
     #sidebar.mobile-expanded .member-info,
     #sidebar.mobile-expanded .profile-info {
         display: flex;
-    }
-    
-    #sidebar.mobile-expanded .profile-info .profile-status {
-        display: block !important;
-        font-size: 0.7rem !important;
-    }
-    
-    /* 🔥 ΒΕΛΤΙΩΣΗ: Sidebar overlay για καλύτερη εμπειρία mobile */
-    .sidebar-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 999;
-    }
-    
-    .sidebar-overlay.active {
-        display: block;
     }
     
     /* 🔥 FILE UPLOAD PREVIEW ΣΕ MOBILE */
@@ -2938,20 +2869,6 @@ body.pwa-mode .pwa-floating-install-button {
     
     .message-text {
         font-size: 0.85rem;
-    }
-    
-    /* 🔥 ΒΕΛΤΙΩΣΗ: User profile σε πολύ μικρές οθόνες */
-    .profile-info .profile-name {
-        max-width: 80px !important;
-        font-size: 0.7rem !important;
-    }
-    
-    #leave-room-btn {
-        width: 28px !important;
-        height: 28px !important;
-        min-width: 28px !important;
-        min-height: 28px !important;
-        font-size: 0.9rem !important;
     }
     
     /* 🔥 Rooms page */
@@ -4488,3 +4405,4 @@ body.pwa-mode .pwa-floating-install-button {
     margin-bottom: -5px;
     z-index: 1000;
 }
+
