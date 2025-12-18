@@ -111,13 +111,14 @@ function getErrorMessage(error) {
 }
 
 // ===== ΝΕΟ ENDPOINT: UPLOAD FILE =====
-app.post("/upload-file", validateSession, upload.single('file'), async (req, res) => {
+app.post("/upload-file", upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ success: false, error: "No file uploaded" });
         }
         
         const { roomId, sender, type, receiver } = req.body;
+        const sessionId = req.headers["x-session-id"];
         
         if (!sender || !type) {
             return res.status(400).json({ success: false, error: "Missing required fields" });
@@ -131,6 +132,16 @@ app.post("/upload-file", validateSession, upload.single('file'), async (req, res
             type: type,
             roomId: roomId || 'private'
         });
+        
+        // Validate session
+        let session;
+        if (sessionId) {
+            session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
+        }
+        
+        if (!session || session.username !== sender) {
+            return res.status(401).json({ success: false, error: "Invalid session" });
+        }
         
         // Μετατροπή αρχείου σε Base64
         const fileBuffer = req.file.buffer;
@@ -151,12 +162,13 @@ app.post("/upload-file", validateSession, upload.single('file'), async (req, res
                     minute: "2-digit",
                     hour12: false,
                 }),
+                isFile: true,
                 file_data: {
                     fileId: fileId,
                     fileName: req.file.originalname,
                     fileType: req.file.mimetype,
                     fileSize: formatFileSize(req.file.size),
-                    base64: base64File
+                    fileUrl: base64File
                 }
             });
             await savedFile.save();
@@ -170,12 +182,13 @@ app.post("/upload-file", validateSession, upload.single('file'), async (req, res
                     minute: "2-digit",
                     hour12: false,
                 }),
+                isFile: true,
                 file_data: {
                     fileId: fileId,
                     fileName: req.file.originalname,
                     fileType: req.file.mimetype,
                     fileSize: formatFileSize(req.file.size),
-                    base64: base64File
+                    fileUrl: base64File
                 }
             });
             await savedFile.save();
@@ -193,11 +206,13 @@ app.post("/upload-file", validateSession, upload.single('file'), async (req, res
                 hour: "2-digit",
                 minute: "2-digit",
                 hour12: false,
-            })
+            }),
+            isFile: true
         };
         
         if (type === 'private') {
             fileData.receiver = receiver;
+            fileData.type = 'private';
             
             // Στέλνουμε μέσω WebSocket
             const receiverData = onlineUsers.get(receiver);
@@ -212,6 +227,7 @@ app.post("/upload-file", validateSession, upload.single('file'), async (req, res
             }
         } else {
             fileData.room_id = roomId;
+            fileData.type = 'group';
             
             // Στέλνουμε σε όλους στο room
             io.to(roomId).emit("file_upload", fileData);
@@ -225,6 +241,7 @@ app.post("/upload-file", validateSession, upload.single('file'), async (req, res
             fileName: req.file.originalname,
             fileSize: formatFileSize(req.file.size),
             fileType: req.file.mimetype,
+            fileId: fileId,
             message: "File uploaded successfully"
         });
         
