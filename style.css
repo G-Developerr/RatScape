@@ -2223,10 +2223,132 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 /* ========================================
-   🔥 ΚΡΙΤΙΚΕΣ ΑΛΛΑΓΕΣ ΓΙΑ MOBILE RESPONSIVE
+   🔥 ΚΡΙΤΙΚΕΣ ΑΛΛΑΓΕΣ ΓΙΑ MOBILE RESPONSIVE - FIXED CHAT INPUT (ΧΩΡΙΣ ΔΙΑΧΩΡΙΣΤΙΚΟ)
    ======================================== */
 
 @media (max-width: 768px) {
+    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: CHAT LAYOUT για mobile */
+    .chat-layout {
+        flex-direction: row !important;
+        height: calc(100vh - 66px) !important;
+        margin-top: 66px !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        overflow: hidden !important;
+        padding-bottom: 0 !important; /* 🔥 ΑΠΑΓΟΡΕΥΣΗ extra padding */
+    }
+    
+    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: MESSAGES CONTAINER - ΧΩΡΙΣ height: 100% */
+    #messages-container {
+        flex: 1 !important;
+        padding: 15px 12px !important;
+        height: auto !important; /* 🔥 ΑΛΛΑΓΗ: auto αντί για 100% */
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        padding-bottom: 20px !important; /* 🔥 ΑΠΟΣΤΑΣΗ ΜΕ ΚΑΝΟΝΙΚΟ padding */
+    }
+    
+    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΑΦΑΙΡΕΣΗ του ::after padding */
+    #messages-container::after {
+        content: '' !important;
+        display: block !important;
+        height: 10px !important; /* 🔥 ΜΕΙΩΣΗ από 20px σε 10px */
+        flex-shrink: 0 !important;
+    }
+    
+    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: MESSAGE INPUT CONTAINER - FIXED στο κάτω μέρος */
+    .message-input-container {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        padding: 10px 12px !important;
+        background: rgba(38, 38, 38, 0.98) !important;
+        border-top: 1px solid rgba(51, 51, 51, 0.8) !important; /* 🔥 ΠΡΟΣΘΗΚΗ: Ελαφριό border */
+        flex-shrink: 0 !important;
+        height: auto !important; /* 🔥 ΑΛΛΑΓΗ: auto αντί για fixed */
+        min-height: 70px !important; /* 🔥 ΠΡΟΣΘΗΚΗ: Ελάχιστο ύψος */
+        max-height: 140px !important; /* 🔥 ΠΡΟΣΘΗΚΗ: Μέγιστο ύψος */
+        z-index: 1000 !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5) !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    
+    /* 🔥 ΒΕΛΤΙΩΣΗ: CHAT FORM για mobile */
+    #chat-form {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 8px !important;
+        height: auto !important;
+        min-height: 44px !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    .input-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 4px !important;
+        order: 1 !important;
+        flex-shrink: 0 !important;
+    }
+    
+    #message-input {
+        order: 2 !important;
+        flex: 1 !important;
+        min-height: 40px !important; /* 🔥 ΜΕΙΩΣΗ από 50px σε 40px */
+        max-height: 100px !important;
+        font-size: 16px !important;
+        padding: 8px 12px !important; /* 🔥 ΜΕΙΩΣΗ από 12px 14px */
+    }
+    
+    .send-btn {
+        order: 3 !important;
+        padding: 10px 14px !important; /* 🔥 ΜΕΙΩΣΗ από 12px 16px */
+        min-width: 60px !important;
+        height: 40px !important; /* 🔥 ΜΕΙΩΣΗ από 44px σε 40px */
+        margin: 0 !important;
+        flex-shrink: 0 !important;
+    }
+    
+    /* 🔥 ΚΟΥΜΠΙΑ FILE & EMOJI ΣΕ MOBILE */
+    .file-upload-btn,
+    .emoji-picker-btn {
+        width: 40px !important; /* 🔥 ΜΕΙΩΣΗ από 44px σε 40px */
+        height: 40px !important; /* 🔥 ΜΕΙΩΣΗ από 44px σε 40px */
+        min-width: 40px !important;
+        min-height: 40px !important;
+        padding: 8px !important; /* 🔥 ΜΕΙΩΣΗ από 10px σε 8px */
+        font-size: 1.2rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    /* 🔥 ΒΕΛΤΙΩΣΗ: Main chat area να έχει το σωστό ύψος */
+    #main-chat {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100% !important;
+        position: relative !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        padding-bottom: 70px !important; /* 🔥 ΠΡΟΣΘΗΚΗ: padding για input */
+    }
+    
     /* 🔥 ΑΠΑΓΟΡΕΥΣΗ ZOOM OUT ΣΤΑ ΚΙΝΗΤΑ */
     body {
         touch-action: pan-y;
@@ -2344,19 +2466,7 @@ body.pwa-mode .pwa-floating-install-button {
         margin: 0;
     }
     
-    /* 🔥 ΣΗΜΑΝΤΙΚΟ: CHAT LAYOUT - ΣΩΣΤΗ ΔΙΑΤΑΞΗ ΜΕ SIDEBAR ΑΡΙΣΤΕΡΑ */
-    .chat-layout {
-        flex-direction: row;
-        height: calc(100vh - 66px);
-        margin-top: 66px;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        overflow: hidden;
-    }
-    
+    /* Sidebar styling for mobile */
     #sidebar {
         width: 70px;
         min-width: 70px;
@@ -2424,124 +2534,27 @@ body.pwa-mode .pwa-floating-install-button {
         display: flex;
     }
     
-    /* 🔥 ΝΕΟ: Overlay only for chat page - ΣΩΣΤΗ ΕΚΔΟΣΗ */
-    body:has(#chat-page.active) .sidebar-overlay {
-        display: block !important;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.7);
-        z-index: 1;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-        pointer-events: none;
+    /* 🔥 FILE UPLOAD PREVIEW ΣΕ MOBILE */
+    #file-preview {
+        position: fixed !important;
+        bottom: 140px !important; /* 🔥 Πάνω από το input */
+        left: 10px !important;
+        right: 10px !important;
+        max-width: calc(100% - 20px) !important;
+        z-index: 1001 !important;
+        margin: 0 !important;
     }
     
-    body:has(#chat-page.active) #sidebar.mobile-expanded + .sidebar-overlay {
-        opacity: 1;
-        pointer-events: auto;
-    }
-    
-    /* Hide overlay on other pages */
-    body:not(:has(#chat-page.active)) .sidebar-overlay {
-        display: none !important;
-    }
-    
-    /* 🔥 ΜΕΓΑΛΗ ΒΕΛΤΙΩΣΗ: MESSAGES CONTAINER - ΣΩΣΤΟ ΣΚΡΟΛ ΚΑΙ ΤΕΛΕΥΤΑΙΟ ΜΗΝΥΜΑ */
-    #main-chat {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        position: relative;
-        min-width: 0;
-    }
-    
-    #messages-container {
-        flex: 1;
-        padding: 15px 12px;
-        height: 100% !important;
-        min-height: 0;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Ensure last message is always visible */
-    #messages-container::after {
-        content: '';
-        display: block;
-        height: 20px;
-        flex-shrink: 0;
-    }
-    
-    .message {
-        max-width: 85%;
-        padding: 10px 12px;
-        flex-shrink: 0;
-    }
-    
-    .message-header {
-        margin-bottom: 4px;
-    }
-    
-    .message-sender {
-        font-size: 0.8rem;
-    }
-    
-    .message-time {
-        font-size: 0.65rem;
-    }
-    
-    .message-text {
-        font-size: 0.9rem;
-        line-height: 1.4;
-    }
-    
-    /* 🔥 ΣΗΜΑΝΤΙΚΟ: INPUT AREA - ΣΤΑΘΕΡΟ ΣΤΟ BOTTOM, ΧΩΡΙΣ ΚΕΝΟ ΚΑΤΩ */
-    .message-input-container {
-        position: relative;
-        padding: 10px 12px;
-        background: rgba(38, 38, 38, 0.95);
-        border-top: 1px solid var(--border-color);
-        flex-shrink: 0;
-        height: 140px;
-    }
-    
-    #chat-form {
-        gap: 6px;
-        height: 100%;
-        align-items: stretch;
-    }
-    
-    .input-actions {
-        flex-direction: column;
-        gap: 4px;
-        justify-content: flex-start;
-    }
-    
-    .input-action-btn {
-        padding: 6px;
-        font-size: 0.9rem;
-    }
-    
-    #message-input {
-        min-height: 50px;
-        max-height: 80px;
-        flex: 1;
-        font-size: 0.9rem;
-        padding: 10px 14px;
-    }
-    
-    .send-btn {
-        padding: 10px 16px;
-        font-size: 0.85rem;
-        height: 44px;
-        align-self: flex-end;
+    /* 🔥 EMOJI PICKER ΣΕ MOBILE */
+    #emoji-picker-modal .emoji-picker-content {
+        position: fixed !important;
+        bottom: 140px !important; /* 🔥 Πάνω από το input */
+        left: 10px !important;
+        right: 10px !important;
+        width: auto !important;
+        max-width: calc(100% - 20px) !important;
+        max-height: 300px !important;
+        margin: 0 !important;
     }
     
     /* 🔥 Rooms page */
@@ -2720,6 +2733,40 @@ body.pwa-mode .pwa-floating-install-button {
 
 /* Extra small devices */
 @media (max-width: 480px) {
+    /* 🔥 ΑΚΟΜΗ ΜΕΓΑΛΥΤΕΡΕΣ ΒΕΛΤΙΩΣΕΙΣ ΓΙΑ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
+    .message-input-container {
+        padding: 8px 10px !important; /* 🔥 ΜΕΙΩΣΗ από 10px 12px */
+        min-height: 65px !important;
+        max-height: 120px !important;
+    }
+    
+    #message-input {
+        min-height: 36px !important; /* 🔥 ΜΕΙΩΣΗ από 40px σε 36px */
+        padding: 6px 10px !important; /* 🔥 ΜΕΙΩΣΗ από 8px 12px */
+        font-size: 15px !important;
+    }
+    
+    .send-btn {
+        padding: 8px 12px !important; /* 🔥 ΜΕΙΩΣΗ από 10px 14px */
+        min-width: 55px !important;
+        height: 36px !important; /* 🔥 ΜΕΙΩΣΗ από 40px σε 36px */
+        font-size: 0.8rem !important;
+    }
+    
+    .file-upload-btn,
+    .emoji-picker-btn {
+        width: 36px !important; /* 🔥 ΜΕΙΩΣΗ από 40px σε 36px */
+        height: 36px !important; /* 🔥 ΜΕΙΩΣΗ από 40px σε 36px */
+        min-width: 36px !important;
+        min-height: 36px !important;
+        padding: 6px !important; /* 🔥 ΜΕΙΩΣΗ από 8px σε 6px */
+        font-size: 1.1rem !important;
+    }
+    
+    #messages-container::after {
+        height: 8px !important; /* 🔥 ΑΚΟΜΗ ΜΙΚΡΟΤΕΡΟ */
+    }
+    
     /* 🔥 ΒΕΛΤΙΩΜΕΝΟ NAV - ΚΑΛΥΤΕΡΗ ΕΜΦΑΝΙΣΗ ΣΕ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
     .nav-brand .nav-btn {
         width: 120px;
@@ -2912,6 +2959,30 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
+/* Landscape mode για mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    /* 🔥 ΒΕΛΤΙΩΣΗ για landscape */
+    .message-input-container {
+        min-height: 60px !important;
+        max-height: 100px !important;
+    }
+    
+    #message-input {
+        min-height: 36px !important;
+        max-height: 80px !important;
+    }
+    
+    .send-btn {
+        height: 36px !important;
+    }
+    
+    .file-upload-btn,
+    .emoji-picker-btn {
+        width: 36px !important;
+        height: 36px !important;
+    }
+}
+
 /* Extra small devices */
 @media (max-width: 360px) {
     .pwa-floating-install-button {
@@ -2964,6 +3035,18 @@ body.pwa-mode .pwa-floating-install-button {
     #sidebar.mobile-expanded {
         width: 200px;
         max-width: 200px;
+    }
+    
+    /* 🔥 Input area για πολύ μικρές οθόνες */
+    #message-input {
+        font-size: 14px !important;
+        padding: 8px 10px !important;
+    }
+    
+    .send-btn {
+        padding: 8px 10px !important;
+        min-width: 50px !important;
+        font-size: 0.75rem !important;
     }
 }
 
@@ -3170,6 +3253,11 @@ body.pwa-mode .pwa-floating-install-button {
     
     #messages-container {
         height: -webkit-fill-available;
+    }
+    
+    /* 🔥 ΕΙΔΙΚΟ ΓΙΑ iOS: Safe area για iPhone X και νεότερα */
+    .message-input-container {
+        padding-bottom: max(15px, env(safe-area-inset-bottom)) !important;
     }
 }
 
@@ -4028,30 +4116,6 @@ body.pwa-mode .pwa-floating-install-button {
         height: 35px;
     }
     
-    /* Chat Input */
-    #chat-form {
-        flex-wrap: wrap;
-    }
-    
-    .input-actions {
-        order: 1;
-        width: 100%;
-        justify-content: center;
-        margin-bottom: 10px;
-    }
-    
-    #message-input {
-        order: 2;
-        min-height: 50px;
-    }
-    
-    .send-btn {
-        order: 3;
-        min-width: 80px;
-        padding: 10px 15px;
-        margin-top: 10px;
-    }
-    
     /* Social Media */
     .social-icons-grid {
         gap: 15px;
@@ -4341,3 +4405,4 @@ body.pwa-mode .pwa-floating-install-button {
     margin-bottom: -5px;
     z-index: 1000;
 }
+
