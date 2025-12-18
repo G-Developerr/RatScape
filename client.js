@@ -238,7 +238,7 @@ async function uploadFile() {
         // Προσομοίωση προόδου
         if (uploadProgress) {
             uploadProgress.style.width = '30%';
-            uploadProgress.textContent = '30%';
+            uploadProgress.setAttribute('data-progress', '30%');
         }
         
         if (uploadStatus) {
@@ -261,22 +261,23 @@ async function uploadFile() {
         
         if (uploadProgress) {
             uploadProgress.style.width = '70%';
-            uploadProgress.textContent = '70%';
-        }
-        
-        if (!response.ok) {
-            throw new Error('Αποτυχία αποστολής αρχείου');
+            uploadProgress.setAttribute('data-progress', '70%');
         }
         
         const data = await response.json();
         
+        if (!response.ok) {
+            throw new Error(data.error || 'Αποτυχία αποστολής αρχείου');
+        }
+        
         if (uploadProgress) {
             uploadProgress.style.width = '100%';
-            uploadProgress.textContent = '100%';
+            uploadProgress.setAttribute('data-progress', '100%');
         }
         
         if (uploadStatus) {
             uploadStatus.textContent = 'Αποστολή επιτυχής!';
+            uploadStatus.style.color = 'var(--success)';
         }
         
         if (data.success) {
@@ -320,6 +321,11 @@ async function uploadFile() {
         if (uploadStatus) {
             uploadStatus.textContent = 'Σφάλμα!';
             uploadStatus.style.color = 'var(--accent-red)';
+        }
+        
+        if (uploadProgress) {
+            uploadProgress.style.width = '0%';
+            uploadProgress.setAttribute('data-progress', '0%');
         }
     } finally {
         fileUploadInProgress = false;
@@ -1357,11 +1363,12 @@ function addMessageToChat(message) {
     messageDiv.className = `message ${isOwn ? "own" : "other"}`;
     
     // Ειδική επεξεργασία για αρχεία
-    if (message.isFile) {
-        const fileExtension = message.fileName ? message.fileName.split('.').pop().toLowerCase() : '';
+    if (message.isFile || message.file_data) {
+        const fileData = message.file_data || message;
+        const fileExtension = fileData.fileName ? fileData.fileName.split('.').pop().toLowerCase() : '';
         const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension);
         
-        if (isImage && message.fileUrl) {
+        if (isImage && fileData.fileUrl) {
             // Εικόνα - εμφάνιση preview
             messageDiv.innerHTML = `
                 <div class="message-header">
@@ -1370,10 +1377,10 @@ function addMessageToChat(message) {
                 </div>
                 <div class="message-file">
                     <div class="file-preview">
-                        <img src="${message.fileUrl}" alt="${message.fileName}" class="file-image-preview" onclick="openImagePreview('${message.fileUrl}')">
+                        <img src="${fileData.fileUrl}" alt="${fileData.fileName}" class="file-image-preview" onclick="openImagePreview('${fileData.fileUrl}')">
                         <div class="file-info">
-                            <span class="file-name">${message.fileName}</span>
-                            <a href="${message.fileUrl}" download="${message.fileName}" class="file-download-btn">
+                            <span class="file-name">${fileData.fileName}</span>
+                            <a href="${fileData.fileUrl}" download="${fileData.fileName}" class="file-download-btn">
                                 <i class="fas fa-download"></i> Download
                             </a>
                         </div>
@@ -1391,8 +1398,8 @@ function addMessageToChat(message) {
                     <div class="file-item">
                         <i class="fas fa-file"></i>
                         <div class="file-details">
-                            <span class="file-name">${message.fileName}</span>
-                            <a href="${message.fileUrl}" download="${message.fileName}" class="file-download-link">
+                            <span class="file-name">${fileData.fileName}</span>
+                            <a href="${fileData.fileUrl}" download="${fileData.fileName}" class="file-download-link">
                                 <i class="fas fa-download"></i> Κατέβασμα
                             </a>
                         </div>
