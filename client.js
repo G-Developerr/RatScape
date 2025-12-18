@@ -20,7 +20,7 @@ let currentRoom = {
 // ===== FILE UPLOAD SYSTEM =====
 let fileUploadInProgress = false;
 let selectedFile = null;
-let fileInputListenerAdded = false; // 🔥 ΝΕΟ: Flag για να αποφύγουμε διπλούς listeners
+let fileUploadListenersInitialized = false; // 🔥 ΝΕΟ: Flag για αρχικοποίηση listeners
 
 // ===== EMOJI PICKER SYSTEM =====
 const emojiCategories = {
@@ -86,38 +86,42 @@ function clearChatState() {
 
 // 🔥 ΑΡΧΙΚΟΠΟΙΗΣΗ FILE UPLOAD SYSTEM - FIXED: ΜΟΝΟ ΜΙΑ ΦΟΡΑ
 function initFileUploadSystem() {
+    if (fileUploadListenersInitialized) {
+        console.log('📁 File upload system already initialized');
+        return;
+    }
+    
     const fileInput = document.getElementById('file-upload-input');
     const fileUploadBtn = document.querySelector('.file-upload-btn');
     
-    if (fileInput && fileUploadBtn && !fileInputListenerAdded) {
-        console.log('📁 Initializing file upload system (only once)');
+    if (fileInput && fileUploadBtn) {
+        console.log('📁 Initializing file upload system');
         
-        // Αφαίρεση προηγούμενων listeners για αποφυγή διπλών
-        const newFileInput = fileInput.cloneNode(true);
-        fileInput.parentNode.replaceChild(newFileInput, fileInput);
+        // Αφαίρεση όλων των προηγούμενων listeners
+        const cleanFileInput = fileInput.cloneNode(true);
+        fileInput.parentNode.replaceChild(cleanFileInput, fileInput);
         
-        const newFileUploadBtn = fileUploadBtn.cloneNode(true);
-        fileUploadBtn.parentNode.replaceChild(newFileUploadBtn, fileUploadBtn);
+        const cleanFileUploadBtn = fileUploadBtn.cloneNode(true);
+        fileUploadBtn.parentNode.replaceChild(cleanFileUploadBtn, fileUploadBtn);
         
-        // Ανοιγμα file dialog όταν πατιέται το απόθεμο - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
-        newFileUploadBtn.addEventListener('click', function(e) {
+        // ΜΟΝΟ ΕΝΑ listener για το file upload button
+        cleanFileUploadBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            e.stopImmediatePropagation();
             console.log('📁 File upload button clicked');
-            newFileInput.click();
-        }, { once: false }); // Προσθήκη { once: false } για να μην είναι μόνο μια φορά
+            cleanFileInput.click();
+        });
         
-        // Επεξεργασία επιλεγμένου αρχείου - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
-        newFileInput.addEventListener('change', function(e) {
-            e.stopImmediatePropagation();
+        // ΜΟΝΟ ΕΝΑ listener για το file input change
+        cleanFileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             console.log('📁 File selected:', file ? file.name : 'none');
             if (file) {
                 handleFileSelection(file);
             }
-        }, { once: false });
+        });
         
-        fileInputListenerAdded = true;
+        fileUploadListenersInitialized = true;
+        console.log('✅ File upload listeners initialized successfully');
     }
 }
 
@@ -132,7 +136,6 @@ function initEmojiPickerSystem() {
         
         newEmojiBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            e.stopImmediatePropagation();
             showEmojiPicker();
         });
     }
@@ -229,14 +232,24 @@ function cancelFileUpload() {
     fileUploadInProgress = false;
 }
 
-// 🔥 UPLOAD FILE TO SERVER
+// 🔥 UPLOAD FILE TO SERVER - FIXED: ΜΟΝΟ ΜΙΑ ΦΟΡΑ ΑΠΟΣΤΟΛΗ
+let isUploading = false; // 🔥 ΝΕΟ: Flag για αποτροπή πολλαπλών uploads
+
 async function uploadFile() {
+    if (isUploading) {
+        console.log('⚠️ Upload already in progress, skipping...');
+        return;
+    }
+    
     if (!selectedFile || fileUploadInProgress) {
         console.log('❌ No file selected or upload in progress');
         return;
     }
     
+    isUploading = true;
     fileUploadInProgress = true;
+    
+    console.log('📤 Starting file upload:', selectedFile.name);
     
     const uploadProgress = document.getElementById('upload-progress');
     const uploadStatus = document.getElementById('upload-status');
@@ -352,12 +365,15 @@ async function uploadFile() {
             uploadProgress.setAttribute('data-progress', '0%');
         }
     } finally {
+        isUploading = false;
         fileUploadInProgress = false;
         
         if (sendFileBtn) {
             sendFileBtn.disabled = false;
             sendFileBtn.innerHTML = originalBtnText;
         }
+        
+        console.log('✅ File upload completed');
     }
 }
 
@@ -515,12 +531,11 @@ function initializeUploadAndEmojiListeners() {
     const sendFileBtn = document.getElementById('send-file-btn');
     if (sendFileBtn) {
         // Αφαίρεση προηγούμενων listeners
-        const newSendFileBtn = sendFileBtn.cloneNode(true);
-        sendFileBtn.parentNode.replaceChild(newSendFileBtn, sendFileBtn);
+        const cleanSendFileBtn = sendFileBtn.cloneNode(true);
+        sendFileBtn.parentNode.replaceChild(cleanSendFileBtn, sendFileBtn);
         
-        newSendFileBtn.addEventListener('click', function(e) {
+        cleanSendFileBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            e.stopImmediatePropagation();
             console.log('📤 Send file button clicked');
             uploadFile();
         });
@@ -530,12 +545,11 @@ function initializeUploadAndEmojiListeners() {
     const cancelUploadBtn = document.getElementById('cancel-upload-btn');
     if (cancelUploadBtn) {
         // Αφαίρεση προηγούμενων listeners
-        const newCancelBtn = cancelUploadBtn.cloneNode(true);
-        cancelUploadBtn.parentNode.replaceChild(newCancelBtn, cancelUploadBtn);
+        const cleanCancelBtn = cancelUploadBtn.cloneNode(true);
+        cancelUploadBtn.parentNode.replaceChild(cleanCancelBtn, cancelUploadBtn);
         
-        newCancelBtn.addEventListener('click', function(e) {
+        cleanCancelBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            e.stopImmediatePropagation();
             cancelFileUpload();
         });
     }
@@ -2581,7 +2595,7 @@ async function handleLeaveRoom() {
     );
 }
 
-// 🔥 FIXED: Το κύριο πρόβλημα - ΕΝΗΜΕΡΩΜΕΝΟ send message με επιλογές για αρχεία
+// 🔥 FIXED: Το κύριο πρόβλημα - send message χωρίς διπλή αποστολή για αρχεία
 function handleSendMessage() {
     const input = document.getElementById("message-input");
     const text = input.value.trim();
@@ -3256,35 +3270,6 @@ function initializeEventListeners() {
             showNotification("Messages cleared", "info", "Cleared");
         });
     });
-
-    // 🔥 ΕΝΗΜΕΡΩΣΗ: Αντικατάσταση τυχαίων emoji με file upload - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
-    const fileUploadBtn = document.querySelector('.file-upload-btn');
-    const emojiPickerBtn = document.querySelector('.emoji-picker-btn');
-    
-    if (fileUploadBtn) {
-        // Αφαίρεση προηγούμενων listeners
-        const newFileUploadBtn = fileUploadBtn.cloneNode(true);
-        fileUploadBtn.parentNode.replaceChild(newFileUploadBtn, fileUploadBtn);
-        
-        newFileUploadBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            console.log('📁 File upload button clicked (main)');
-            document.getElementById('file-upload-input').click();
-        });
-    }
-    
-    if (emojiPickerBtn) {
-        // Αφαίρεση προηγούμενων listeners
-        const newEmojiPickerBtn = emojiPickerBtn.cloneNode(true);
-        emojiPickerBtn.parentNode.replaceChild(newEmojiPickerBtn, emojiPickerBtn);
-        
-        newEmojiPickerBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            showEmojiPicker();
-        });
-    }
 
     // Initialize file upload system
     initializeUploadAndEmojiListeners();
