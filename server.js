@@ -140,7 +140,7 @@ app.post("/upload-file", upload.single('file'), async (req, res) => {
         }
         
         if (!session || session.username !== sender) {
-            return res.status(401).json({ success: false, error: "Invalid session" });
+            return res.status(400).json({ success: false, error: "Invalid session" });
         }
         
         // Μετατροπή αρχείου σε Base64
@@ -150,10 +150,10 @@ app.post("/upload-file", upload.single('file'), async (req, res) => {
         // Δημιουργία μοναδικού ID για το αρχείο
         const fileId = `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         
-        // Αποθήκευση στο database
+        // Αποθήκευση στο database χρησιμοποιώντας τα dbHelpers
         let savedFile = null;
         if (type === 'private') {
-            savedFile = new PrivateMessage({
+            savedFile = await dbHelpers.savePrivateMessage({
                 sender: sender,
                 receiver: receiver,
                 text: `📁 File: ${req.file.originalname}`,
@@ -171,9 +171,8 @@ app.post("/upload-file", upload.single('file'), async (req, res) => {
                     fileUrl: base64File
                 }
             });
-            await savedFile.save();
         } else {
-            savedFile = new Message({
+            savedFile = await dbHelpers.saveMessage({
                 room_id: roomId,
                 sender: sender,
                 text: `📁 File: ${req.file.originalname}`,
@@ -191,7 +190,6 @@ app.post("/upload-file", upload.single('file'), async (req, res) => {
                     fileUrl: base64File
                 }
             });
-            await savedFile.save();
         }
         
         // Ενημέρωση WebSocket για το νέο αρχείο
