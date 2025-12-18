@@ -2222,12 +2222,10 @@ body.pwa-mode .pwa-floating-install-button {
     font-weight: 600;
 }
 
-/* ========================================
-   🔥 ΚΡΙΤΙΚΕΣ ΑΛΛΑΓΕΣ ΓΙΑ MOBILE RESPONSIVE - FIXED CHAT INPUT (ΧΩΡΙΣ ΔΙΑΧΩΡΙΣΤΙΚΟ)
-   ======================================== */
+/* 🔥 ΚΡΙΤΙΚΕΣ ΑΛΛΑΓΕΣ ΓΙΑ MOBILE RESPONSIVE - FIXED USER PROFILE & LEAVE BUTTON */
 
 @media (max-width: 768px) {
-    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: CHAT LAYOUT για mobile */
+    /* CHAT LAYOUT για mobile */
     .chat-layout {
         flex-direction: row !important;
         height: calc(100vh - 66px) !important;
@@ -2238,32 +2236,31 @@ body.pwa-mode .pwa-floating-install-button {
         right: 0 !important;
         bottom: 0 !important;
         overflow: hidden !important;
-        padding-bottom: 0 !important; /* 🔥 ΑΠΑΓΟΡΕΥΣΗ extra padding */
+        padding-bottom: 0 !important;
     }
     
-    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: MESSAGES CONTAINER - ΧΩΡΙΣ height: 100% */
+    /* MESSAGES CONTAINER */
     #messages-container {
         flex: 1 !important;
         padding: 15px 12px !important;
-        height: auto !important; /* 🔥 ΑΛΛΑΓΗ: auto αντί για 100% */
+        height: auto !important;
         min-height: 0 !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         display: flex !important;
         flex-direction: column !important;
         gap: 12px !important;
-        padding-bottom: 20px !important; /* 🔥 ΑΠΟΣΤΑΣΗ ΜΕ ΚΑΝΟΝΙΚΟ padding */
+        padding-bottom: 20px !important;
     }
     
-    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΑΦΑΙΡΕΣΗ του ::after padding */
     #messages-container::after {
         content: '' !important;
         display: block !important;
-        height: 10px !important; /* 🔥 ΜΕΙΩΣΗ από 20px σε 10px */
+        height: 10px !important;
         flex-shrink: 0 !important;
     }
     
-    /* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: MESSAGE INPUT CONTAINER - FIXED στο κάτω μέρος */
+    /* MESSAGE INPUT CONTAINER - FIXED στο κάτω μέρος */
     .message-input-container {
         position: fixed !important;
         bottom: 0 !important;
@@ -2271,11 +2268,11 @@ body.pwa-mode .pwa-floating-install-button {
         right: 0 !important;
         padding: 10px 12px !important;
         background: rgba(38, 38, 38, 0.98) !important;
-        border-top: 1px solid rgba(51, 51, 51, 0.8) !important; /* 🔥 ΠΡΟΣΘΗΚΗ: Ελαφριό border */
+        border-top: 1px solid rgba(51, 51, 51, 0.8) !important;
         flex-shrink: 0 !important;
-        height: auto !important; /* 🔥 ΑΛΛΑΓΗ: auto αντί για fixed */
-        min-height: 70px !important; /* 🔥 ΠΡΟΣΘΗΚΗ: Ελάχιστο ύψος */
-        max-height: 140px !important; /* 🔥 ΠΡΟΣΘΗΚΗ: Μέγιστο ύψος */
+        height: auto !important;
+        min-height: 70px !important;
+        max-height: 140px !important;
         z-index: 1000 !important;
         backdrop-filter: blur(20px) !important;
         -webkit-backdrop-filter: blur(20px) !important;
@@ -2284,7 +2281,7 @@ body.pwa-mode .pwa-floating-install-button {
         align-items: center !important;
     }
     
-    /* 🔥 ΒΕΛΤΙΩΣΗ: CHAT FORM για mobile */
+    /* CHAT FORM για mobile */
     #chat-form {
         display: flex !important;
         flex-direction: row !important;
@@ -2308,36 +2305,36 @@ body.pwa-mode .pwa-floating-install-button {
     #message-input {
         order: 2 !important;
         flex: 1 !important;
-        min-height: 40px !important; /* 🔥 ΜΕΙΩΣΗ από 50px σε 40px */
+        min-height: 40px !important;
         max-height: 100px !important;
         font-size: 16px !important;
-        padding: 8px 12px !important; /* 🔥 ΜΕΙΩΣΗ από 12px 14px */
+        padding: 8px 12px !important;
     }
     
     .send-btn {
         order: 3 !important;
-        padding: 10px 14px !important; /* 🔥 ΜΕΙΩΣΗ από 12px 16px */
+        padding: 10px 14px !important;
         min-width: 60px !important;
-        height: 40px !important; /* 🔥 ΜΕΙΩΣΗ από 44px σε 40px */
+        height: 40px !important;
         margin: 0 !important;
         flex-shrink: 0 !important;
     }
     
-    /* 🔥 ΚΟΥΜΠΙΑ FILE & EMOJI ΣΕ MOBILE */
+    /* ΚΟΥΜΠΙΑ FILE & EMOJI ΣΕ MOBILE */
     .file-upload-btn,
     .emoji-picker-btn {
-        width: 40px !important; /* 🔥 ΜΕΙΩΣΗ από 44px σε 40px */
-        height: 40px !important; /* 🔥 ΜΕΙΩΣΗ από 44px σε 40px */
+        width: 40px !important;
+        height: 40px !important;
         min-width: 40px !important;
         min-height: 40px !important;
-        padding: 8px !important; /* 🔥 ΜΕΙΩΣΗ από 10px σε 8px */
+        padding: 8px !important;
         font-size: 1.2rem !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
     }
     
-    /* 🔥 ΒΕΛΤΙΩΣΗ: Main chat area να έχει το σωστό ύψος */
+    /* Main chat area */
     #main-chat {
         flex: 1 !important;
         display: flex !important;
@@ -2346,178 +2343,10 @@ body.pwa-mode .pwa-floating-install-button {
         position: relative !important;
         min-width: 0 !important;
         overflow: hidden !important;
-        padding-bottom: 70px !important; /* 🔥 ΠΡΟΣΘΗΚΗ: padding για input */
+        padding-bottom: 70px !important;
     }
     
-    /* 🔥 ΚΡΙΤΙΚΟ FIX: ΕΜΦΑΝΙΣΗ ΤΟΥ USER PROFILE ΚΑΙ LEAVE ROOM BUTTON ΣΕ MOBILE */
-    .user-profile {
-        display: flex !important;
-        align-items: center !important;
-        padding: 8px 10px !important;
-        background: rgba(38, 38, 38, 0.95) !important;
-        border-top: 1px solid var(--border-color) !important;
-        height: 60px !important;
-        min-height: 60px !important;
-        max-height: 60px !important;
-        flex-shrink: 0 !important;
-        z-index: 10 !important;
-    }
-    
-    .profile-avatar .avatar {
-        width: 32px !important;
-        height: 32px !important;
-        min-width: 32px !important;
-        min-height: 32px !important;
-        font-size: 0.7rem !important;
-        flex-shrink: 0 !important;
-    }
-    
-    .profile-info {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        flex: 1 !important;
-        min-width: 0 !important;
-        overflow: hidden !important;
-        margin: 0 8px !important;
-    }
-    
-    .profile-name {
-        display: block !important;
-        font-size: 0.8rem !important;
-        font-weight: 600 !important;
-        color: var(--text) !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        max-width: 100px !important;
-    }
-    
-    .profile-status {
-        display: block !important;
-        font-size: 0.65rem !important;
-        color: var(--text-light) !important;
-    }
-    
-    #leave-room-btn {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 32px !important;
-        height: 32px !important;
-        min-width: 32px !important;
-        min-height: 32px !important;
-        background: rgba(139, 0, 0, 0.3) !important;
-        border: none !important;
-        border-radius: var(--radius) !important;
-        color: var(--accent-red) !important;
-        font-size: 0.9rem !important;
-        flex-shrink: 0 !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    #leave-room-btn:hover {
-        background: rgba(139, 0, 0, 0.5) !important;
-        transform: scale(1.1) !important;
-    }
-    
-    #leave-room-btn i {
-        margin: 0 !important;
-    }
-    
-    /* Sidebar styling για mobile - πιο σφιχτά */
-    #sidebar {
-        width: 70px;
-        min-width: 70px;
-        max-width: 70px;
-        height: 100%;
-        overflow-y: auto;
-        border-right: 1px solid var(--border-color);
-        transition: all 0.3s ease;
-        z-index: 2;
-    }
-    
-    /* Hide text in sidebar for mobile */
-    .sidebar-header h2,
-    .room-info span,
-    .invite-code-section label,
-    .room-members-section h3,
-    .member-info,
-    .profile-info,
-    .invite-code-display span {
-        display: none;
-    }
-    
-    .sidebar-header,
-    .room-details,
-    .room-members-section,
-    .user-profile {
-        padding: 10px;
-    }
-    
-    .invite-code-display {
-        justify-content: center;
-        padding: 8px;
-    }
-    
-    .member-item {
-        justify-content: center;
-        padding: 8px;
-    }
-    
-    .member-avatar {
-        width: 36px;
-        height: 36px;
-        font-size: 0.65rem;
-    }
-    
-    /* Expanded sidebar state */
-    #sidebar.mobile-expanded {
-        width: 280px;
-        max-width: 280px;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.7);
-    }
-    
-    #sidebar.mobile-expanded .member-info,
-    #sidebar.mobile-expanded .profile-info,
-    #sidebar.mobile-expanded .sidebar-header h2,
-    #sidebar.mobile-expanded .room-info span,
-    #sidebar.mobile-expanded .invite-code-section label,
-    #sidebar.mobile-expanded .invite-code-display span,
-    #sidebar.mobile-expanded .room-members-section h3 {
-        display: block;
-    }
-    
-    #sidebar.mobile-expanded .member-info,
-    #sidebar.mobile-expanded .profile-info {
-        display: flex;
-    }
-    
-    /* 🔥 FILE UPLOAD PREVIEW ΣΕ MOBILE */
-    #file-preview {
-        position: fixed !important;
-        bottom: 140px !important; /* 🔥 Πάνω από το input */
-        left: 10px !important;
-        right: 10px !important;
-        max-width: calc(100% - 20px) !important;
-        z-index: 1001 !important;
-        margin: 0 !important;
-    }
-    
-    /* 🔥 EMOJI PICKER ΣΕ MOBILE */
-    #emoji-picker-modal .emoji-picker-content {
-        position: fixed !important;
-        bottom: 140px !important; /* 🔥 Πάνω από το input */
-        left: 10px !important;
-        right: 10px !important;
-        width: auto !important;
-        max-width: calc(100% - 20px) !important;
-        max-height: 300px !important;
-        margin: 0 !important;
-    }
-    
-    /* 🔥 ΑΠΑΓΟΡΕΥΣΗ ZOOM OUT ΣΤΑ ΚΙΝΗΤΑ */
+    /* ΑΠΑΓΟΡΕΥΣΗ ZOOM OUT ΣΤΑ ΚΙΝΗΤΑ */
     body {
         touch-action: pan-y;
         -webkit-text-size-adjust: 100%;
@@ -2526,7 +2355,7 @@ body.pwa-mode .pwa-floating-install-button {
         overflow-x: hidden;
     }
     
-    /* 🔥 ΒΕΛΤΙΩΜΕΝΟ NAVIGATION - ΣΤΑΘΕΡΟ ΣΤΟ TOP */
+    /* NAVIGATION - ΣΤΑΘΕΡΟ ΣΤΟ TOP */
     #main-nav {
         padding: 8px 12px;
         position: fixed;
@@ -2565,7 +2394,7 @@ body.pwa-mode .pwa-floating-install-button {
         flex-shrink: 0;
     }
     
-    /* 🔥 ΒΕΛΤΙΩΜΕΝΗ HOME PAGE */
+    /* HOME PAGE */
     .hero-section {
         padding: 60px 20px 40px !important;
         min-height: auto;
@@ -2583,27 +2412,27 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 0;
     }
     
-    /* 🔥 ΓΙΑ MOBILE: ΚΟΥΜΠΙΑ ΣΕ ΣΤΗΛΗ ΜΕ ΜΕΓΑΛΟ GAP */
+    /* ΚΟΥΜΠΙΑ ΣΕ ΣΤΗΛΗ ΜΕ ΜΕΓΑΛΟ GAP */
     .hero-section #home-cta-logged-out,
     .hero-section #home-cta-logged-in {
-        flex-direction: column; /* 🔥 Σε στήλη για mobile */
-        gap: 15px; /* 🔥 ΜΕΓΑΛΟ GAP 15px για mobile */
-        align-items: stretch; /* 🔥 Τεντώστε τα για να γεμίσουν */
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
     }
     
     .hero-section #home-cta-logged-out .cta-btn,
     .hero-section #home-cta-logged-out .cta-btn-secondary,
     .hero-section #home-cta-logged-in .cta-btn,
     .hero-section #home-cta-logged-in .cta-btn-secondary {
-        width: 100%; /* 🔥 Πλήρες πλάτος σε mobile */
-        max-width: 280px; /* 🔥 Αλλά όχι πολύ μεγάλα */
-        margin: 0 auto !important; /* 🔥 Κεντράρισμα */
+        width: 100%;
+        max-width: 280px;
+        margin: 0 auto !important;
         padding: 12px 20px;
         font-size: 0.9rem;
-        min-width: auto; /* 🔥 Αφαίρεση min-width για mobile */
+        min-width: auto;
     }
     
-    /* 🔥 ΒΕΛΤΙΩΜΕΝΑ FEATURE CARDS */
+    /* FEATURE CARDS */
     .features-grid {
         grid-template-columns: 1fr !important;
         gap: 15px;
@@ -2634,7 +2463,186 @@ body.pwa-mode .pwa-floating-install-button {
         margin: 0;
     }
     
-    /* 🔥 Rooms page */
+    /* 🔥 ΚΡΙΤΙΚΟ FIX: SIDEBAR STYLING FOR MOBILE */
+    #sidebar {
+        width: 70px;
+        min-width: 70px;
+        max-width: 70px;
+        height: 100%;
+        overflow-y: auto;
+        border-right: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* 🔥 ΚΡΙΤΙΚΟ: Hide text ΕΚΤΟΣ από το user profile */
+    .sidebar-header h2,
+    .room-info span,
+    .invite-code-section label,
+    .room-members-section h3,
+    .member-info,
+    .invite-code-display span {
+        display: none;
+    }
+    
+    /* 🔥 ΝΕΟ: ΕΜΦΑΝΙΣΗ του user profile (avatar + username) στο collapsed state */
+    .user-profile {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 8px 5px !important;
+        gap: 4px !important;
+        margin-top: auto !important;
+    }
+    
+    .user-profile .profile-avatar {
+        display: flex !important;
+    }
+    
+    .user-profile .profile-avatar .avatar,
+    .user-profile .profile-avatar #sidebar-avatar {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 0.75rem !important;
+    }
+    
+    /* 🔥 ΚΡΑΤΑ ΤΟ USERNAME ΟΡΑΤΟ σε mobile */
+    .user-profile .profile-info {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        width: 100% !important;
+    }
+    
+    .user-profile .profile-name {
+        display: block !important;
+        font-size: 0.65rem !important;
+        text-align: center !important;
+        max-width: 60px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+    
+    .user-profile .profile-status {
+        display: none !important;
+    }
+    
+    /* 🔥 ΚΡΙΤΙΚΟ: LEAVE BUTTON ΟΡΑΤΟ σε mobile collapsed */
+    .user-profile #leave-room-btn {
+        display: flex !important;
+        width: 32px !important;
+        height: 32px !important;
+        padding: 6px !important;
+        margin-top: 4px !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    
+    .user-profile #leave-room-btn i {
+        font-size: 0.9rem !important;
+        margin: 0 !important;
+    }
+    
+    .sidebar-header,
+    .room-details,
+    .room-members-section {
+        padding: 10px;
+    }
+    
+    .invite-code-display {
+        justify-content: center;
+        padding: 8px;
+    }
+    
+    .member-item {
+        justify-content: center;
+        padding: 8px;
+    }
+    
+    .member-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 0.65rem;
+    }
+    
+    /* 🔥 EXPANDED SIDEBAR STATE */
+    #sidebar.mobile-expanded {
+        width: 280px;
+        max-width: 280px;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.7);
+    }
+    
+    #sidebar.mobile-expanded .member-info,
+    #sidebar.mobile-expanded .sidebar-header h2,
+    #sidebar.mobile-expanded .room-info span,
+    #sidebar.mobile-expanded .invite-code-section label,
+    #sidebar.mobile-expanded .invite-code-display span,
+    #sidebar.mobile-expanded .room-members-section h3 {
+        display: block;
+    }
+    
+    #sidebar.mobile-expanded .member-info {
+        display: flex;
+    }
+    
+    /* 🔥 EXPANDED: User profile πλήρης εμφάνιση */
+    #sidebar.mobile-expanded .user-profile {
+        flex-direction: row !important;
+        padding: 12px 15px !important;
+        gap: 10px !important;
+    }
+    
+    #sidebar.mobile-expanded .user-profile .profile-info {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        flex: 1 !important;
+    }
+    
+    #sidebar.mobile-expanded .user-profile .profile-name {
+        max-width: none !important;
+        font-size: 0.9rem !important;
+    }
+    
+    #sidebar.mobile-expanded .user-profile .profile-status {
+        display: block !important;
+        font-size: 0.75rem !important;
+    }
+    
+    #sidebar.mobile-expanded .user-profile #leave-room-btn {
+        width: auto !important;
+        height: auto !important;
+        padding: 8px !important;
+        margin-top: 0 !important;
+    }
+    
+    /* FILE UPLOAD PREVIEW ΣΕ MOBILE */
+    #file-preview {
+        position: fixed !important;
+        bottom: 140px !important;
+        left: 10px !important;
+        right: 10px !important;
+        max-width: calc(100% - 20px) !important;
+        z-index: 1001 !important;
+        margin: 0 !important;
+    }
+    
+    /* EMOJI PICKER ΣΕ MOBILE */
+    #emoji-picker-modal .emoji-picker-content {
+        position: fixed !important;
+        bottom: 140px !important;
+        left: 10px !important;
+        right: 10px !important;
+        width: auto !important;
+        max-width: calc(100% - 20px) !important;
+        max-height: 300px !important;
+        margin: 0 !important;
+    }
+    
+    /* Rooms page */
     .rooms-container {
         padding: 20px 15px;
         margin-top: 66px;
@@ -2658,7 +2666,7 @@ body.pwa-mode .pwa-floating-install-button {
         padding-bottom: 20px;
     }
     
-    /* 🔥 Friends page */
+    /* Friends page */
     .friends-list-page {
         margin-top: 66px;
         padding: 20px 15px;
@@ -2687,7 +2695,7 @@ body.pwa-mode .pwa-floating-install-button {
         flex: 1;
     }
     
-    /* 🔥 Profile page */
+    /* Profile page */
     .profile-container {
         padding: 20px 15px;
         margin-top: 66px;
@@ -2726,7 +2734,7 @@ body.pwa-mode .pwa-floating-install-button {
         height: 80px;
     }
     
-    /* 🔥 Notifications */
+    /* Notifications */
     .notification-container {
         top: 70px;
         right: 8px;
@@ -2787,21 +2795,6 @@ body.pwa-mode .pwa-floating-install-button {
         display: none !important;
     }
     
-    /* 🔥 ΔΙΟΡΘΩΣΗ: Κουμπιά κολλητά στο mobile για logged in users */
-    .hero-section #home-cta-logged-out .cta-btn,
-    .hero-section #home-cta-logged-out .cta-btn-secondary,
-    .hero-section #home-cta-logged-in .cta-btn,
-    .hero-section #home-cta-logged-in .cta-btn-secondary {
-        margin-bottom: 20px !important;
-    }
-    
-    .hero-section #home-cta-logged-out .cta-btn:last-child,
-    .hero-section #home-cta-logged-out .cta-btn-secondary:last-child,
-    .hero-section #home-cta-logged-in .cta-btn:last-child,
-    .hero-section #home-cta-logged-in .cta-btn-secondary:last-child {
-        margin-bottom: 0 !important;
-    }
-    
     /* Ensure pages don't have extra padding */
     .page.active {
         padding-bottom: 0;
@@ -2810,41 +2803,40 @@ body.pwa-mode .pwa-floating-install-button {
 
 /* Extra small devices */
 @media (max-width: 480px) {
-    /* 🔥 ΑΚΟΜΗ ΜΕΓΑΛΥΤΕΡΕΣ ΒΕΛΤΙΩΣΕΙΣ ΓΙΑ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
     .message-input-container {
-        padding: 8px 10px !important; /* 🔥 ΜΕΙΩΣΗ από 10px 12px */
+        padding: 8px 10px !important;
         min-height: 65px !important;
         max-height: 120px !important;
     }
     
     #message-input {
-        min-height: 36px !important; /* 🔥 ΜΕΙΩΣΗ από 40px σε 36px */
-        padding: 6px 10px !important; /* 🔥 ΜΕΙΩΣΗ από 8px 12px */
+        min-height: 36px !important;
+        padding: 6px 10px !important;
         font-size: 15px !important;
     }
     
     .send-btn {
-        padding: 8px 12px !important; /* 🔥 ΜΕΙΩΣΗ από 10px 14px */
+        padding: 8px 12px !important;
         min-width: 55px !important;
-        height: 36px !important; /* 🔥 ΜΕΙΩΣΗ από 40px σε 36px */
+        height: 36px !important;
         font-size: 0.8rem !important;
     }
     
     .file-upload-btn,
     .emoji-picker-btn {
-        width: 36px !important; /* 🔥 ΜΕΙΩΣΗ από 40px σε 36px */
-        height: 36px !important; /* 🔥 ΜΕΙΩΣΗ από 40px σε 36px */
+        width: 36px !important;
+        height: 36px !important;
         min-width: 36px !important;
         min-height: 36px !important;
-        padding: 6px !important; /* 🔥 ΜΕΙΩΣΗ από 8px σε 6px */
+        padding: 6px !important;
         font-size: 1.1rem !important;
     }
     
     #messages-container::after {
-        height: 8px !important; /* 🔥 ΑΚΟΜΗ ΜΙΚΡΟΤΕΡΟ */
+        height: 8px !important;
     }
     
-    /* 🔥 ΒΕΛΤΙΩΜΕΝΟ NAV - ΚΑΛΥΤΕΡΗ ΕΜΦΑΝΙΣΗ ΣΕ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
+    /* NAV για πολύ μικρές οθόνες */
     .nav-brand .nav-btn {
         width: 120px;
         min-width: 120px;
@@ -2871,39 +2863,7 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 0 6px;
     }
     
-    /* 🔥 ΒΕΛΤΙΩΣΗ ΓΙΑ USER PROFILE ΣΕ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
-    .user-profile {
-        padding: 6px 8px !important;
-        height: 55px !important;
-        min-height: 55px !important;
-    }
-    
-    .profile-avatar .avatar {
-        width: 28px !important;
-        height: 28px !important;
-        min-width: 28px !important;
-        min-height: 28px !important;
-        font-size: 0.6rem !important;
-    }
-    
-    .profile-name {
-        font-size: 0.7rem !important;
-        max-width: 80px !important;
-    }
-    
-    .profile-status {
-        font-size: 0.6rem !important;
-    }
-    
-    #leave-room-btn {
-        width: 28px !important;
-        height: 28px !important;
-        min-width: 28px !important;
-        min-height: 28px !important;
-        font-size: 0.8rem !important;
-    }
-    
-    /* 🔥 Hero Section για πολύ μικρές οθόνες */
+    /* Hero Section */
     .hero-section {
         padding: 50px 15px 30px !important;
     }
@@ -2916,7 +2876,7 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.85rem;
     }
     
-    /* 🔥 ΚΟΥΜΠΙΑ ΓΙΑ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
+    /* Κουμπιά */
     .hero-section #home-cta-logged-out .cta-btn,
     .hero-section #home-cta-logged-out .cta-btn-secondary,
     .hero-section #home-cta-logged-in .cta-btn,
@@ -2926,7 +2886,7 @@ body.pwa-mode .pwa-floating-install-button {
         max-width: 220px;
     }
     
-    /* 🔥 BETTER FEATURE CARDS FOR VERY SMALL SCREENS */
+    /* Feature cards */
     .features-grid {
         padding: 25px 15px !important;
         gap: 12px;
@@ -2949,7 +2909,7 @@ body.pwa-mode .pwa-floating-install-button {
         line-height: 1.3;
     }
     
-    /* 🔥 Chat improvements for very small screens */
+    /* 🔥 Sidebar ακόμη μικρότερο */
     #sidebar {
         width: 60px;
         min-width: 60px;
@@ -2966,6 +2926,29 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.6rem;
     }
     
+    /* 🔥 User profile ακόμη μικρότερο */
+    .user-profile .profile-avatar .avatar,
+    .user-profile .profile-avatar #sidebar-avatar {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.7rem !important;
+    }
+    
+    .user-profile .profile-name {
+        font-size: 0.6rem !important;
+        max-width: 50px !important;
+    }
+    
+    .user-profile #leave-room-btn {
+        width: 28px !important;
+        height: 28px !important;
+        padding: 5px !important;
+    }
+    
+    .user-profile #leave-room-btn i {
+        font-size: 0.8rem !important;
+    }
+    
     #sidebar.mobile-expanded {
         width: 240px;
         max-width: 240px;
@@ -2980,7 +2963,7 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.85rem;
     }
     
-    /* 🔥 Rooms page */
+    /* Rooms */
     .rooms-list {
         grid-template-columns: 1fr !important;
     }
@@ -2989,7 +2972,7 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 15px;
     }
     
-    /* 🔥 Profile page */
+    /* Profile */
     .profile-image-wrapper {
         width: 80px;
         height: 80px;
@@ -3026,7 +3009,7 @@ body.pwa-mode .pwa-floating-install-button {
         width: 100%;
     }
     
-    /* 🔥 PWA Button mobile */
+    /* PWA Button */
     .pwa-floating-install-button {
         bottom: 12px;
         right: 12px;
@@ -3052,7 +3035,7 @@ body.pwa-mode .pwa-floating-install-button {
         align-items: center;
     }
     
-    /* Notification count badge hide on very small screens */
+    /* Notification count badge hide */
     .notification-count-badge {
         display: none;
     }
@@ -3070,7 +3053,6 @@ body.pwa-mode .pwa-floating-install-button {
 
 /* Landscape mode για mobile */
 @media (max-width: 768px) and (orientation: landscape) {
-    /* 🔥 ΒΕΛΤΙΩΣΗ για landscape */
     .message-input-container {
         min-height: 60px !important;
         max-height: 100px !important;
@@ -3116,7 +3098,7 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 8px 12px;
     }
     
-    /* 🔥 NAVIGATION ΜΙΚΡΟΤΕΡΟ ΓΙΑ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
+    /* NAV μικρότερο */
     .nav-brand .nav-btn {
         width: 100px;
         min-width: 100px;
@@ -3134,11 +3116,34 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 0 4px;
     }
     
-    /* 🔥 Even smaller sidebar for very small screens */
+    /* Sidebar ακόμη μικρότερο */
     #sidebar {
         width: 50px;
         min-width: 50px;
         max-width: 50px;
+    }
+    
+    /* User profile ακόμη μικρότερο */
+    .user-profile .profile-avatar .avatar,
+    .user-profile .profile-avatar #sidebar-avatar {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 0.65rem !important;
+    }
+    
+    .user-profile .profile-name {
+        font-size: 0.55rem !important;
+        max-width: 45px !important;
+    }
+    
+    .user-profile #leave-room-btn {
+        width: 26px !important;
+        height: 26px !important;
+        padding: 4px !important;
+    }
+    
+    .user-profile #leave-room-btn i {
+        font-size: 0.75rem !important;
     }
     
     #sidebar.mobile-expanded {
@@ -3146,7 +3151,7 @@ body.pwa-mode .pwa-floating-install-button {
         max-width: 200px;
     }
     
-    /* 🔥 Input area για πολύ μικρές οθόνες */
+    /* Input area */
     #message-input {
         font-size: 14px !important;
         padding: 8px 10px !important;
@@ -3172,14 +3177,14 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 1rem;
     }
     
-    /* 🔥 FIX: Feature cards για tablets - 2 columns */
+    /* Feature cards για tablets - 2 columns */
     .features-grid {
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 15px;
         padding: 40px 20px !important;
     }
     
-    /* Αν ο αριθμός των feature cards είναι περιττός, το τελευταίο να είναι full-width */
+    /* Αν ο αριθμός των feature cards είναι περιττός, το τελευταίο full-width */
     .features-grid .feature-card:nth-child(3):last-child {
         grid-column: 1 / -1;
         max-width: 400px;
@@ -3193,6 +3198,24 @@ body.pwa-mode .pwa-floating-install-button {
     
     #sidebar.mobile-expanded {
         width: 300px;
+    }
+    
+    /* Tablet: Εμφάνιση user profile με λίγο μεγαλύτερο avatar */
+    .user-profile .profile-avatar .avatar,
+    .user-profile .profile-avatar #sidebar-avatar {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 0.8rem !important;
+    }
+    
+    .user-profile .profile-name {
+        font-size: 0.7rem !important;
+        max-width: 70px !important;
+    }
+    
+    .user-profile #leave-room-btn {
+        width: 36px !important;
+        height: 36px !important;
     }
 }
 
@@ -3334,23 +3357,23 @@ body.pwa-mode .pwa-floating-install-button {
     line-height: 1.5;
 }
 
-/* 🔥 ΣΗΜΑΝΤΙΚΗ ΠΡΟΣΘΗΚΗ: Ensure chat page has no bottom gap */
+/* ΣΗΜΑΝΤΙΚΗ ΠΡΟΣΘΗΚΗ: Ensure chat page has no bottom gap */
 #chat-page.active {
     height: calc(100vh - 66px);
     overflow: hidden;
 }
 
-/* 🔥 ΒΕΛΤΙΩΣΗ: Auto-scroll to bottom when new message is added */
+/* Auto-scroll to bottom when new message is added */
 #messages-container {
     scroll-behavior: smooth;
 }
 
-/* 🔥 FIX: Force messages container to show last message */
+/* Force messages container to show last message */
 .message:last-of-type {
     margin-bottom: 10px;
 }
 
-/* 🔥 ΒΕΛΤΙΩΣΗ: Better viewport handling for iOS */
+/* Better viewport handling for iOS */
 @supports (-webkit-touch-callout: none) {
     body {
         min-height: -webkit-fill-available;
@@ -3364,1242 +3387,8 @@ body.pwa-mode .pwa-floating-install-button {
         height: -webkit-fill-available;
     }
     
-    /* 🔥 ΕΙΔΙΚΟ ΓΙΑ iOS: Safe area για iPhone X και νεότερα */
+    /* ΕΙΔΙΚΟ ΓΙΑ iOS: Safe area για iPhone X και νεότερα */
     .message-input-container {
         padding-bottom: max(15px, env(safe-area-inset-bottom)) !important;
     }
-}
-
-/* ========================================
-   FILE UPLOAD & EMOJI PICKER SYSTEM
-   ======================================== */
-
-/* File Upload Container */
-.file-upload-container {
-    position: relative;
-    margin: 10px 0;
-}
-
-#file-upload-input {
-    display: none;
-}
-
-.file-upload-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-light);
-    padding: 10px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.file-upload-btn:hover {
-    background: rgba(139, 0, 0, 0.2);
-    color: var(--accent-red);
-}
-
-.file-upload-btn i {
-    font-size: 1.2rem;
-}
-
-/* File Preview */
-#file-preview {
-    display: none;
-    background: rgba(38, 38, 38, 0.9);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    padding: 15px;
-    margin: 10px 0;
-    flex-direction: column;
-    gap: 10px;
-    animation: slideInUp 0.3s ease-out;
-}
-
-.file-preview-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.file-preview-title {
-    font-weight: 600;
-    color: var(--text);
-    font-size: 0.9rem;
-}
-
-.file-preview-content {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-#preview-image {
-    width: 60px;
-    height: 60px;
-    object-fit: cover;
-    border-radius: var(--radius);
-    display: none;
-}
-
-.file-info {
-    flex: 1;
-}
-
-.file-info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 5px;
-}
-
-#file-name {
-    font-weight: 600;
-    color: var(--text);
-    font-size: 0.9rem;
-}
-
-#file-size {
-    font-size: 0.8rem;
-    color: var(--text-light);
-}
-
-/* Upload Progress */
-.upload-progress-container {
-    margin-top: 10px;
-    background: rgba(26, 26, 26, 0.5);
-    border-radius: var(--radius);
-    overflow: hidden;
-    height: 6px;
-}
-
-#upload-progress {
-    height: 100%;
-    background: var(--accent-red);
-    width: 0%;
-    transition: width 0.3s ease;
-    position: relative;
-}
-
-#upload-progress::after {
-    content: attr(data-progress);
-    position: absolute;
-    right: 5px;
-    top: -20px;
-    font-size: 0.7rem;
-    color: var(--text-light);
-}
-
-#upload-status {
-    font-size: 0.8rem;
-    color: var(--text-light);
-    margin-top: 5px;
-    text-align: center;
-}
-
-/* File Upload Actions */
-.file-upload-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-#send-file-btn {
-    flex: 1;
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-
-#send-file-btn:hover:not(:disabled) {
-    background: var(--accent-red);
-}
-
-#send-file-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-#cancel-upload-btn {
-    background: rgba(51, 51, 51, 0.8);
-    color: var(--text);
-    border: 1px solid var(--border-color);
-    padding: 8px 16px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 0.2s ease;
-}
-
-#cancel-upload-btn:hover {
-    background: rgba(77, 77, 77, 0.8);
-}
-
-/* Emoji Picker Modal */
-#emoji-picker-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 10000;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(5px);
-}
-
-#emoji-picker-modal.active {
-    display: flex;
-    animation: fadeIn 0.3s ease-out;
-}
-
-.emoji-picker-content {
-    background: var(--card-bg);
-    border-radius: var(--radius);
-    width: 90%;
-    max-width: 500px;
-    max-height: 80vh;
-    overflow: hidden;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-    display: flex;
-    flex-direction: column;
-}
-
-.emoji-picker-header {
-    padding: 15px 20px;
-    background: rgba(38, 38, 38, 0.9);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.emoji-picker-header h3 {
-    color: var(--text);
-    font-size: 1.1rem;
-    margin: 0;
-}
-
-#close-emoji-picker {
-    background: none;
-    border: none;
-    color: var(--text-light);
-    font-size: 1.5rem;
-    cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: all 0.2s ease;
-}
-
-#close-emoji-picker:hover {
-    background: rgba(139, 0, 0, 0.3);
-    color: var(--accent-red);
-}
-
-.emoji-categories {
-    display: flex;
-    gap: 2px;
-    padding: 10px;
-    background: rgba(38, 38, 38, 0.9);
-    border-bottom: 1px solid var(--border-color);
-    overflow-x: auto;
-}
-
-.emoji-category-btn {
-    background: transparent;
-    border: none;
-    padding: 8px 12px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-size: 1.2rem;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-    min-width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.emoji-category-btn.active {
-    background: var(--primary);
-    color: white;
-    transform: scale(1.1);
-}
-
-.emoji-category-btn:hover:not(.active) {
-    background: rgba(139, 0, 0, 0.2);
-    transform: scale(1.05);
-}
-
-.emoji-grid-container {
-    flex: 1;
-    overflow-y: auto;
-    padding: 15px;
-}
-
-.emoji-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-    gap: 10px;
-}
-
-.emoji-item {
-    background: transparent;
-    border: none;
-    padding: 10px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-size: 1.5rem;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 50px;
-}
-
-.emoji-item:hover {
-    background: rgba(139, 0, 0, 0.2);
-    transform: scale(1.2);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.emoji-item:active {
-    transform: scale(1.1);
-}
-
-/* Message with files */
-.message-file {
-    margin-top: 8px;
-    background: rgba(38, 38, 38, 0.7);
-    border-radius: var(--radius);
-    padding: 10px;
-    border: 1px solid var(--border-color);
-}
-
-.file-preview-in-message {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.file-image-preview {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.file-image-preview:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-.file-info-message {
-    flex: 1;
-}
-
-.file-name-message {
-    display: block;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 5px;
-    word-break: break-all;
-}
-
-.file-download-btn {
-    background: var(--primary);
-    color: white;
-    padding: 6px 12px;
-    border-radius: var(--radius);
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    transition: all 0.2s ease;
-}
-
-.file-download-btn:hover {
-    background: var(--accent-red);
-    transform: translateY(-2px);
-}
-
-/* File icon for non-image files */
-.file-icon-large {
-    width: 80px;
-    height: 80px;
-    background: rgba(139, 0, 0, 0.2);
-    border-radius: var(--radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    color: var(--accent-red);
-}
-
-.file-item-message {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px;
-    background: rgba(38, 38, 38, 0.7);
-    border-radius: var(--radius);
-    border: 1px solid var(--border-color);
-}
-
-.file-icon-message i {
-    font-size: 1.8rem;
-    color: var(--accent-red);
-}
-
-.file-details-message {
-    flex: 1;
-}
-
-.file-download-link {
-    color: var(--accent-red);
-    text-decoration: none;
-    font-size: 0.9rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    transition: all 0.2s ease;
-}
-
-.file-download-link:hover {
-    text-decoration: underline;
-    color: var(--accent-pink);
-}
-
-/* Image Preview Modal */
-.image-preview-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.95);
-    z-index: 20000;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(10px);
-}
-
-.image-preview-modal.active {
-    display: flex;
-    animation: fadeIn 0.3s ease-out;
-}
-
-.image-preview-content {
-    position: relative;
-    max-width: 90%;
-    max-height: 90vh;
-    background: var(--card-bg);
-    border-radius: var(--radius);
-    overflow: hidden;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-}
-
-.close-image-preview {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: rgba(0, 0, 0, 0.7);
-    border: none;
-    color: white;
-    font-size: 1.8rem;
-    cursor: pointer;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-    transition: all 0.2s ease;
-}
-
-.close-image-preview:hover {
-    background: var(--accent-red);
-    transform: rotate(90deg);
-}
-
-.full-size-image {
-    max-width: 100%;
-    max-height: 80vh;
-    display: block;
-    margin: 0 auto;
-}
-
-.image-actions {
-    padding: 15px;
-    background: rgba(38, 38, 38, 0.9);
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-}
-
-.image-actions .btn {
-    min-width: 120px;
-}
-
-/* Chat Input Area with new buttons */
-.message-input-container {
-    padding: 10px 15px;
-    background: rgba(38, 38, 38, 0.95);
-    border-top: 1px solid var(--border-color);
-    position: relative;
-    z-index: 10;
-}
-
-#chat-form {
-    max-width: 100%;
-    margin: 0 auto;
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-}
-
-.input-actions {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-}
-
-.emoji-picker-btn,
-.file-upload-btn {
-    background: transparent;
-    border: none;
-    padding: 10px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    color: var(--text-light);
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 44px;
-    min-height: 44px;
-}
-
-.emoji-picker-btn:hover,
-.file-upload-btn:hover {
-    background: rgba(139, 0, 0, 0.2);
-    color: var(--accent-red);
-    transform: scale(1.1);
-}
-
-.emoji-picker-btn i,
-.file-upload-btn i {
-    font-size: 1.3rem;
-}
-
-#message-input {
-    flex: 1;
-    padding: 12px 16px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius);
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-    background: rgba(26, 26, 26, 0.9);
-    color: var(--text);
-    resize: none;
-    min-height: 44px;
-    max-height: 120px;
-    font-family: inherit;
-    line-height: 1.4;
-}
-
-#message-input:focus {
-    border-color: var(--accent-red);
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.2);
-    background: rgba(38, 38, 38, 0.9);
-}
-
-.send-btn {
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.95rem;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-width: 100px;
-    min-height: 44px;
-}
-
-.send-btn:hover:not(:disabled) {
-    background: var(--accent-red);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
-}
-
-.send-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* ========================================
-   SOCIAL MEDIA FOOTER
-   ======================================== */
-
-.social-media-section {
-    margin-top: 60px;
-    padding: 40px 20px;
-    background: rgba(26, 26, 26, 0.8);
-    border-top: 1px solid var(--border-color);
-    text-align: center;
-}
-
-.social-media-section h2 {
-    color: var(--text);
-    margin-bottom: 30px;
-    font-size: 1.8rem;
-}
-
-.social-media-section p {
-    color: var(--text-light);
-    margin-bottom: 30px;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-    line-height: 1.6;
-}
-
-.social-icons-grid {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    flex-wrap: wrap;
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-.social-icon-circle {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.8rem;
-    text-decoration: none;
-    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    position: relative;
-    overflow: hidden;
-}
-
-.social-icon-circle::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    transition: left 0.6s ease;
-}
-
-.social-icon-circle:hover::before {
-    left: 100%;
-}
-
-.social-icon-circle:hover {
-    transform: translateY(-10px) scale(1.1);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-}
-
-.social-icon-circle.instagram {
-    background: linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D);
-}
-
-.social-icon-circle.facebook {
-    background: #1877F2;
-}
-
-.social-icon-circle.twitter {
-    background: #1DA1F2;
-}
-
-.social-icon-circle.youtube {
-    background: #FF0000;
-}
-
-.social-icon-circle.tiktok {
-    background: #000000;
-}
-
-.social-icon-circle.discord {
-    background: #5865F2;
-}
-
-.social-icon-circle.github {
-    background: #333333;
-}
-
-.social-icon-circle.linkedin {
-    background: #0077B5;
-}
-
-.social-icon-circle.reddit {
-    background: #FF4500;
-}
-
-.social-icon-circle.whatsapp {
-    background: #25D366;
-}
-
-.social-icon-circle.telegram {
-    background: #0088CC;
-}
-
-.social-icon-circle i {
-    position: relative;
-    z-index: 1;
-}
-
-.social-icon-label {
-    position: absolute;
-    bottom: -25px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.7rem;
-    color: var(--text-light);
-    white-space: nowrap;
-    opacity: 0;
-    transition: all 0.3s ease;
-}
-
-.social-icon-circle:hover .social-icon-label {
-    opacity: 1;
-    bottom: -20px;
-}
-
-/* Follow Us Text */
-.follow-us {
-    margin-top: 40px;
-    color: var(--text-light);
-    font-size: 0.9rem;
-}
-
-.follow-us a {
-    color: var(--accent-red);
-    text-decoration: none;
-    font-weight: 600;
-}
-
-.follow-us a:hover {
-    text-decoration: underline;
-}
-
-/* ========================================
-   ANIMATIONS
-   ======================================== */
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes slideInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
-}
-
-/* ========================================
-   RESPONSIVE DESIGN FOR NEW FEATURES
-   ======================================== */
-
-@media (max-width: 768px) {
-    /* File Upload */
-    .file-preview-content {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    #preview-image {
-        width: 100%;
-        height: 150px;
-    }
-    
-    .file-upload-actions {
-        flex-direction: column;
-    }
-    
-    /* Emoji Picker */
-    .emoji-picker-content {
-        width: 95%;
-        height: 70vh;
-        position: fixed;
-        bottom: 0;
-        border-radius: var(--radius) var(--radius) 0 0;
-        animation: slideInUp 0.3s ease-out;
-    }
-    
-    .emoji-grid {
-        grid-template-columns: repeat(6, 1fr);
-        gap: 8px;
-    }
-    
-    .emoji-item {
-        min-height: 45px;
-        font-size: 1.3rem;
-    }
-    
-    .emoji-categories {
-        justify-content: flex-start;
-        padding: 8px;
-    }
-    
-    .emoji-category-btn {
-        padding: 6px 10px;
-        font-size: 1.1rem;
-        min-width: 35px;
-        height: 35px;
-    }
-    
-    /* Social Media */
-    .social-icons-grid {
-        gap: 15px;
-    }
-    
-    .social-icon-circle {
-        width: 50px;
-        height: 50px;
-        font-size: 1.5rem;
-    }
-    
-    .social-icon-label {
-        font-size: 0.6rem;
-        bottom: -22px;
-    }
-    
-    .social-icon-circle:hover .social-icon-label {
-        bottom: -18px;
-    }
-}
-
-@media (max-width: 480px) {
-    /* File Upload */
-    #file-preview {
-        padding: 10px;
-    }
-    
-    .file-preview-content {
-        gap: 10px;
-    }
-    
-    /* Emoji Picker */
-    .emoji-grid {
-        grid-template-columns: repeat(5, 1fr);
-        gap: 6px;
-    }
-    
-    .emoji-item {
-        min-height: 40px;
-        font-size: 1.2rem;
-        padding: 8px;
-    }
-    
-    /* Social Media */
-    .social-icons-grid {
-        gap: 10px;
-    }
-    
-    .social-icon-circle {
-        width: 45px;
-        height: 45px;
-        font-size: 1.3rem;
-    }
-    
-    .social-media-section h2 {
-        font-size: 1.5rem;
-    }
-    
-    .social-media-section p {
-        font-size: 0.9rem;
-        padding: 0 10px;
-    }
-}
-
-/* Tablet Landscape */
-@media (min-width: 769px) and (max-width: 1024px) {
-    .emoji-grid {
-        grid-template-columns: repeat(7, 1fr);
-    }
-    
-    .social-icons-grid {
-        gap: 25px;
-    }
-    
-    .social-icon-circle {
-        width: 55px;
-        height: 55px;
-    }
-}
-
-/* Desktop Large Screens */
-@media (min-width: 1200px) {
-    .emoji-picker-content {
-        max-width: 450px;
-    }
-    
-    .emoji-grid {
-        grid-template-columns: repeat(8, 1fr);
-    }
-}
-
-/* Dark mode adjustments for file upload */
-@media (prefers-color-scheme: dark) {
-    .file-upload-btn:hover {
-        background: rgba(139, 0, 0, 0.3);
-    }
-    
-    .emoji-item:hover {
-        background: rgba(139, 0, 0, 0.3);
-    }
-    
-    #file-preview {
-        background: rgba(30, 30, 30, 0.95);
-    }
-}
-
-/* Print styles (hide unnecessary elements when printing) */
-@media print {
-    .file-upload-btn,
-    .emoji-picker-btn,
-    .send-btn,
-    .social-media-section {
-        display: none !important;
-    }
-    
-    #message-input {
-        border: 1px solid #ccc;
-        background: white;
-        color: black;
-    }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-    .file-upload-btn,
-    .emoji-picker-btn {
-        border: 2px solid currentColor;
-    }
-    
-    #file-preview {
-        border: 2px solid var(--border-color);
-    }
-    
-    .emoji-item {
-        border: 1px solid rgba(139, 0, 0, 0.3);
-    }
-}
-
-/* Reduced motion preferences */
-@media (prefers-reduced-motion: reduce) {
-    .social-icon-circle,
-    .emoji-item,
-    .file-upload-btn,
-    .emoji-picker-btn,
-    .send-btn {
-        transition: none !important;
-        animation: none !important;
-    }
-    
-    .social-icon-circle::before {
-        display: none;
-    }
-}
-
-/* Touch device optimizations */
-@media (hover: none) and (pointer: coarse) {
-    .emoji-item {
-        min-height: 55px;
-        padding: 15px;
-    }
-    
-    .file-upload-btn,
-    .emoji-picker-btn {
-        min-width: 50px;
-        min-height: 50px;
-    }
-    
-    .social-icon-circle {
-        width: 65px;
-        height: 65px;
-    }
-    
-    /* Larger tap targets for mobile */
-    .emoji-category-btn {
-        min-width: 45px;
-        height: 45px;
-        padding: 10px;
-    }
-}
-
-/* Landscape mode adjustments */
-@media (orientation: landscape) and (max-height: 500px) {
-    .emoji-picker-content {
-        max-height: 90vh;
-        height: auto;
-    }
-    
-    .emoji-grid-container {
-        max-height: 50vh;
-    }
-    
-    .social-media-section {
-        padding: 20px;
-        margin-top: 30px;
-    }
-    
-    .social-icons-grid {
-        gap: 15px;
-    }
-}
-
-/* Custom scrollbar for emoji picker */
-.emoji-grid-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.emoji-grid-container::-webkit-scrollbar-track {
-    background: rgba(26, 26, 26, 0.5);
-    border-radius: 4px;
-}
-
-.emoji-grid-container::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: 4px;
-}
-
-.emoji-grid-container::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-red);
-}
-
-/* Loading animation for file upload */
-@keyframes uploadPulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.7;
-    }
-}
-
-.uploading {
-    animation: uploadPulse 1.5s infinite ease-in-out;
-}
-
-/* Success animation for file upload */
-@keyframes uploadSuccess {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.1);
-    }
-    100% {
-        transform: scale(1);
-    }
-}
-
-.upload-success {
-    animation: uploadSuccess 0.5s ease-out;
-}
-
-/* Error state for file upload */
-.upload-error {
-    border-color: var(--accent-red) !important;
-    background: rgba(139, 0, 0, 0.1) !important;
-}
-
-/* Tooltip for buttons */
-[title] {
-    position: relative;
-}
-
-[title]:hover::after {
-    content: attr(title);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 5px 10px;
-    border-radius: var(--radius);
-    font-size: 0.8rem;
-    white-space: nowrap;
-    z-index: 1000;
-    margin-bottom: 5px;
-}
-
-[title]:hover::before {
-    content: '';
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 5px solid transparent;
-    border-top-color: rgba(0, 0, 0, 0.8);
-    margin-bottom: -5px;
-    z-index: 1000;
-}
-
-/* ========================================
-   🔥 MOBILE OVERLAY FOR SIDEBAR
-   ======================================== */
-
-.sidebar-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 998;
-    backdrop-filter: blur(3px);
-}
-
-.sidebar-overlay.active {
-    display: block;
-}
-
-/* ========================================
-   🔥 ΒΕΛΤΙΩΣΗ ΤΟΥ SIDEBAR ΓΙΑ MOBILE
-   ======================================== */
-
-@media (max-width: 768px) {
-    #sidebar {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        transform: translateX(0);
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
-    }
-    
-    #sidebar.mobile-expanded {
-        transform: translateX(0);
-        box-shadow: 2px 0 15px rgba(0, 0, 0, 0.7);
-    }
-    
-    /* Ολόκληρο το sidebar είναι clickable για να ανοίγει/κλείνει */
-    #sidebar:not(.mobile-expanded) .sidebar-header,
-    #sidebar:not(.mobile-expanded) .room-details,
-    #sidebar:not(.mobile-expanded) .room-members-section {
-        cursor: pointer;
-    }
-    
-    #sidebar:not(.mobile-expanded) .sidebar-header:hover,
-    #sidebar:not(.mobile-expanded) .room-details:hover,
-    #sidebar:not(.mobile-expanded) .room-members-section:hover {
-        background: rgba(51, 51, 51, 0.3);
-    }
-    
-    /* Δείξε hint για επέκταση */
-    #sidebar:not(.mobile-expanded)::after {
-        content: '›';
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 1.5rem;
-        color: var(--text-light);
-        opacity: 0.7;
-    }
-}
-
-/* ========================================
-   🔥 FIX ΓΙΑ ΟΛΟΚΛΗΡΟ ΤΟ USER PROFILE SECTION
-   ======================================== */
-
-/* Βεβαιώσου ότι το user profile δεν κρύβεται ποτέ */
-.user-profile {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-/* Προσθήκη animation για καλύτερη εμπειρία */
-@keyframes slideUpFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.user-profile {
-    animation: slideUpFadeIn 0.3s ease-out;
 }
