@@ -81,6 +81,70 @@ function clearChatState() {
     localStorage.removeItem('ratscape_chat_state');
 }
 
+// ===== MOBILE SIDEBAR TOGGLE SYSTEM =====
+
+function initMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const isMobile = window.innerWidth <= 768;
+    
+    if (isMobile && sidebar) {
+        // Create overlay
+        let overlay = document.querySelector('.sidebar-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'sidebar-overlay';
+            document.body.appendChild(overlay);
+        }
+        
+        // Set username attribute για tooltip
+        const userProfile = sidebar.querySelector('.user-profile');
+        if (userProfile && currentUser.username) {
+            userProfile.setAttribute('data-username', currentUser.username);
+        }
+        
+        // Toggle sidebar on click
+        sidebar.addEventListener('click', function(e) {
+            // Μην ανοίγει/κλείνει όταν κάνουμε click σε κουμπιά
+            if (!e.target.closest('.btn-icon') && !e.target.closest('.action-btn')) {
+                this.classList.toggle('mobile-expanded');
+                overlay.classList.toggle('active');
+            }
+        });
+        
+        // Close sidebar when clicking overlay
+        overlay.addEventListener('click', function() {
+            sidebar.classList.remove('mobile-expanded');
+            this.classList.remove('active');
+        });
+        
+        // Close sidebar when clicking in main chat area
+        const mainChat = document.getElementById('main-chat');
+        if (mainChat) {
+            mainChat.addEventListener('click', function() {
+                sidebar.classList.remove('mobile-expanded');
+                overlay.classList.remove('active');
+            });
+        }
+        
+        // Close sidebar on window resize to desktop
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove('mobile-expanded');
+                overlay.classList.remove('active');
+            }
+        });
+    } else {
+        // Remove mobile expanded state on larger screens
+        if (sidebar) {
+            sidebar.classList.remove('mobile-expanded');
+        }
+        const overlay = document.querySelector('.sidebar-overlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+        }
+    }
+}
+
 // ===== INITIALIZE FILE UPLOAD & EMOJI PICKER =====
 
 // 🔥 ΑΡΧΙΚΟΠΟΙΗΣΗ FILE UPLOAD SYSTEM
@@ -3382,69 +3446,6 @@ function updateUserStatusInUI(username, isOnline) {
     }
 }
 
-// ===== MOBILE RESPONSIVE FUNCTIONALITY =====
-
-function initMobileSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const isMobile = window.innerWidth <= 768;
-    
-    if (isMobile && sidebar) {
-        // Create overlay
-        let overlay = document.querySelector('.sidebar-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.className = 'sidebar-overlay';
-            document.body.appendChild(overlay);
-        }
-        
-        // Toggle sidebar on click
-        sidebar.addEventListener('click', function(e) {
-            if (!e.target.closest('.btn-icon') && !e.target.closest('.action-btn')) {
-                this.classList.toggle('mobile-expanded');
-                overlay.classList.toggle('active');
-            }
-        });
-        
-        // Close sidebar when clicking overlay
-        overlay.addEventListener('click', function() {
-            sidebar.classList.remove('mobile-expanded');
-            this.classList.remove('active');
-        });
-        
-        // Close sidebar when clicking in main chat area
-        const mainChat = document.getElementById('main-chat');
-        if (mainChat) {
-            mainChat.addEventListener('click', function() {
-                sidebar.classList.remove('mobile-expanded');
-                overlay.classList.remove('active');
-            });
-        }
-    } else {
-        // Remove mobile expanded state on larger screens
-        if (sidebar) {
-            sidebar.classList.remove('mobile-expanded');
-        }
-        const overlay = document.querySelector('.sidebar-overlay');
-        if (overlay) {
-            overlay.classList.remove('active');
-        }
-    }
-}
-
-// Enhanced mobile view detection
-function isMobileDevice() {
-    return window.innerWidth <= 768;
-}
-
-// Update UI elements based on mobile state
-function updateMobileUI() {
-    if (isMobileDevice()) {
-        document.body.classList.add('mobile-view');
-    } else {
-        document.body.classList.remove('mobile-view');
-    }
-}
-
 // ===== INITIALIZATION =====
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -3456,10 +3457,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Initialize mobile responsive features
     initMobileSidebar();
-    updateMobileUI();
+    
+    // Ανανέωση mobile sidebar κατά το resize
     window.addEventListener('resize', function() {
         initMobileSidebar();
-        updateMobileUI();
     });
 
     // Προσθήκη CSS animations για unread system, file upload, και emoji picker
