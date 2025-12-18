@@ -2349,6 +2349,174 @@ body.pwa-mode .pwa-floating-install-button {
         padding-bottom: 70px !important; /* 🔥 ΠΡΟΣΘΗΚΗ: padding για input */
     }
     
+    /* 🔥 ΚΡΙΤΙΚΟ FIX: ΕΜΦΑΝΙΣΗ ΤΟΥ USER PROFILE ΚΑΙ LEAVE ROOM BUTTON ΣΕ MOBILE */
+    .user-profile {
+        display: flex !important;
+        align-items: center !important;
+        padding: 8px 10px !important;
+        background: rgba(38, 38, 38, 0.95) !important;
+        border-top: 1px solid var(--border-color) !important;
+        height: 60px !important;
+        min-height: 60px !important;
+        max-height: 60px !important;
+        flex-shrink: 0 !important;
+        z-index: 10 !important;
+    }
+    
+    .profile-avatar .avatar {
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
+        font-size: 0.7rem !important;
+        flex-shrink: 0 !important;
+    }
+    
+    .profile-info {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        flex: 1 !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        margin: 0 8px !important;
+    }
+    
+    .profile-name {
+        display: block !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        color: var(--text) !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100px !important;
+    }
+    
+    .profile-status {
+        display: block !important;
+        font-size: 0.65rem !important;
+        color: var(--text-light) !important;
+    }
+    
+    #leave-room-btn {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
+        background: rgba(139, 0, 0, 0.3) !important;
+        border: none !important;
+        border-radius: var(--radius) !important;
+        color: var(--accent-red) !important;
+        font-size: 0.9rem !important;
+        flex-shrink: 0 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    #leave-room-btn:hover {
+        background: rgba(139, 0, 0, 0.5) !important;
+        transform: scale(1.1) !important;
+    }
+    
+    #leave-room-btn i {
+        margin: 0 !important;
+    }
+    
+    /* Sidebar styling για mobile - πιο σφιχτά */
+    #sidebar {
+        width: 70px;
+        min-width: 70px;
+        max-width: 70px;
+        height: 100%;
+        overflow-y: auto;
+        border-right: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+        z-index: 2;
+    }
+    
+    /* Hide text in sidebar for mobile */
+    .sidebar-header h2,
+    .room-info span,
+    .invite-code-section label,
+    .room-members-section h3,
+    .member-info,
+    .profile-info,
+    .invite-code-display span {
+        display: none;
+    }
+    
+    .sidebar-header,
+    .room-details,
+    .room-members-section,
+    .user-profile {
+        padding: 10px;
+    }
+    
+    .invite-code-display {
+        justify-content: center;
+        padding: 8px;
+    }
+    
+    .member-item {
+        justify-content: center;
+        padding: 8px;
+    }
+    
+    .member-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 0.65rem;
+    }
+    
+    /* Expanded sidebar state */
+    #sidebar.mobile-expanded {
+        width: 280px;
+        max-width: 280px;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.7);
+    }
+    
+    #sidebar.mobile-expanded .member-info,
+    #sidebar.mobile-expanded .profile-info,
+    #sidebar.mobile-expanded .sidebar-header h2,
+    #sidebar.mobile-expanded .room-info span,
+    #sidebar.mobile-expanded .invite-code-section label,
+    #sidebar.mobile-expanded .invite-code-display span,
+    #sidebar.mobile-expanded .room-members-section h3 {
+        display: block;
+    }
+    
+    #sidebar.mobile-expanded .member-info,
+    #sidebar.mobile-expanded .profile-info {
+        display: flex;
+    }
+    
+    /* 🔥 FILE UPLOAD PREVIEW ΣΕ MOBILE */
+    #file-preview {
+        position: fixed !important;
+        bottom: 140px !important; /* 🔥 Πάνω από το input */
+        left: 10px !important;
+        right: 10px !important;
+        max-width: calc(100% - 20px) !important;
+        z-index: 1001 !important;
+        margin: 0 !important;
+    }
+    
+    /* 🔥 EMOJI PICKER ΣΕ MOBILE */
+    #emoji-picker-modal .emoji-picker-content {
+        position: fixed !important;
+        bottom: 140px !important; /* 🔥 Πάνω από το input */
+        left: 10px !important;
+        right: 10px !important;
+        width: auto !important;
+        max-width: calc(100% - 20px) !important;
+        max-height: 300px !important;
+        margin: 0 !important;
+    }
+    
     /* 🔥 ΑΠΑΓΟΡΕΥΣΗ ZOOM OUT ΣΤΑ ΚΙΝΗΤΑ */
     body {
         touch-action: pan-y;
@@ -2464,97 +2632,6 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.85rem !important;
         line-height: 1.4;
         margin: 0;
-    }
-    
-    /* Sidebar styling for mobile */
-    #sidebar {
-        width: 70px;
-        min-width: 70px;
-        max-width: 70px;
-        height: 100%;
-        overflow-y: auto;
-        border-right: 1px solid var(--border-color);
-        transition: all 0.3s ease;
-        z-index: 2;
-    }
-    
-    /* Hide text in sidebar for mobile */
-    .sidebar-header h2,
-    .room-info span,
-    .invite-code-section label,
-    .room-members-section h3,
-    .member-info,
-    .profile-info,
-    .invite-code-display span {
-        display: none;
-    }
-    
-    .sidebar-header,
-    .room-details,
-    .room-members-section,
-    .user-profile {
-        padding: 10px;
-    }
-    
-    .invite-code-display {
-        justify-content: center;
-        padding: 8px;
-    }
-    
-    .member-item {
-        justify-content: center;
-        padding: 8px;
-    }
-    
-    .member-avatar {
-        width: 36px;
-        height: 36px;
-        font-size: 0.65rem;
-    }
-    
-    /* Expanded sidebar state */
-    #sidebar.mobile-expanded {
-        width: 280px;
-        max-width: 280px;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.7);
-    }
-    
-    #sidebar.mobile-expanded .member-info,
-    #sidebar.mobile-expanded .profile-info,
-    #sidebar.mobile-expanded .sidebar-header h2,
-    #sidebar.mobile-expanded .room-info span,
-    #sidebar.mobile-expanded .invite-code-section label,
-    #sidebar.mobile-expanded .invite-code-display span,
-    #sidebar.mobile-expanded .room-members-section h3 {
-        display: block;
-    }
-    
-    #sidebar.mobile-expanded .member-info,
-    #sidebar.mobile-expanded .profile-info {
-        display: flex;
-    }
-    
-    /* 🔥 FILE UPLOAD PREVIEW ΣΕ MOBILE */
-    #file-preview {
-        position: fixed !important;
-        bottom: 140px !important; /* 🔥 Πάνω από το input */
-        left: 10px !important;
-        right: 10px !important;
-        max-width: calc(100% - 20px) !important;
-        z-index: 1001 !important;
-        margin: 0 !important;
-    }
-    
-    /* 🔥 EMOJI PICKER ΣΕ MOBILE */
-    #emoji-picker-modal .emoji-picker-content {
-        position: fixed !important;
-        bottom: 140px !important; /* 🔥 Πάνω από το input */
-        left: 10px !important;
-        right: 10px !important;
-        width: auto !important;
-        max-width: calc(100% - 20px) !important;
-        max-height: 300px !important;
-        margin: 0 !important;
     }
     
     /* 🔥 Rooms page */
@@ -2792,6 +2869,38 @@ body.pwa-mode .pwa-floating-install-button {
     .nav-username {
         font-size: 0.75rem;
         padding: 0 6px;
+    }
+    
+    /* 🔥 ΒΕΛΤΙΩΣΗ ΓΙΑ USER PROFILE ΣΕ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
+    .user-profile {
+        padding: 6px 8px !important;
+        height: 55px !important;
+        min-height: 55px !important;
+    }
+    
+    .profile-avatar .avatar {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        min-height: 28px !important;
+        font-size: 0.6rem !important;
+    }
+    
+    .profile-name {
+        font-size: 0.7rem !important;
+        max-width: 80px !important;
+    }
+    
+    .profile-status {
+        font-size: 0.6rem !important;
+    }
+    
+    #leave-room-btn {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        min-height: 28px !important;
+        font-size: 0.8rem !important;
     }
     
     /* 🔥 Hero Section για πολύ μικρές οθόνες */
@@ -4406,3 +4515,91 @@ body.pwa-mode .pwa-floating-install-button {
     z-index: 1000;
 }
 
+/* ========================================
+   🔥 MOBILE OVERLAY FOR SIDEBAR
+   ======================================== */
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 998;
+    backdrop-filter: blur(3px);
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+/* ========================================
+   🔥 ΒΕΛΤΙΩΣΗ ΤΟΥ SIDEBAR ΓΙΑ MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+    #sidebar {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transform: translateX(0);
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+    }
+    
+    #sidebar.mobile-expanded {
+        transform: translateX(0);
+        box-shadow: 2px 0 15px rgba(0, 0, 0, 0.7);
+    }
+    
+    /* Ολόκληρο το sidebar είναι clickable για να ανοίγει/κλείνει */
+    #sidebar:not(.mobile-expanded) .sidebar-header,
+    #sidebar:not(.mobile-expanded) .room-details,
+    #sidebar:not(.mobile-expanded) .room-members-section {
+        cursor: pointer;
+    }
+    
+    #sidebar:not(.mobile-expanded) .sidebar-header:hover,
+    #sidebar:not(.mobile-expanded) .room-details:hover,
+    #sidebar:not(.mobile-expanded) .room-members-section:hover {
+        background: rgba(51, 51, 51, 0.3);
+    }
+    
+    /* Δείξε hint για επέκταση */
+    #sidebar:not(.mobile-expanded)::after {
+        content: '›';
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.5rem;
+        color: var(--text-light);
+        opacity: 0.7;
+    }
+}
+
+/* ========================================
+   🔥 FIX ΓΙΑ ΟΛΟΚΛΗΡΟ ΤΟ USER PROFILE SECTION
+   ======================================== */
+
+/* Βεβαιώσου ότι το user profile δεν κρύβεται ποτέ */
+.user-profile {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Προσθήκη animation για καλύτερη εμπειρία */
+@keyframes slideUpFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.user-profile {
+    animation: slideUpFadeIn 0.3s ease-out;
+}
