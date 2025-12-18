@@ -300,6 +300,15 @@ const dbHelpers = {
         return await Message.find(query).sort({ created_at: 1 });
     },
 
+    // 🔥 ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Μορφοποίηση μεγέθους αρχείου
+    formatFileSize: function(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
     // 🔥 ΝΕΟ: File storage methods
     saveFile: async function(fileData) {
         try {
@@ -621,6 +630,21 @@ const dbHelpers = {
             console.error("❌ Error getting user file stats:", error);
             return { files_sent: 0, files_received: 0, total_files: 0, total_size: 0 };
         }
+    },
+
+    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη μεθόδου για να επιστρέφει το Message model
+    getMessageModel: function() {
+        return Message;
+    },
+
+    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη μεθόδου για να επιστρέφει το PrivateMessage model
+    getPrivateMessageModel: function() {
+        return PrivateMessage;
+    },
+
+    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη μεθόδου για να επιστρέφει το File model
+    getFileModel: function() {
+        return File;
     }
 };
 
@@ -693,4 +717,17 @@ async function initializeDatabase() {
     }
 }
 
-module.exports = { dbHelpers, initializeDatabase };
+// 🔥 Εξαγωγή και των models για χρήση στο server.js
+module.exports = { 
+    dbHelpers, 
+    initializeDatabase,
+    User,
+    Room,
+    RoomMember,
+    Message,
+    PrivateMessage,
+    Friend,
+    Session,
+    UnreadMessage,
+    File
+};
