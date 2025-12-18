@@ -102,45 +102,122 @@ function initMobileSidebar() {
             userProfile.setAttribute('data-username', currentUser.username);
         }
         
-        // Toggle sidebar on click
-        sidebar.addEventListener('click', function(e) {
-            // Μην ανοίγει/κλείνει όταν κάνουμε click σε κουμπιά
-            if (!e.target.closest('.btn-icon') && !e.target.closest('.action-btn')) {
+        // Βεβαιώνουμε ότι το user profile και το leave room button είναι ορατά
+        const leaveRoomBtn = document.getElementById('leave-room-btn');
+        if (leaveRoomBtn) {
+            leaveRoomBtn.style.display = 'flex';
+        }
+        if (userProfile) {
+            userProfile.style.display = 'flex';
+        }
+        
+        // Toggle sidebar on click - ΑΝΤΙΚΑΤΑΣΤΑΣΗ ΤΟΥ ΠΑΛΙΟΥ EVENT HANDLER
+        // Διαγράφουμε το παλιό event listener αν υπάρχει
+        sidebar.removeEventListener('click', handleSidebarClick);
+        
+        // Προσθέτουμε το νέο event listener
+        const handleSidebarClick = function(e) {
+            // Μην ανοίγει/κλείνει όταν κάνουμε click σε:
+            // 1. Κουμπιά (btn-icon, action-btn)
+            // 2. User profile area
+            // 3. Leave room button
+            // 4. Avatar
+            if (!e.target.closest('.btn-icon') && 
+                !e.target.closest('.action-btn') &&
+                !e.target.closest('.user-profile') &&
+                !e.target.closest('#leave-room-btn') &&
+                !e.target.closest('.profile-avatar')) {
+                
                 this.classList.toggle('mobile-expanded');
                 overlay.classList.toggle('active');
             }
-        });
+        };
+        
+        // Προσθέτουμε το event listener
+        sidebar.addEventListener('click', handleSidebarClick);
+        
+        // Αποθηκεύουμε το handler για μελλοντική διαγραφή
+        sidebar._handleSidebarClick = handleSidebarClick;
         
         // Close sidebar when clicking overlay
-        overlay.addEventListener('click', function() {
+        overlay.removeEventListener('click', closeSidebar);
+        
+        const closeSidebar = function() {
             sidebar.classList.remove('mobile-expanded');
             this.classList.remove('active');
-        });
+        };
+        
+        overlay.addEventListener('click', closeSidebar);
+        overlay._closeSidebar = closeSidebar;
         
         // Close sidebar when clicking in main chat area
         const mainChat = document.getElementById('main-chat');
         if (mainChat) {
-            mainChat.addEventListener('click', function() {
+            mainChat.removeEventListener('click', closeSidebarFromMainChat);
+            
+            const closeSidebarFromMainChat = function() {
                 sidebar.classList.remove('mobile-expanded');
                 overlay.classList.remove('active');
-            });
+            };
+            
+            mainChat.addEventListener('click', closeSidebarFromMainChat);
+            mainChat._closeSidebarFromMainChat = closeSidebarFromMainChat;
         }
         
         // Close sidebar on window resize to desktop
-        window.addEventListener('resize', function() {
+        const handleResize = function() {
             if (window.innerWidth > 768) {
                 sidebar.classList.remove('mobile-expanded');
                 overlay.classList.remove('active');
             }
-        });
+        };
+        
+        window.removeEventListener('resize', handleResize);
+        window.addEventListener('resize', handleResize);
+        
+        // Clean up function για όταν φεύγουμε από chat page
+        const cleanupMobileSidebar = function() {
+            if (sidebar._handleSidebarClick) {
+                sidebar.removeEventListener('click', sidebar._handleSidebarClick);
+                delete sidebar._handleSidebarClick;
+            }
+            if (overlay._closeSidebar) {
+                overlay.removeEventListener('click', overlay._closeSidebar);
+                delete overlay._closeSidebar;
+            }
+            if (mainChat && mainChat._closeSidebarFromMainChat) {
+                mainChat.removeEventListener('click', mainChat._closeSidebarFromMainChat);
+                delete mainChat._closeSidebarFromMainChat;
+            }
+            window.removeEventListener('resize', handleResize);
+        };
+        
+        // Αποθηκεύουμε τη cleanup function για μελλοντική χρήση
+        sidebar._cleanupMobileSidebar = cleanupMobileSidebar;
+        
     } else {
         // Remove mobile expanded state on larger screens
         if (sidebar) {
             sidebar.classList.remove('mobile-expanded');
+            
+            // Εκτελούμε cleanup αν υπάρχει
+            if (sidebar._cleanupMobileSidebar) {
+                sidebar._cleanupMobileSidebar();
+                delete sidebar._cleanupMobileSidebar;
+            }
         }
         const overlay = document.querySelector('.sidebar-overlay');
         if (overlay) {
             overlay.classList.remove('active');
+        }
+        
+        // Σε desktop, κάνουμε το leave room button κανονικό μέγεθος
+        const leaveRoomBtn = document.getElementById('leave-room-btn');
+        if (leaveRoomBtn && window.innerWidth > 768) {
+            leaveRoomBtn.style.width = 'auto';
+            leaveRoomBtn.style.height = 'auto';
+            leaveRoomBtn.style.padding = '8px';
+            leaveRoomBtn.style.borderRadius = 'var(--radius)';
         }
     }
 }
@@ -3987,3 +4064,4 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
