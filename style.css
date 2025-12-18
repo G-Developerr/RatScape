@@ -2495,6 +2495,19 @@ body.pwa-mode .pwa-floating-install-button {
         justify-content: center !important;
         align-items: center !important;
         min-height: 60px !important;
+        border-top: 1px solid var(--border-color);
+        background: rgba(38, 38, 38, 0.8);
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* 🔥 Compact mode: μικρή έκδοση του user profile */
+    #sidebar:not(.mobile-expanded) .user-profile {
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 5px !important;
+        height: auto !important;
     }
     
     .profile-avatar .avatar {
@@ -2508,6 +2521,30 @@ body.pwa-mode .pwa-floating-install-button {
     /* 🔥 ΚΡΥΒΟΥΜΕ ΜΟΝΟ ΤΟ profile-info text σε compact mode */
     #sidebar:not(.mobile-expanded) .profile-info {
         display: none !important;
+    }
+    
+    /* 🔥 Leave room button στο compact mode */
+    #sidebar:not(.mobile-expanded) #leave-room-btn {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 36px !important;
+        height: 36px !important;
+        margin: 0 auto !important;
+        background: rgba(139, 0, 0, 0.3) !important;
+        border-radius: 50% !important;
+        color: var(--accent-red) !important;
+        font-size: 1rem !important;
+        justify-content: center !important;
+        align-items: center !important;
+        order: 100;
+        flex-shrink: 0;
+    }
+    
+    /* 🔥 Leave room button hover effect */
+    #sidebar:not(.mobile-expanded) #leave-room-btn:hover {
+        background: rgba(139, 0, 0, 0.5) !important;
+        transform: scale(1.1) !important;
     }
     
     /* 🔥 ΑΛΛΑ εμφανίζουμε το username ως tooltip σε compact mode */
@@ -2595,9 +2632,14 @@ body.pwa-mode .pwa-floating-install-button {
         display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
-        width: calc(100% - 30px) !important;
-        margin: 10px 15px !important;
-        order: 100;
+        width: auto !important;
+        height: auto !important;
+        padding: 8px 12px !important;
+        border-radius: var(--radius) !important;
+        background: var(--primary) !important;
+        color: white !important;
+        font-size: 0.9rem !important;
+        margin: 0 !important;
         align-items: center;
         justify-content: center;
     }
@@ -3046,6 +3088,23 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 0.5rem;
         top: 3px;
         right: 3px;
+    }
+    
+    /* 🔥 Βελτιστοποίηση user profile για πολύ μικρές οθόνες */
+    #sidebar:not(.mobile-expanded) .user-profile {
+        padding: 6px !important;
+        min-height: 50px !important;
+    }
+    
+    #sidebar:not(.mobile-expanded) .profile-avatar .avatar {
+        width: 32px !important;
+        height: 32px !important;
+    }
+    
+    #sidebar:not(.mobile-expanded) #leave-room-btn {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.9rem !important;
     }
 }
 
