@@ -232,8 +232,8 @@ function cancelFileUpload() {
     fileUploadInProgress = false;
 }
 
-// 🔥 UPLOAD FILE TO SERVER - FIXED: ΜΟΝΟ ΜΙΑ ΦΟΡΑ ΑΠΟΣΤΟΛΗ
-let isUploading = false; // 🔥 ΝΕΟ: Flag για αποτροπή πολλαπλών uploads
+// 🔥 ΚΡΙΤΙΚΟ FIX: UPLOAD FILE TO SERVER - ΜΟΝΟ ΜΙΑ ΦΟΡΑ ΑΠΟΣΤΟΛΗ
+let isUploading = false;
 
 async function uploadFile() {
     if (isUploading) {
@@ -256,7 +256,6 @@ async function uploadFile() {
     const sendFileBtn = document.getElementById('send-file-btn');
     const originalBtnText = sendFileBtn ? sendFileBtn.innerHTML : '';
     
-    // Προετοιμασία FormData
     const formData = new FormData();
     formData.append('file', selectedFile);
     
@@ -272,7 +271,6 @@ async function uploadFile() {
     }
     
     try {
-        // Προσομοίωση προόδου
         if (uploadProgress) {
             uploadProgress.style.width = '30%';
             uploadProgress.setAttribute('data-progress', '30%');
@@ -287,7 +285,6 @@ async function uploadFile() {
             sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Αποστολή...';
         }
         
-        // Πραγματικό upload
         const response = await fetch('/upload-file', {
             method: 'POST',
             headers: {
@@ -318,34 +315,12 @@ async function uploadFile() {
         }
         
         if (data.success) {
-            // Προσθήκη μηνύματος στο chat
-            const messageData = {
-                text: `📁 ${selectedFile.name}`,
-                sender: currentUser.username,
-                time: getCurrentTime(),
-                isFile: true,
-                file_data: {
-                    fileId: data.fileId || `file_${Date.now()}`,
-                    fileName: selectedFile.name,
-                    fileType: selectedFile.type,
-                    fileSize: data.fileSize || formatFileSize(selectedFile.size),
-                    fileUrl: data.fileUrl
-                }
-            };
-            
-            if (currentRoom.isPrivate) {
-                messageData.receiver = currentRoom.name;
-                socket.emit("private message", messageData);
-                addMessageToChat(messageData);
-            } else {
-                messageData.room_id = currentRoom.id;
-                socket.emit("chat message", messageData);
-                addMessageToChat(messageData);
-            }
+            // 🔥 ΚΡΙΤΙΚΟ FIX: ΔΕΝ ΣΤΕΛΝΟΥΜΕ ΤΟ ΜΗΝΥΜΑ ΑΠΟ ΕΔΩ!
+            // Το server θα στείλει το μήνυμα μέσω WebSocket
+            // Απλά δείχνουμε notification
             
             showNotification('Το αρχείο στάλθηκε επιτυχώς!', 'success', 'Αποστολή Αρχείου');
             
-            // Απόκρυψη preview μετά από 1 δευτερόλεπτο
             setTimeout(() => {
                 cancelFileUpload();
             }, 1000);
@@ -514,42 +489,49 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// 🔥 INITIALIZE EVENT LISTENERS FOR FILE UPLOAD & EMOJI - FIXED
+// 🔥 FIX: INITIALIZE EVENT LISTENERS - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
 function initializeUploadAndEmojiListeners() {
     console.log('🔄 Initializing upload and emoji listeners');
     
-    // Αρχικοποίηση file upload system (ΜΟΝΟ ΜΙΑ ΦΟΡΑ)
-    initFileUploadSystem();
+    // 🔥 ΑΡΧΙΚΟΠΟΙΗΣΗ ΜΟΝΟ ΑΝ ΔΕΝ ΕΧΕΙ ΓΙΝΕΙ ΗΔΗ
+    if (!fileUploadListenersInitialized) {
+        initFileUploadSystem();
+    }
     
-    // Αρχικοποίηση emoji picker system
     initEmojiPickerSystem();
-    
-    // Αρχικοποίηση emoji picker content
     initEmojiPickerContent();
     
-    // Send file button - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
+    // 🔥 Send file button - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
     const sendFileBtn = document.getElementById('send-file-btn');
     if (sendFileBtn) {
-        // Αφαίρεση προηγούμενων listeners
-        const cleanSendFileBtn = sendFileBtn.cloneNode(true);
-        sendFileBtn.parentNode.replaceChild(cleanSendFileBtn, sendFileBtn);
+        // Αφαίρεση όλων των προηγούμενων listeners
+        const newSendFileBtn = sendFileBtn.cloneNode(true);
+        sendFileBtn.parentNode.replaceChild(newSendFileBtn, sendFileBtn);
         
-        cleanSendFileBtn.addEventListener('click', function(e) {
+        // Προσθήκη ΜΟΝΟ ΕΝΟΣ listener
+        newSendFileBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             console.log('📤 Send file button clicked');
-            uploadFile();
+            
+            // Έλεγχος αν τρέχει ήδη upload
+            if (!isUploading && !fileUploadInProgress) {
+                uploadFile();
+            } else {
+                console.log('⚠️ Upload already in progress');
+            }
         });
     }
     
-    // Cancel upload button - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
+    // Cancel upload button
     const cancelUploadBtn = document.getElementById('cancel-upload-btn');
     if (cancelUploadBtn) {
-        // Αφαίρεση προηγούμενων listeners
-        const cleanCancelBtn = cancelUploadBtn.cloneNode(true);
-        cancelUploadBtn.parentNode.replaceChild(cleanCancelBtn, cancelUploadBtn);
+        const newCancelBtn = cancelUploadBtn.cloneNode(true);
+        cancelUploadBtn.parentNode.replaceChild(newCancelBtn, cancelUploadBtn);
         
-        cleanCancelBtn.addEventListener('click', function(e) {
+        newCancelBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             cancelFileUpload();
         });
     }
@@ -2595,14 +2577,15 @@ async function handleLeaveRoom() {
     );
 }
 
-// 🔥 FIXED: Το κύριο πρόβλημα - send message χωρίς διπλή αποστολή για αρχεία
+// 🔥 FIX: HANDLE SEND MESSAGE - ΔΕΝ ΣΤΕΛΝΕΙ ΑΡΧΕΙΑ ΑΠΟ ΕΔΩ
 function handleSendMessage() {
     const input = document.getElementById("message-input");
     const text = input.value.trim();
 
-    // Αν υπάρχει επιλεγμένο αρχείο, αποστολή αρχείου
+    // 🔥 ΚΡΙΤΙΚΟ: Αν υπάρχει επιλεγμένο αρχείο, ΜΗΝ κάνεις τίποτα εδώ
+    // Το uploadFile() θα το χειριστεί
     if (selectedFile && !fileUploadInProgress) {
-        uploadFile();
+        // ΔΕΝ καλούμε uploadFile() εδώ - το κουμπί "Send File" το κάνει
         return;
     }
 
@@ -2892,32 +2875,48 @@ socket.on("private message", (message) => {
     }
 });
 
-// 🔥 ΝΕΟ: File upload από άλλους χρήστες
+// 🔥 FIX: WebSocket event - ΔΕΝ ΠΡΟΣΘΕΤΟΥΜΕ ΤΟ ΜΗΝΥΜΑ 2 ΦΟΡΕΣ
 socket.on("file_upload", (data) => {
     console.log("📁 File upload received:", data);
     
-    if ((currentRoom.isPrivate && (data.sender === currentRoom.name || data.receiver === currentRoom.name)) ||
-        (!currentRoom.isPrivate && data.room_id === currentRoom.id)) {
-        
-        // Προσθήκη του αρχείου στο chat
-        addMessageToChat({
-            text: `📁 ${data.fileName} (${data.fileSize})`,
-            sender: data.sender,
-            time: data.time || getCurrentTime(),
-            fileUrl: data.fileUrl,
-            fileName: data.fileName,
-            fileType: data.fileType,
-            isFile: true
+    // 🔥 ΕΛΕΓΧΟΣ: Προσθέτουμε το μήνυμα ΜΟΝΟ αν είμαστε στο σωστό room/chat
+    const shouldDisplay = (
+        (currentRoom.isPrivate && (data.sender === currentRoom.name || data.receiver === currentRoom.name)) ||
+        (!currentRoom.isPrivate && data.room_id === currentRoom.id)
+    );
+    
+    if (shouldDisplay) {
+        // 🔥 ΕΛΕΓΧΟΣ: ΔΕΝ προσθέτουμε το μήνυμα αν ΗΔΗ υπάρχει με το ίδιο fileId
+        const existingMessage = Array.from(document.querySelectorAll('.message')).find(msg => {
+            return msg.textContent.includes(data.fileName);
         });
         
-        // Εμφάνιση notification
-        showNotification(
-            `${data.sender} sent a file: ${data.fileName}`,
-            "info",
-            "New File",
-            null,
-            1
-        );
+        if (!existingMessage) {
+            addMessageToChat({
+                text: `📁 ${data.fileName}`,
+                sender: data.sender,
+                time: data.time || getCurrentTime(),
+                isFile: true,
+                file_data: {
+                    fileId: data.fileId,
+                    fileName: data.fileName,
+                    fileType: data.fileType,
+                    fileSize: data.fileSize,
+                    fileUrl: data.fileUrl
+                }
+            });
+        } else {
+            console.log('⚠️ Message already exists, skipping duplicate');
+        }
+        
+        // Εμφάνιση notification ΜΟΝΟ αν δεν είμαστε ο αποστολέας
+        if (data.sender !== currentUser.username) {
+            showNotification(
+                `${data.sender} sent a file: ${data.fileName}`,
+                "info",
+                "New File"
+            );
+        }
     }
 });
 
