@@ -1612,6 +1612,7 @@ function enterRoom(roomId, roomName, inviteCode) {
     document.getElementById("copy-invite-btn").title = "Copy invite code";
     document.getElementById("copy-invite-btn").style.opacity = "1";
     document.getElementById("copy-invite-btn").style.cursor = "pointer";
+    document.getElementById("copy-invite-btn").style.pointerEvents = "auto";
 
     // Clear messages
     document.getElementById("messages-container").innerHTML = "";
@@ -2815,6 +2816,100 @@ async function changePassword(currentPassword, newPassword, confirmPassword) {
     }
 }
 
+// ===== CLEAR MESSAGES FUNCTIONS =====
+
+// 🔥 FIXED: Clear messages - Διαγράφει ΚΑΙ από τη βάση δεδομένων
+async function handleClearMessages() {
+    if (!currentRoom.id) {
+        showNotification("You are not in a room", "info", "No Room");
+        return;
+    }
+    
+    showConfirmationModal(
+        "Are you sure you want to clear all messages? This action cannot be undone!",
+        "Clear Messages",
+        async () => {
+            try {
+                // 1. Διαγραφή από τη βάση δεδομένων
+                const requestData = {
+                    username: currentUser.username,
+                    isPrivate: currentRoom.isPrivate
+                };
+                
+                if (currentRoom.isPrivate) {
+                    requestData.friendUsername = currentRoom.name;
+                } else {
+                    requestData.roomId = currentRoom.id;
+                }
+                
+                const response = await fetch("/clear-room-messages", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Session-ID": currentUser.sessionId,
+                    },
+                    body: JSON.stringify(requestData),
+                });
+                
+                if (!response.ok) {
+                    throw new Error("Failed to clear messages");
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 2. Καθαρισμός του UI
+                    document.getElementById("messages-container").innerHTML = "";
+                    
+                    showNotification(
+                        `${data.deletedCount} messages cleared successfully`, 
+                        "success", 
+                        "Messages Cleared"
+                    );
+                } else {
+                    showNotification(
+                        data.error || "Failed to clear messages", 
+                        "error", 
+                        "Clear Failed"
+                    );
+                }
+                
+            } catch (error) {
+                console.error("Error clearing messages:", error);
+                showNotification(
+                    "Error clearing messages: " + error.message, 
+                    "error", 
+                    "Clear Failed"
+                );
+            }
+        }
+    );
+}
+
+// 🔥 ΝΕΟ: WebSocket event για όταν κάποιος άλλος κάνει clear
+socket.on("messages_cleared", (data) => {
+    console.log("🗑️ Messages cleared event:", data);
+    
+    // Έλεγχος αν το event αφορά το τρέχον chat
+    const shouldClear = (
+        (data.type === 'private' && currentRoom.isPrivate && 
+         (data.user1 === currentUser.username || data.user2 === currentUser.username) &&
+         (data.user1 === currentRoom.name || data.user2 === currentRoom.name)) ||
+        (data.type === 'group' && !currentRoom.isPrivate && data.roomId === currentRoom.id)
+    );
+    
+    if (shouldClear) {
+        // Καθαρισμός του UI
+        document.getElementById("messages-container").innerHTML = "";
+        
+        showNotification(
+            "Messages have been cleared", 
+            "info", 
+            "Messages Cleared"
+        );
+    }
+});
+
 // ===== SOCKET EVENT HANDLERS =====
 
 socket.on("connect", () => {
@@ -3263,12 +3358,8 @@ function initializeEventListeners() {
     // 🔥 FIXED: Leave room button
     document.getElementById("leave-room-btn").addEventListener("click", handleLeaveRoom);
 
-    document.getElementById("clear-messages-btn").addEventListener("click", () => {
-        showConfirmationModal("Clear all messages in this room?", "Clear Messages", () => {
-            document.getElementById("messages-container").innerHTML = "";
-            showNotification("Messages cleared", "info", "Cleared");
-        });
-    });
+    // 🔥 ΑΛΛΑΓΗ: Ενημέρωση του event listener για το clear button
+    document.getElementById("clear-messages-btn").addEventListener("click", handleClearMessages);
 
     // Initialize file upload system
     initializeUploadAndEmojiListeners();
