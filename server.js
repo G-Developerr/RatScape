@@ -974,6 +974,86 @@ app.get("/user-rooms/:username", validateSession, async (req, res) => {
   }
 });
 
+// Προσθήκη στο server.js - ΜΕΤΑ τα άλλα endpoints
+
+// ===== 🔥 ΝΕΟ ENDPOINT: CLEAR ROOM MESSAGES =====
+app.post("/clear-room-messages", validateSession, async (req, res) => {
+    try {
+        const { roomId, username, isPrivate, friendUsername } = req.body;
+        
+        if (!username) {
+            return res.status(400).json({ success: false, error: "Username required" });
+        }
+        
+        console.log(`🗑️ Clear messages request:`, { roomId, username, isPrivate, friendUsername });
+        
+        if (isPrivate) {
+            // Διαγραφή private messages μεταξύ δύο χρηστών
+            if (!friendUsername) {
+                return res.status(400).json({ success: false, error: "Friend username required for private chat" });
+            }
+            
+            const result = await dbHelpers.getPrivateMessageModel().deleteMany({
+                $or: [
+                    { sender: username, receiver: friendUsername },
+                    { sender: friendUsername, receiver: username }
+                ]
+            });
+            
+            console.log(`✅ Deleted ${result.deletedCount} private messages between ${username} and ${friendUsername}`);
+            
+            // Ενημέρωση και των δύο χρηστών μέσω WebSocket
+            io.emit("messages_cleared", { 
+                type: 'private',
+                user1: username, 
+                user2: friendUsername 
+            });
+            
+            res.json({
+                success: true,
+                deletedCount: result.deletedCount,
+                message: "Private messages cleared successfully"
+            });
+            
+        } else {
+            // Διαγραφή group room messages
+            if (!roomId) {
+                return res.status(400).json({ success: false, error: "Room ID required" });
+            }
+            
+            // Έλεγχος αν ο χρήστης είναι μέλος του room
+            const isMember = await dbHelpers.isUserInRoom(roomId, username);
+            if (!isMember) {
+                return res.status(403).json({ success: false, error: "You are not a member of this room" });
+            }
+            
+            const result = await dbHelpers.getMessageModel().deleteMany({ room_id: roomId });
+            
+            console.log(`✅ Deleted ${result.deletedCount} messages from room ${roomId}`);
+            
+            // Ενημέρωση όλων στο room μέσω WebSocket
+            io.to(roomId).emit("messages_cleared", { 
+                type: 'group',
+                roomId: roomId 
+            });
+            
+            res.json({
+                success: true,
+                deletedCount: result.deletedCount,
+                message: "Room messages cleared successfully"
+            });
+        }
+        
+    } catch (error) {
+        console.error("❌ Error clearing messages:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: "Failed to clear messages" 
+        });
+    }
+});
+
+
 // Friend routes with session validation
 app.post("/send-friend-request", validateSession, async (req, res) => {
   try {
