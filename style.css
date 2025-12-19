@@ -352,7 +352,7 @@ body {
     margin: 30px 0;
 }
 
-/* CLEAN BLACK SOCIAL ICONS WITH RED HOVER */
+/* SIMPLE SOCIAL ICONS - NO HOVER EFFECTS */
 .social-icon-circle {
     width: 70px;
     height: 70px;
@@ -361,18 +361,14 @@ body {
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
     background: rgba(26, 26, 26, 0.95);
     border: 2px solid var(--border-color);
     color: var(--text-light);
-    box-shadow: none;
 }
 
 .social-icon-circle i {
     font-size: 1.8rem;
     color: var(--text-light);
-    transition: all 0.3s ease;
 }
 
 .social-icon-label {
@@ -382,60 +378,6 @@ body {
     font-weight: 500;
     letter-spacing: 0.5px;
     opacity: 0.8;
-}
-
-/* HOVER EFFECT - RED ACCENT */
-.social-icon-circle:hover {
-    background: var(--primary);
-    border-color: var(--accent-red);
-    transform: translateY(-5px);
-}
-
-.social-icon-circle:hover i {
-    color: white;
-    transform: scale(1.1);
-}
-
-.social-icon-circle:hover .social-icon-label {
-    color: white;
-    opacity: 1;
-}
-
-/* ACTIVE STATE */
-.social-icon-circle:active {
-    transform: translateY(-2px);
-    background: var(--accent-red);
-}
-
-/* SOCIAL MEDIA COLORS ON HOVER */
-.social-icon-circle.instagram:hover {
-    background: linear-gradient(45deg, #E1306C, #833AB4);
-    border-color: #E1306C;
-}
-
-.social-icon-circle.facebook:hover {
-    background: #1877F2;
-    border-color: #1877F2;
-}
-
-.social-icon-circle.twitter:hover {
-    background: #1DA1F2;
-    border-color: #1DA1F2;
-}
-
-.social-icon-circle.youtube:hover {
-    background: #FF0000;
-    border-color: #FF0000;
-}
-
-.social-icon-circle.tiktok:hover {
-    background: #000000;
-    border-color: var(--accent-red);
-}
-
-.social-icon-circle.discord:hover {
-    background: #5865F2;
-    border-color: #5865F2;
 }
 
 .follow-us {
