@@ -893,6 +893,25 @@ body {
     word-break: break-word;
 }
 
+.hero-section {
+    background: rgba(13, 13, 13, 0.95); /* Αφαίρεση της σκιερής background */
+    color: white;
+    padding: 80px 30px;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.features-grid {
+    background: none; /* Επίσης αφαίρεση background από το features-grid */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    padding: 60px 30px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
 /* Input Area */
 .message-input-container {
     padding: 15px 20px;
@@ -3744,5 +3763,6 @@ body.pwa-mode .pwa-floating-install-button {
     margin-top: 20px;
     justify-content: center;
 }
+
 
 
