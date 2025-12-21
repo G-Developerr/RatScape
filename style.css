@@ -30,8 +30,8 @@
 
 /* ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΕΛΑΦΡΥ OVERLAY ΓΙΑ ΝΑ ΧΑΜΗΛΩΣΟΥΜΕ ΤΗΝ ΦΩΤΕΙΝΟΤΗΤΑ ΤΟΥ BACKGROUND */
 body {
-    background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('backgroundCars.jpg') center/cover fixed !important;
-    /* Προσθέτουμε μαύρο overlay με 40% αδιαφάνεια για να χαμηλώσουμε τη φωτεινότητα */
+    background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('backgroundCars.jpg') center/cover fixed !important;
+    /* Προσθέτουμε μαύρο overlay με 70% αδιαφάνεια για να χαμηλώσουμε τη φωτεινότητα */
     color: var(--text);
     min-height: 100vh;
     touch-action: pan-y;
@@ -3749,3 +3749,4 @@ body.pwa-mode .pwa-floating-install-button {
     margin-top: 20px;
     justify-content: center;
 }
+
