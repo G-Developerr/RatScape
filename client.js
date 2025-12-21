@@ -232,7 +232,7 @@ function cancelFileUpload() {
     fileUploadInProgress = false;
 }
 
-// 🔥 ΚΡΙΤΙΚΟ FIX: UPLOAD FILE TO SERVER - ΜΟΝΟ ΜΙΑ ΦΟΡΑ ΑΠΟΣΤΟΛΗ
+// 🔥 ΚΡΙΤΙΚΟ FIX: UPLOAD FILE TO SERVER - ΜΟΝΟ ΜΙΑ ΦΟΡΕ ΑΠΟΣΤΟΛΗ
 let isUploading = false;
 
 async function uploadFile() {
@@ -533,6 +533,62 @@ function initializeUploadAndEmojiListeners() {
             e.preventDefault();
             e.stopPropagation();
             cancelFileUpload();
+        });
+    }
+}
+
+// ===== ΒΟΗΘΗΤΙΚΕΣ ΣΥΝΑΡΤΗΣΕΙΣ ΓΙΑ ΤΟ FEATURE CARDS =====
+
+// 🔥 ΝΕΟ: Event listeners για τα feature cards
+function initializeFeatureCardListeners() {
+    console.log('🎯 Initializing feature card listeners');
+    
+    const privateRoomsCard = document.querySelector('.feature-card:nth-child(1)');
+    const realTimeMessagingCard = document.querySelector('.feature-card:nth-child(2)');
+    const groupCollaborationCard = document.querySelector('.feature-card:nth-child(3)');
+    
+    if (privateRoomsCard) {
+        // Private Rooms -> Friends page
+        privateRoomsCard.style.cursor = 'pointer';
+        privateRoomsCard.addEventListener('click', function() {
+            console.log('🔗 Private Rooms card clicked -> Navigating to Friends');
+            if (currentUser.authenticated) {
+                loadUserFriends();
+                showPage("friends-page");
+            } else {
+                showNotification('Please login first to view your friends!', 'info', 'Login Required');
+                showModal("login-modal");
+            }
+        });
+    }
+    
+    if (realTimeMessagingCard) {
+        // Real-time Messaging -> Rooms page
+        realTimeMessagingCard.style.cursor = 'pointer';
+        realTimeMessagingCard.addEventListener('click', function() {
+            console.log('🔗 Real-time Messaging card clicked -> Navigating to Rooms');
+            if (currentUser.authenticated) {
+                loadUserRooms();
+                showPage("rooms-page");
+            } else {
+                showNotification('Please login first to view your rooms!', 'info', 'Login Required');
+                showModal("login-modal");
+            }
+        });
+    }
+    
+    if (groupCollaborationCard) {
+        // Group Collaboration -> Rooms page
+        groupCollaborationCard.style.cursor = 'pointer';
+        groupCollaborationCard.addEventListener('click', function() {
+            console.log('🔗 Group Collaboration card clicked -> Navigating to Rooms');
+            if (currentUser.authenticated) {
+                loadUserRooms();
+                showPage("rooms-page");
+            } else {
+                showNotification('Please login first to view your rooms!', 'info', 'Login Required');
+                showModal("login-modal");
+            }
         });
     }
 }
@@ -3364,6 +3420,9 @@ function initializeEventListeners() {
     // Initialize file upload system
     initializeUploadAndEmojiListeners();
 
+    // 🔥 ΠΡΟΣΘΗΚΗ: Initialize feature card listeners
+    initializeFeatureCardListeners();
+
     // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
     initializeProfileEventListeners();
 }
@@ -3576,359 +3635,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateMobileUI();
     });
 
-    // Προσθήκη CSS animations για unread system, file upload, και emoji picker
-    const unreadStyle = document.createElement('style');
-    unreadStyle.textContent = `
-        @keyframes highlightPulse {
-            0%, 100% { 
-                box-shadow: 0 0 0 0 rgba(139, 0, 0, 0.7);
-                transform: scale(1);
-            }
-            50% { 
-                box-shadow: 0 0 0 15px rgba(139, 0, 0, 0);
-                transform: scale(1.02);
-            }
+    // Αποθήκευση κατάστασης πριν το refresh
+    window.addEventListener('beforeunload', function() {
+        if (currentRoom.id) {
+            saveChatState();
         }
-        
-        @keyframes badgePop {
-            0% { transform: scale(0); opacity: 0; }
-            70% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        
-        .notification-count-badge {
-            position: absolute;
-            top: 10px;
-            right: 35px;
-            background: var(--primary);
-            color: white;
-            border-radius: 10px;
-            min-width: 22px;
-            height: 22px;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 6px;
-            font-weight: bold;
-            animation: badgePop 0.3s ease-out;
-        }
-        
-        /* CSS για disabled copy button */
-        #copy-invite-btn:disabled {
-            opacity: 0.5 !important;
-            cursor: not-allowed !important;
-        }
-        #copy-invite-btn:disabled:hover {
-            background: transparent !important;
-            transform: none !important;
-        }
-        
-        /* Avatar styling */
-        .member-avatar, #sidebar-avatar, .friend-avatar {
-            overflow: hidden;
-        }
-        
-        .member-avatar img, #sidebar-avatar img, .friend-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 50%;
-        }
-        
-        /* Message text better wrapping */
-        .message-text {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            word-break: break-word;
-        }
-        
-        /* File upload preview styling */
-        .file-preview-container {
-            margin: 10px 0;
-            padding: 10px;
-            background: rgba(26, 26, 26, 0.7);
-            border-radius: var(--radius);
-            border: 1px solid var(--border-color);
-        }
-        
-        .file-preview {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .file-image-preview {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: var(--radius);
-            cursor: pointer;
-        }
-        
-        .file-info {
-            flex: 1;
-        }
-        
-        .file-name {
-            display: block;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 5px;
-        }
-        
-        .file-size {
-            font-size: 0.8rem;
-            color: var(--text-light);
-        }
-        
-        .file-upload-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        .file-download-btn {
-            background: var(--primary);
-            color: white;
-            padding: 8px 16px;
-            border-radius: var(--radius);
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.9rem;
-        }
-        
-        .file-download-btn:hover {
-            background: var(--accent-red);
-        }
-        
-        /* Image preview modal */
-        .image-preview-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .image-preview-content {
-            position: relative;
-            max-width: 90%;
-            max-height: 90%;
-        }
-        
-        .full-size-image {
-            max-width: 100%;
-            max-height: 80vh;
-            border-radius: var(--radius);
-        }
-        
-        .close-image-preview {
-            position: absolute;
-            top: -40px;
-            right: 0;
-            background: none;
-            border: none;
-            color: white;
-            font-size: 2rem;
-            cursor: pointer;
-        }
-        
-        .image-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            justify-content: center;
-        }
-        
-        /* Emoji picker styling */
-        .emoji-picker-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 10000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .emoji-picker-modal.active {
-            display: flex;
-        }
-        
-        .emoji-picker-content {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            width: 90%;
-            max-width: 400px;
-            max-height: 80vh;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-        }
-        
-        .emoji-categories {
-            display: flex;
-            gap: 5px;
-            padding: 10px;
-            background: rgba(38, 38, 38, 0.9);
-            border-bottom: 1px solid var(--border-color);
-        }
-        
-        .emoji-category-btn {
-            background: transparent;
-            border: none;
-            padding: 8px 12px;
-            border-radius: var(--radius);
-            cursor: pointer;
-            font-size: 1.2rem;
-            transition: all 0.2s ease;
-        }
-        
-        .emoji-category-btn.active {
-            background: var(--primary);
-            color: white;
-        }
-        
-        .emoji-category-btn:hover:not(.active) {
-            background: rgba(139, 0, 0, 0.2);
-        }
-        
-        .emoji-grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 5px;
-            padding: 15px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
-        .emoji-item {
-            background: transparent;
-            border: none;
-            padding: 8px;
-            border-radius: var(--radius);
-            cursor: pointer;
-            font-size: 1.5rem;
-            transition: all 0.2s ease;
-        }
-        
-        .emoji-item:hover {
-            background: rgba(139, 0, 0, 0.2);
-            transform: scale(1.1);
-        }
-        
-        /* Social media footer */
-        .social-media-footer {
-            margin-top: 40px;
-            padding: 20px;
-            text-align: center;
-            border-top: 1px solid var(--border-color);
-        }
-        
-        .social-media-footer h3 {
-            color: var(--text);
-            margin-bottom: 15px;
-            font-size: 1.1rem;
-        }
-        
-        .social-icons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .social-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.5rem;
-            text-decoration: none;
-            transition: all 0.3s ease;
-        }
-        
-        .social-icon:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-        
-        .social-icon.instagram {
-            background: linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D);
-        }
-        
-        .social-icon.facebook {
-            background: #1877F2;
-        }
-        
-        .social-icon.twitter {
-            background: #1DA1F2;
-        }
-        
-        .social-icon.youtube {
-            background: #FF0000;
-        }
-        
-        .social-icon.tiktok {
-            background: #000000;
-        }
-        
-        .social-icon.discord {
-            background: #5865F2;
-        }
-        
-        /* File item in chat */
-        .message-file {
-            margin-top: 5px;
-        }
-        
-        .file-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: rgba(38, 38, 38, 0.7);
-            border-radius: var(--radius);
-            border: 1px solid var(--border-color);
-        }
-        
-        .file-item i {
-            font-size: 1.5rem;
-            color: var(--accent-red);
-        }
-        
-        .file-details {
-            flex: 1;
-        }
-        
-        .file-download-link {
-            color: var(--accent-red);
-            text-decoration: none;
-            font-size: 0.9rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .file-download-link:hover {
-            text-decoration: underline;
-        }
-    `;
-    document.head.appendChild(unreadStyle);
+    });
 
     const savedUser = getUserFromLocalStorage();
     
@@ -4092,11 +3804,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     console.log("✅ Ready to chat!");
-});
-
-// Αποθήκευση κατάστασης πριν το refresh
-window.addEventListener('beforeunload', function() {
-    if (currentRoom.id) {
-        saveChatState();
-    }
 });
