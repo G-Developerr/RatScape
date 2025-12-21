@@ -2968,7 +2968,7 @@ socket.on("private message", (message) => {
             }
         );
     }
-});
+}
 
 // 🔥 FIX: WebSocket event - ΔΕΝ ΠΡΟΣΘΕΤΟΥΜΕ ΤΟ ΜΗΝΥΜΑ 2 ΦΟΡΕΣ
 socket.on("file_upload", (data) => {
@@ -3213,6 +3213,56 @@ socket.on("connect_error", (error) => {
     console.error("🔌 Connection error:", error);
 });
 
+// ===== FEATURE CARDS CLICK HANDLERS =====
+function initializeFeatureCardListeners() {
+    console.log("🎯 Initializing feature card listeners");
+    
+    // Private Rooms -> Friends Page
+    const privateRoomsCard = document.getElementById('private-rooms-feature');
+    if (privateRoomsCard) {
+        privateRoomsCard.addEventListener('click', function() {
+            if (currentUser.authenticated) {
+                loadUserFriends();
+                showPage("friends-page");
+                showNotification("Navigating to Friends", "info", "Private Rooms");
+            } else {
+                showNotification("Please login first to access Friends", "warning", "Login Required");
+                showModal("login-modal");
+            }
+        });
+    }
+
+    // Real-time Messaging -> My Rooms
+    const realtimeMessagingCard = document.getElementById('realtime-messaging-feature');
+    if (realtimeMessagingCard) {
+        realtimeMessagingCard.addEventListener('click', function() {
+            if (currentUser.authenticated) {
+                loadUserRooms();
+                showPage("rooms-page");
+                showNotification("Navigating to My Rooms", "info", "Real-time Messaging");
+            } else {
+                showNotification("Please login first to access Rooms", "warning", "Login Required");
+                showModal("login-modal");
+            }
+        });
+    }
+
+    // Group Collaboration -> My Rooms
+    const groupCollaborationCard = document.getElementById('group-collaboration-feature');
+    if (groupCollaborationCard) {
+        groupCollaborationCard.addEventListener('click', function() {
+            if (currentUser.authenticated) {
+                loadUserRooms();
+                showPage("rooms-page");
+                showNotification("Navigating to My Rooms", "info", "Group Collaboration");
+            } else {
+                showNotification("Please login first to access Rooms", "warning", "Login Required");
+                showModal("login-modal");
+            }
+        });
+    }
+}
+
 // ===== EVENT LISTENERS =====
 
 function initializeEventListeners() {
@@ -3366,6 +3416,9 @@ function initializeEventListeners() {
 
     // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
     initializeProfileEventListeners();
+    
+    // ΠΡΟΣΘΗΚΗ: Initialize feature card listeners
+    initializeFeatureCardListeners();
 }
 
 // ===== PROFILE EVENT LISTENERS =====
@@ -4092,7 +4145,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     console.log("✅ Ready to chat!");
-});
+}
 
 // Αποθήκευση κατάστασης πριν το refresh
 window.addEventListener('beforeunload', function() {
