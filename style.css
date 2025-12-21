@@ -316,19 +316,18 @@ body {
 }
 
 /* ========================================
-   BEAUTIFUL SOCIAL MEDIA SECTION
-   ======================================== */
-
-/* ========================================
    CLEAN SOCIAL MEDIA STYLES - ΜΑΥΡΑ ΜΕ ΚΟΚΚΙΝΟ HOVER
    ======================================== */
 
 .social-media-section {
     text-align: center;
     padding: 60px 20px;
-    /* ΑΦΑΙΡΕΘΗΚΕ το background container - καθαρή εμφάνιση */
     max-width: 900px;
     margin: 60px auto 0;
+    background: none !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 .social-media-section h2 {
@@ -369,6 +368,7 @@ body {
     position: relative;
     background: #000000; /* Μαύρο */
     border: 2px solid rgba(51, 51, 51, 0.5);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Αφαίρεση overlay */
@@ -386,7 +386,6 @@ body {
     font-size: 0.7rem;
     color: #ffffff;
     margin-top: 6px;
-    font-weight: 600;
     opacity: 0.9;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -409,8 +408,7 @@ body {
     background: var(--primary); /* RatScape κόκκινο */
     transform: translateY(-8px) scale(1.08);
     border-color: var(--accent-red);
-    box-shadow: 0 12px 28px rgba(255, 0, 0, 0.4),
-                0 4px 12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 20px rgba(255, 0, 0, 0.4);
 }
 
 .social-icon-circle:hover i {
@@ -3026,43 +3024,6 @@ body.pwa-mode .pwa-floating-install-button {
         font-size: 1rem;
     }
     
-    /* File upload preview */
-    .file-preview-container {
-        margin: 10px 15px;
-        padding: 12px;
-    }
-    
-    .file-preview-content {
-        flex-direction: column;
-        text-align: center;
-        gap: 10px;
-    }
-    
-    #preview-image {
-        width: 80px;
-        height: 80px;
-    }
-    
-    /* Emoji picker */
-    .emoji-grid {
-        grid-template-columns: repeat(6, 1fr);
-        gap: 6px;
-    }
-    
-    .emoji-item {
-        padding: 6px;
-        font-size: 1.3rem;
-    }
-    
-    .emoji-categories {
-        padding: 8px 12px;
-    }
-    
-    .emoji-category-btn {
-        padding: 6px 10px;
-        font-size: 1.1rem;
-    }
-    
     #invite-code-container.hide-for-private {
         display: none !important;
     }
@@ -3744,5 +3705,3 @@ body.pwa-mode .pwa-floating-install-button {
     margin-top: 20px;
     justify-content: center;
 }
-
-
