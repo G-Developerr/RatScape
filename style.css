@@ -2543,7 +2543,7 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 /* ========================================
-   RESPONSIVE STYLES
+   MOBILE RESPONSIVE NAVIGATION FIX
    ======================================== */
 
 @media (max-width: 768px) {
@@ -2555,763 +2555,242 @@ body.pwa-mode .pwa-floating-install-button {
         overflow-x: hidden;
     }
     
+    /* 🔥 ΚΡΙΣΙΜΟ: Navigation fix - NO SCROLL */
     #main-nav {
-        padding: 8px 12px;
+        padding: 6px 8px !important;
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         width: 100vw;
         z-index: 1000;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        overflow-x: hidden !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: auto !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 4px !important;
+    }
+    
+    /* 🔥 Logo - ΠΟΛΥ πιο μικρό */
+    .nav-brand {
+        flex-shrink: 0 !important;
+        min-width: 80px !important;
+        max-width: 80px !important;
     }
     
     .nav-brand .nav-btn {
-        width: 140px;
-        min-width: 140px;
-        max-width: 140px;
-        height: 40px;
-        flex-shrink: 0;
+        width: 80px !important;
+        min-width: 80px !important;
+        max-width: 80px !important;
+        height: 32px !important;
+        padding: 0 !important;
+        flex-shrink: 0 !important;
     }
     
-    .nav-actions {
-        gap: 5px;
-        flex-wrap: nowrap;
-        min-width: 0;
-    }
-    
-    .nav-btn {
-        padding: 8px 10px;
-        font-size: 0.75rem;
-        white-space: nowrap;
-    }
-    
-    .nav-username {
-        padding: 0 8px;
-        font-size: 0.8rem;
-        flex-shrink: 0;
-    }
-    
-    .hero-section {
-        padding: 60px 20px 40px !important;
-        min-height: auto;
-        margin-top: 66px;
-    }
-    
-    .hero-section h1 {
-        font-size: 1.8rem !important;
-        margin-bottom: 12px;
-    }
-    
-    .hero-section p {
-        font-size: 0.9rem;
-        margin-bottom: 20px;
-        padding: 0;
-    }
-    
-    .hero-section #home-cta-logged-out,
-    .hero-section #home-cta-logged-in {
-        flex-direction: column;
-        gap: 15px;
-        align-items: stretch;
-    }
-    
-    .hero-section #home-cta-logged-out .cta-btn,
-    .hero-section #home-cta-logged-out .cta-btn-secondary,
-    .hero-section #home-cta-logged-in .cta-btn,
-    .hero-section #home-cta-logged-in .cta-btn-secondary {
-        width: 100%;
-        max-width: 280px;
-        margin: 0 auto !important;
-        padding: 12px 20px;
-        font-size: 0.9rem;
-        min-width: auto;
-    }
-    
-    .features-grid {
-        grid-template-columns: 1fr !important;
-        gap: 15px;
-        padding: 30px 20px !important;
-        margin-bottom: 0;
-    }
-    
-    .feature-card {
+    .nav-logo {
         width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        padding: 20px !important;
-        min-height: auto;
-    }
-    
-    .feature-icon i {
-        font-size: 2rem !important;
-    }
-    
-    .feature-card h3 {
-        font-size: 1.1rem !important;
-        margin-bottom: 8px;
-    }
-    
-    .feature-card p {
-        font-size: 0.85rem !important;
-        line-height: 1.4;
-        margin: 0;
-    }
-    
-    /* Social Media Responsive */
-    .social-media-section {
-        padding: 40px 15px;
-    }
-    
-    .social-media-section h2 {
-        font-size: 1.6rem;
-    }
-    
-    .social-media-section > p {
-        font-size: 0.9rem;
-        padding: 0 10px;
-    }
-    
-    .social-icons-grid {
-        gap: 15px;
-    }
-    
-    .social-icon-circle {
-        width: 60px;
-        height: 60px;
-    }
-    
-    .social-icon-circle i {
-        font-size: 1.5rem;
-    }
-    
-    .social-icon-label {
-        font-size: 0.6rem;
-    }
-    
-    /* Chat Layout */
-    .chat-layout {
-        flex-direction: row;
-        height: calc(100vh - 66px);
-        margin-top: 66px;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        overflow: hidden;
-    }
-    
-    #sidebar {
-        width: 70px;
-        min-width: 70px;
-        max-width: 70px;
-        height: 100%;
-        overflow-y: auto;
-        border-right: 1px solid var(--border-color);
-        transition: all 0.3s ease;
-        z-index: 2;
-    }
-    
-    .sidebar-header h2,
-    .room-info span,
-    .invite-code-section label,
-    .room-members-section h3,
-    .member-info,
-    .profile-info,
-    .invite-code-display span {
-        display: none;
-    }
-    
-    .sidebar-header,
-    .room-details,
-    .room-members-section,
-    .user-profile {
-        padding: 10px;
-    }
-    
-    .invite-code-display {
-        justify-content: center;
-        padding: 8px;
-    }
-    
-    .member-item {
-        justify-content: center;
-        padding: 8px;
-    }
-    
-    .member-avatar {
-        width: 36px;
-        height: 36px;
-        font-size: 0.65rem;
-    }
-    
-    #sidebar.mobile-expanded {
-        width: 280px;
-        max-width: 280px;
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.7);
-    }
-    
-    #sidebar.mobile-expanded .member-info,
-    #sidebar.mobile-expanded .profile-info,
-    #sidebar.mobile-expanded .sidebar-header h2,
-    #sidebar.mobile-expanded .room-info span,
-    #sidebar.mobile-expanded .invite-code-section label,
-    #sidebar.mobile-expanded .invite-code-display span,
-    #sidebar.mobile-expanded .room-members-section h3 {
-        display: block;
-    }
-    
-    #sidebar.mobile-expanded .member-info,
-    #sidebar.mobile-expanded .profile-info {
-        display: flex;
-    }
-    
-    body:has(#chat-page.active) .sidebar-overlay {
-        display: block !important;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.7);
-        z-index: 1;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-        pointer-events: none;
-    }
-    
-    body:has(#chat-page.active) #sidebar.mobile-expanded + .sidebar-overlay {
-        opacity: 1;
-        pointer-events: auto;
-    }
-    
-    body:not(:has(#chat-page.active)) .sidebar-overlay {
-        display: none !important;
-    }
-    
-    #main-chat {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        position: relative;
-        min-width: 0;
-    }
-    
-    #messages-container {
-        flex: 1;
-        padding: 15px 12px;
         height: 100% !important;
-        min-height: 0;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
+        object-fit: contain !important;
     }
     
-    #messages-container::after {
-        content: '';
-        display: block;
-        height: 20px;
-        flex-shrink: 0;
+    /* 🔥 Navigation Actions - Compact */
+    .nav-actions {
+        display: flex !important;
+        gap: 3px !important;
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+        overflow: visible !important;
+        flex-shrink: 1 !important;
+        min-width: 0 !important;
+        justify-content: flex-end !important;
     }
     
-    .message {
-        max-width: 85%;
-        padding: 10px 12px;
-        flex-shrink: 0;
+    /* 🔥 Username - Πολύ μικρό */
+    .nav-username {
+        padding: 0 4px !important;
+        font-size: 0.65rem !important;
+        white-space: nowrap !important;
+        flex-shrink: 1 !important;
+        min-width: 0 !important;
+        max-width: 60px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
     
-    .message-header {
-        margin-bottom: 4px;
+    /* 🔥 Navigation Buttons - ΜΙΝΙ */
+    .nav-btn {
+        padding: 5px 6px !important;
+        font-size: 0.6rem !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        border-radius: 4px !important;
+        min-width: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 2px !important;
     }
     
-    .message-sender {
-        font-size: 0.8rem;
+    /* 🔥 Icons μικρότερα */
+    .nav-btn i {
+        margin-right: 2px !important;
+        font-size: 0.65em !important;
     }
     
-    .message-time {
-        font-size: 0.65rem;
+    /* 🔥 Κρύβουμε το κείμενο και δείχνουμε μόνο icons */
+    .nav-btn:not(.nav-brand .nav-btn) {
+        font-size: 0 !important; /* Κρύβει το text */
     }
     
-    .message-text {
-        font-size: 0.9rem;
-        line-height: 1.4;
+    .nav-btn:not(.nav-brand .nav-btn) i {
+        font-size: 1.1rem !important; /* Μεγαλύτερα icons */
+        margin: 0 !important;
     }
     
-    .message-input-container {
+    /* 🔥 Tooltips για να ξέρουν τι είναι το κάθε button */
+    #my-friends-btn::before {
+        content: attr(title);
+        position: absolute;
+        bottom: -30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+        z-index: 10000;
+    }
+    
+    #my-friends-btn:active::before {
+        opacity: 1;
+    }
+    
+    /* Προσθήκη titles για accessibility */
+    #my-friends-btn {
         position: relative;
-        padding: 10px 12px;
-        background: rgba(38, 38, 38, 0.95);
-        border-top: 1px solid var(--border-color);
-        flex-shrink: 0;
-        height: 140px;
     }
     
-    #chat-form {
-        gap: 6px;
-        height: 100%;
-        align-items: stretch;
+    #my-rooms-btn {
+        position: relative;
     }
     
-    .input-actions {
-        flex-direction: column;
-        gap: 4px;
-        justify-content: flex-start;
+    #my-profile-btn {
+        position: relative;
     }
     
-    .input-action-btn {
-        padding: 6px;
-        font-size: 0.9rem;
-    }
-    
-    #message-input {
-        min-height: 50px;
-        max-height: 80px;
-        flex: 1;
-        font-size: 0.9rem;
-        padding: 10px 14px;
-    }
-    
-    .send-btn {
-        padding: 10px 16px;
-        font-size: 0.85rem;
-        height: 44px;
-        align-self: flex-end;
-    }
-    
-    /* Rooms page */
-    .rooms-container {
-        padding: 20px 15px;
-        margin-top: 66px;
-    }
-    
-    .rooms-header {
-        flex-direction: column;
-        gap: 12px;
-        align-items: stretch;
-        margin-bottom: 20px;
-    }
-    
-    .rooms-actions {
-        justify-content: space-between;
-        gap: 8px;
-    }
-    
-    .rooms-list {
-        grid-template-columns: 1fr !important;
-        gap: 15px;
-        padding-bottom: 20px;
-    }
-    
-    /* Friends page */
-    .friends-list-page {
-        margin-top: 66px;
-        padding: 20px 15px;
-    }
-    
-    .friend-card {
-        padding: 12px;
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .friend-info {
-        width: 100%;
-        justify-content: flex-start;
-    }
-    
-    .friend-actions {
-        width: 100%;
-        justify-content: space-between;
-        gap: 8px;
-    }
-    
-    .btn-sm {
-        padding: 6px 12px;
-        font-size: 0.75rem;
-        flex: 1;
-    }
-    
-    /* Profile page */
-    .profile-container {
-        padding: 20px 15px;
-        margin-top: 66px;
-    }
-    
-    .profile-image-wrapper {
-        width: 100px;
-        height: 100px;
-    }
-    
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-    }
-    
-    .stat-item {
-        padding: 10px;
-    }
-    
-    .stat-value {
-        font-size: 1.3rem;
-    }
-    
-    .profile-actions {
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .upload-preview {
-        width: 100px;
-        height: 100px;
-    }
-    
-    .user-info-picture {
-        width: 80px;
-        height: 80px;
-    }
-    
-    /* Notifications */
-    .notification-container {
-        top: 70px;
-        right: 8px;
-        left: 8px;
-        max-width: calc(100% - 16px);
-    }
-    
-    .notification {
-        max-width: 100%;
-        padding: 10px 14px;
-    }
-    
-    .notification-count-badge {
-        top: 6px;
-        right: 25px;
-        min-width: 18px;
-        height: 18px;
-        font-size: 0.6rem;
-    }
-    
-    /* Badges */
-    .nav-badge {
-        min-width: 16px;
-        height: 16px;
-        font-size: 0.5rem;
-        top: -3px;
-        right: -3px;
-    }
-    
-    .friend-badge,
-    .room-badge {
-        top: 5px;
-        right: 5px;
-        min-width: 18px;
-        height: 18px;
-        font-size: 0.6rem;
-    }
-    
-    /* PWA Button */
-    .pwa-floating-install-button {
-        bottom: 15px;
-        right: 15px;
-        padding: 10px 14px;
-        font-size: 0.8rem;
-        border-radius: 40px;
-    }
-    
-    .pwa-floating-install-button .install-text {
-        font-size: 0.75rem;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1rem;
-    }
-    
-    /* File upload preview */
-    .file-preview-container {
-        margin: 10px 15px;
-        padding: 12px;
-    }
-    
-    .file-preview-content {
-        flex-direction: column;
-        text-align: center;
-        gap: 10px;
-    }
-    
-    #preview-image {
-        width: 80px;
-        height: 80px;
-    }
-    
-    /* Emoji picker */
-    .emoji-grid {
-        grid-template-columns: repeat(6, 1fr);
-        gap: 6px;
-    }
-    
-    .emoji-item {
-        padding: 6px;
-        font-size: 1.3rem;
-    }
-    
-    .emoji-categories {
-        padding: 8px 12px;
-    }
-    
-    .emoji-category-btn {
-        padding: 6px 10px;
-        font-size: 1.1rem;
-    }
-    
-    #invite-code-container.hide-for-private {
-        display: none !important;
-    }
-    
-    .hero-section #home-cta-logged-out .cta-btn,
-    .hero-section #home-cta-logged-out .cta-btn-secondary,
-    .hero-section #home-cta-logged-in .cta-btn,
-    .hero-section #home-cta-logged-in .cta-btn-secondary {
-        margin-bottom: 20px !important;
-    }
-    
-    .hero-section #home-cta-logged-out .cta-btn:last-child,
-    .hero-section #home-cta-logged-out .cta-btn-secondary:last-child,
-    .hero-section #home-cta-logged-in .cta-btn:last-child,
-    .hero-section #home-cta-logged-in .cta-btn-secondary:last-child {
-        margin-bottom: 0 !important;
-    }
-    
-    .page.active {
-        padding-bottom: 0;
+    #logout-btn {
+        position: relative;
     }
 }
 
-@media (max-width: 480px) {
+/* 🔥 Για ΠΟΛΥ μικρές οθόνες (< 360px) */
+@media (max-width: 360px) {
+    #main-nav {
+        padding: 4px 6px !important;
+        gap: 2px !important;
+    }
+    
+    .nav-brand {
+        min-width: 70px !important;
+        max-width: 70px !important;
+    }
+    
     .nav-brand .nav-btn {
-        width: 120px;
-        min-width: 120px;
-        max-width: 120px;
-        height: 35px;
+        width: 70px !important;
+        min-width: 70px !important;
+        max-width: 70px !important;
+        height: 28px !important;
     }
     
     .nav-actions {
-        gap: 3px;
+        gap: 2px !important;
     }
     
     .nav-btn {
-        padding: 6px 8px;
-        font-size: 0.7rem;
+        padding: 4px 5px !important;
     }
     
-    .nav-btn i {
-        margin-right: 3px;
-        font-size: 0.7em;
-    }
-    
-    .nav-username {
-        font-size: 0.75rem;
-        padding: 0 6px;
-    }
-    
-    .hero-section {
-        padding: 50px 15px 30px !important;
-    }
-    
-    .hero-section h1 {
-        font-size: 1.5rem !important;
-    }
-    
-    .hero-section p {
-        font-size: 0.85rem;
-    }
-    
-    .hero-section #home-cta-logged-out .cta-btn,
-    .hero-section #home-cta-logged-out .cta-btn-secondary,
-    .hero-section #home-cta-logged-in .cta-btn,
-    .hero-section #home-cta-logged-in .cta-btn-secondary {
-        padding: 10px 16px;
-        font-size: 0.85rem;
-        max-width: 220px;
-    }
-    
-    .features-grid {
-        padding: 25px 15px !important;
-        gap: 12px;
-    }
-    
-    .feature-card {
-        padding: 18px 15px !important;
-    }
-    
-    .feature-icon i {
-        font-size: 1.8rem !important;
-    }
-    
-    .feature-card h3 {
+    .nav-btn:not(.nav-brand .nav-btn) i {
         font-size: 1rem !important;
     }
     
-    .feature-card p {
-        font-size: 0.8rem !important;
-        line-height: 1.3;
-    }
-    
-    /* Social Media */
-    .social-icons-grid {
-        gap: 12px;
-    }
-    
-    .social-icon-circle {
-        width: 55px;
-        height: 55px;
-    }
-    
-    .social-icon-circle i {
-        font-size: 1.3rem;
-    }
-    
-    .social-icon-label {
-        display: none;
-    }
-    
-    .follow-us {
-        font-size: 0.8rem;
-        padding: 0 10px;
-    }
-    
-    /* Chat improvements */
-    #sidebar {
-        width: 60px;
-        min-width: 60px;
-        max-width: 60px;
-    }
-    
-    .member-item {
-        padding: 6px;
-    }
-    
-    .member-avatar {
-        width: 28px;
-        height: 28px;
-        font-size: 0.6rem;
-    }
-    
-    #sidebar.mobile-expanded {
-        width: 240px;
-        max-width: 240px;
-    }
-    
-    .message {
-        max-width: 90%;
-        padding: 8px 10px;
-    }
-    
-    .message-text {
-        font-size: 0.85rem;
-    }
-    
-    /* Rooms page */
-    .rooms-list {
-        grid-template-columns: 1fr !important;
-    }
-    
-    .room-card {
-        padding: 15px;
-    }
-    
-    /* Profile page */
-    .profile-image-wrapper {
-        width: 80px;
-        height: 80px;
-    }
-    
-    .stats-grid {
-        grid-template-columns: 1fr !important;
-        gap: 8px;
-    }
-    
-    .stat-item {
-        padding: 10px;
-    }
-    
-    .upload-preview {
-        width: 80px;
-        height: 80px;
-    }
-    
-    .user-info-picture {
-        width: 60px;
-        height: 60px;
-    }
-    
-    .user-info-actions {
-        flex-direction: column;
-    }
-    
-    .user-info-actions .btn {
-        width: 100%;
-    }
-    
-    /* PWA Button mobile */
-    .pwa-floating-install-button {
-        bottom: 12px;
-        right: 12px;
-        padding: 8px 10px;
-        font-size: 0.75rem;
-    }
-    
-    .pwa-floating-install-button .install-text {
-        display: none;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1.1rem;
-        margin: 0;
-    }
-    
-    .pwa-floating-install-button {
-        width: 48px;
-        height: 48px;
-        padding: 0;
-        border-radius: 50%;
-        justify-content: center;
-        align-items: center;
-    }
-    
-    .notification-count-badge {
-        display: none;
-    }
-    
-    .friend-badge,
-    .room-badge {
-        min-width: 14px;
-        height: 14px;
-        font-size: 0.5rem;
-        top: 3px;
-        right: 3px;
-    }
-    
-    /* Emoji picker για πολύ μικρές οθόνες */
-    .emoji-grid {
-        grid-template-columns: repeat(5, 1fr);
-    }
-    
-    .emoji-item {
-        font-size: 1.2rem;
-    }
-    
-    .file-upload-btn,
-    .emoji-picker-btn {
-        width: 36px;
-        height: 36px;
+    .nav-username {
+        max-width: 50px !important;
+        font-size: 0.6rem !important;
     }
 }
 
+/* 🔥 Για μεσαίες οθόνες (361px - 480px) */
+@media (min-width: 361px) and (max-width: 480px) {
+    .nav-brand {
+        min-width: 90px !important;
+        max-width: 90px !important;
+    }
+    
+    .nav-brand .nav-btn {
+        width: 90px !important;
+        min-width: 90px !important;
+        max-width: 90px !important;
+        height: 34px !important;
+    }
+    
+    .nav-username {
+        max-width: 70px !important;
+        font-size: 0.7rem !important;
+    }
+}
+
+/* 🔥 Για λίγο μεγαλύτερες οθόνες (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+    .nav-brand {
+        min-width: 110px !important;
+        max-width: 110px !important;
+    }
+    
+    .nav-brand .nav-btn {
+        width: 110px !important;
+        min-width: 110px !important;
+        max-width: 110px !important;
+        height: 38px !important;
+    }
+    
+    .nav-username {
+        max-width: 80px !important;
+        font-size: 0.75rem !important;
+    }
+    
+    /* Σε αυτό το μέγεθος μπορούμε να δείξουμε και λίγο text */
+    .nav-btn:not(.nav-brand .nav-btn) {
+        font-size: 0.65rem !important;
+        padding: 5px 7px !important;
+    }
+    
+    .nav-btn:not(.nav-brand .nav-btn) i {
+        font-size: 0.75rem !important;
+        margin-right: 3px !important;
+    }
+}
+
+/* 🔥 Προσθήκη των badges styling για mobile */
+@media (max-width: 768px) {
+    .nav-badge {
+        min-width: 14px !important;
+        height: 14px !important;
+        font-size: 0.55rem !important;
+        top: -4px !important;
+        right: -4px !important;
+        padding: 0 3px !important;
+    }
+}
+
+/* 🔥 Για ΠΟΛΥ μικρές οθόνες (< 360px) */
 @media (max-width: 360px) {
     .pwa-floating-install-button {
         bottom: 10px;
@@ -3749,5 +3228,3 @@ body.pwa-mode .pwa-floating-install-button {
     margin-top: 20px;
     justify-content: center;
 }
-
-
