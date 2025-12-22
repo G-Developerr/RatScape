@@ -41,7 +41,11 @@ body {
     overflow-x: hidden;
 }
 
-/* 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΑΠΟΚΡΥΨΗ ΚΟΚΚΙΝΟΥ ΣΚΡΟΛ ΜΠΑΡ ΣΤΟ NAVIGATION */
+/* ========================================
+   🔥 ΚΡΙΤΙΚΟ FIX: MOBILE NAVIGATION - ΟΛΕΣ ΟΙ ΑΛΛΑΓΕΣ ΕΔΩ
+   ======================================== */
+
+/* 🔥 ΒΕΛΤΙΩΣΗ: Δυναμική προσαρμογή του navigation container */
 #main-nav {
     background: rgba(26, 26, 26, 0.95);
     backdrop-filter: blur(12px);
@@ -55,15 +59,19 @@ body {
     top: 0;
     z-index: 100;
     width: 100%;
-    overflow-x: hidden;
-    -ms-overflow-style: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    -ms-overflow-style: none;
+    flex-wrap: nowrap;
+    min-height: 66px;
 }
 
 #main-nav::-webkit-scrollbar {
     display: none;
 }
 
+/* 🔥 ΜΕΓΑΛΗ ΑΛΛΑΓΗ: ΜΕΙΩΣΗ ΤΟΥ LOGO */
 .nav-brand .nav-btn {
     background: none;
     border: none;
@@ -75,10 +83,11 @@ body {
     align-items: center;
     justify-content: center;
     height: 50px;
-    width: 250px;
-    min-width: 250px;
-    max-width: 250px;
+    width: 200px;  /* ΜΕΙΩΣΗ ΑΠΟ 250px */
+    min-width: 180px;  /* ΜΕΙΩΣΗ ΑΠΟ 250px */
+    max-width: 200px;  /* ΜΕΙΩΣΗ ΑΠΟ 250px */
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .nav-logo {
@@ -95,12 +104,15 @@ body {
     image-rendering: high-quality;
 }
 
+/* 🔥 ΒΕΛΤΙΩΣΗ: Ελαστική συμπεριφορά για τα nav buttons */
 .nav-actions {
     display: flex;
     gap: 8px;
     align-items: center;
     flex-wrap: nowrap;
     overflow-x: visible;
+    min-width: 0;
+    flex-shrink: 0;
 }
 
 .nav-username {
@@ -108,21 +120,30 @@ body {
     font-weight: 600;
     padding: 0 12px;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
+/* 🔥 ΒΕΛΤΙΩΣΗ: Compact nav buttons */
 .nav-btn {
     background: var(--primary);
     color: white;
     border: none;
-    padding: 12px 16px;
+    padding: 10px 14px;  /* ΜΕΙΩΣΗ ΑΠΟ 12px 16px */
     border-radius: var(--radius);
     cursor: pointer;
     transition: all 0.2s ease;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;  /* ΜΕΙΩΣΗ ΑΠΟ 0.9rem */
     position: relative;
     white-space: nowrap;
     flex-shrink: 0;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .nav-btn:hover {
@@ -137,8 +158,8 @@ body {
 .cta-btn i,
 .send-btn i,
 .action-btn i {
-    margin-right: 8px;
-    font-size: 0.9em;
+    margin-right: 6px;  /* ΜΕΙΩΣΗ ΑΠΟ 8px */
+    font-size: 0.85em;  /* ΜΕΙΩΣΗ ΑΠΟ 0.9em */
 }
 
 .feature-icon i {
@@ -170,6 +191,199 @@ body {
 .input-action-btn:hover i {
     color: var(--accent-red);
 }
+
+/* ========================================
+   🔥 ΚΡΙΤΙΚΕΣ ΑΛΛΑΓΕΣ ΜΟΝΟ ΓΙΑ MOBILE
+   ======================================== */
+
+@media (max-width: 768px) {
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ: Ελαχιστοποίηση του logo για mobile */
+    .nav-brand .nav-btn {
+        width: 120px !important;
+        min-width: 120px !important;
+        max-width: 120px !important;
+        height: 40px !important;
+    }
+    
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ: Μείωση padding στα nav buttons */
+    .nav-btn {
+        padding: 8px 10px !important;
+        font-size: 0.75rem !important;
+        min-height: 36px;
+    }
+    
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ: Μείωση του gap μεταξύ των nav buttons */
+    .nav-actions {
+        gap: 4px !important;
+    }
+    
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ: Μείωση font size για το username */
+    .nav-username {
+        font-size: 0.7rem !important;
+        padding: 0 6px !important;
+    }
+    
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ: Μείωση padding στον main nav */
+    #main-nav {
+        padding: 6px 10px !important;
+    }
+    
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ: Μείωση icon margin */
+    .nav-btn i {
+        margin-right: 4px !important;
+        font-size: 0.7em !important;
+    }
+}
+
+@media (max-width: 600px) {
+    /* 🔥 ΑΚΟΜΑ ΜΙΚΡΟΤΕΡΑ ΓΙΑ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
+    
+    .nav-brand .nav-btn {
+        width: 100px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
+        height: 35px !important;
+    }
+    
+    .nav-btn {
+        padding: 6px 8px !important;
+        font-size: 0.7rem !important;
+        min-height: 34px;
+    }
+    
+    .nav-actions {
+        gap: 3px !important;
+    }
+    
+    .nav-username {
+        font-size: 0.65rem !important;
+        padding: 0 4px !important;
+    }
+    
+    #main-nav {
+        padding: 5px 8px !important;
+    }
+    
+    .nav-btn i {
+        margin-right: 3px !important;
+        font-size: 0.65em !important;
+    }
+}
+
+@media (max-width: 480px) {
+    /* 🔥 ΕΚΤΕΤΑΜΕΝΕΣ ΑΛΛΑΓΕΣ ΓΙΑ ΠΟΛΥ ΜΙΚΡΕΣ ΟΘΟΝΕΣ */
+    
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ: Περαιτέρω μείωση του logo */
+    .nav-brand .nav-btn {
+        width: 80px !important;
+        min-width: 80px !important;
+        max-width: 80px !important;
+        height: 30px !important;
+    }
+    
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ: Compact buttons - λιγότερο κείμενο */
+    .nav-btn {
+        padding: 5px 6px !important;
+        font-size: 0.65rem !important;
+        min-height: 32px;
+        max-width: 80px;
+    }
+    
+    /* 🔥 ΣΗΜΑΝΤΙΚΟ: Μόνο icons σε πολύ μικρά buttons */
+    .nav-btn span:not(.nav-badge) {
+        display: none;  /* Κρύβουμε το κείμενο */
+    }
+    
+    .nav-btn i {
+        margin-right: 0 !important;  /* Αφού δεν έχουμε κείμενο */
+        font-size: 0.8em !important;  /* Λίγο μεγαλύτερα icons */
+    }
+    
+    .nav-actions {
+        gap: 2px !important;
+    }
+    
+    .nav-username {
+        display: none !important;  /* Κρύβουμε username για χώρο */
+    }
+    
+    #main-nav {
+        padding: 4px 6px !important;
+        min-height: 60px;
+    }
+    
+    /* 🔥 ΒΕΛΤΙΩΣΗ: Touch-friendly buttons */
+    .nav-btn {
+        min-width: 32px;
+        min-height: 32px;
+        border-radius: 6px;
+        touch-action: manipulation;
+    }
+}
+
+@media (max-width: 360px) {
+    /* 🔥 ΤΕΛΙΚΕΣ ΑΛΛΑΓΕΣ ΓΙΑ ΤΟ ΠΙΟ ΜΙΚΡΟ ΚΙΝΗΤΟ */
+    
+    .nav-brand .nav-btn {
+        width: 70px !important;
+        min-width: 70px !important;
+        max-width: 70px !important;
+        height: 28px !important;
+    }
+    
+    .nav-btn {
+        padding: 4px 5px !important;
+        font-size: 0.6rem !important;
+        min-height: 30px;
+        max-width: 70px;
+        border-radius: 5px;
+    }
+    
+    .nav-actions {
+        gap: 1px !important;
+    }
+    
+    #main-nav {
+        padding: 3px 4px !important;
+        min-height: 58px;
+    }
+    
+    .nav-btn i {
+        font-size: 0.75em !important;
+    }
+}
+
+/* 🔥 ΒΕΛΤΙΩΣΗ: Compact mode για πολλά buttons */
+.compact-mode .nav-btn {
+    min-width: auto !important;
+    padding: 6px 8px !important;
+}
+
+/* 🔥 ΒΕΛΤΙΩΣΗ: Touch-friendly buttons για mobile */
+@media (max-width: 768px) {
+    .nav-btn {
+        min-height: 36px;
+        touch-action: manipulation;
+    }
+    
+    /* 🔥 ΒΕΛΤΙΩΣΗ: Μείωση animation για better performance */
+    .nav-btn:hover {
+        transition-duration: 0.15s !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 3px 6px rgba(255, 0, 0, 0.25) !important;
+    }
+}
+
+/* 🔥 FIX: PREVENT TEXT OVERFLOW IN NAVIGATION */
+.nav-btn {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ========================================
+   ΤΟ ΥΠΟΛΟΙΠΟ CSS (ΧΩΡΙΣ ΑΛΛΑΓΕΣ)
+   ======================================== */
 
 /* Pages */
 .page {
@@ -321,10 +535,6 @@ body {
 }
 
 /* ========================================
-   BEAUTIFUL SOCIAL MEDIA SECTION
-   ======================================== */
-
-/* ========================================
    CLEAN SOCIAL MEDIA STYLES - ΜΑΥΡΑ ΜΕ ΚΟΚΚΙΝΟ HOVER
    ======================================== */
 
@@ -451,7 +661,6 @@ body {
         transform: translateY(-5px);
     }
 }
-
 
 /* Rooms Page */
 .rooms-container {
@@ -2543,7 +2752,7 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 /* ========================================
-   RESPONSIVE STYLES
+   RESPONSIVE STYLES - ΟΙ ΥΠΟΛΟΙΠΕΣ ΑΛΛΑΓΕΣ
    ======================================== */
 
 @media (max-width: 768px) {
@@ -2555,43 +2764,7 @@ body.pwa-mode .pwa-floating-install-button {
         overflow-x: hidden;
     }
     
-    #main-nav {
-        padding: 8px 12px;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        width: 100vw;
-        z-index: 1000;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    .nav-brand .nav-btn {
-        width: 140px;
-        min-width: 140px;
-        max-width: 140px;
-        height: 40px;
-        flex-shrink: 0;
-    }
-    
-    .nav-actions {
-        gap: 5px;
-        flex-wrap: nowrap;
-        min-width: 0;
-    }
-    
-    .nav-btn {
-        padding: 8px 10px;
-        font-size: 0.75rem;
-        white-space: nowrap;
-    }
-    
-    .nav-username {
-        padding: 0 8px;
-        font-size: 0.8rem;
-        flex-shrink: 0;
-    }
+    /* Η ΚΑΤΩΤΕΡΗ ΓΡΑΜΜΗ ΕΙΝΑΙ ΓΙΑ MOBILE NAVIGATION ΚΑΙ ΕΧΕΙ ΤΡΟΠΟΠΟΙΗΘΕΙ ΠΙΟ ΠΑΝΩ */
     
     .hero-section {
         padding: 60px 20px 40px !important;
@@ -3092,31 +3265,7 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 @media (max-width: 480px) {
-    .nav-brand .nav-btn {
-        width: 120px;
-        min-width: 120px;
-        max-width: 120px;
-        height: 35px;
-    }
-    
-    .nav-actions {
-        gap: 3px;
-    }
-    
-    .nav-btn {
-        padding: 6px 8px;
-        font-size: 0.7rem;
-    }
-    
-    .nav-btn i {
-        margin-right: 3px;
-        font-size: 0.7em;
-    }
-    
-    .nav-username {
-        font-size: 0.75rem;
-        padding: 0 6px;
-    }
+    /* Η ΚΑΤΩΤΕΡΗ ΓΡΑΜΜΗ ΕΙΝΑΙ ΓΙΑ MOBILE NAVIGATION ΚΑΙ ΕΧΕΙ ΤΡΟΠΟΠΟΙΗΘΕΙ ΠΙΟ ΠΑΝΩ */
     
     .hero-section {
         padding: 50px 15px 30px !important;
@@ -3313,16 +3462,7 @@ body.pwa-mode .pwa-floating-install-button {
 }
 
 @media (max-width: 360px) {
-    .pwa-floating-install-button {
-        bottom: 10px;
-        right: 10px;
-        width: 44px;
-        height: 44px;
-    }
-    
-    .pwa-floating-install-button i {
-        font-size: 1rem;
-    }
+    /* Η ΚΑΤΩΤΕΡΗ ΓΡΑΜΜΗ ΕΙΝΑΙ ΓΙΑ MOBILE NAVIGATION ΚΑΙ ΕΧΕΙ ΤΡΟΠΟΠΟΙΗΘΕΙ ΠΙΟ ΠΑΝΩ */
     
     .notification-container {
         right: 5px;
@@ -3335,34 +3475,7 @@ body.pwa-mode .pwa-floating-install-button {
         padding: 8px 12px;
     }
     
-    .nav-brand .nav-btn {
-        width: 100px;
-        min-width: 100px;
-        max-width: 100px;
-        height: 30px;
-    }
-    
-    .nav-btn {
-        padding: 5px 6px;
-        font-size: 0.65rem;
-    }
-    
-    .nav-username {
-        font-size: 0.7rem;
-        padding: 0 4px;
-    }
-    
-    #sidebar {
-        width: 50px;
-        min-width: 50px;
-        max-width: 50px;
-    }
-    
-    #sidebar.mobile-expanded {
-        width: 200px;
-        max-width: 200px;
-    }
-    
+    /* Social Media */
     .social-icons-grid {
         gap: 10px;
     }
@@ -3749,5 +3862,3 @@ body.pwa-mode .pwa-floating-install-button {
     margin-top: 20px;
     justify-content: center;
 }
-
-
