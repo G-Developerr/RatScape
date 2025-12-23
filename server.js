@@ -28,6 +28,22 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// 🔥 ΝΕΟ: Debugging middleware για να δούμε τι γίνεται με τα requests
+app.use((req, res, next) => {
+  if (req.path.includes('upload') || req.path.includes('video')) {
+    console.log(`🔍 ${req.method} ${req.path}`);
+    console.log(`📦 Headers:`, req.headers['content-type']);
+    console.log(`📦 Body keys:`, Object.keys(req.body));
+    
+    // Log για πολύ μεγάλα αρχεία
+    if (req.headers['content-length']) {
+      const sizeMB = parseInt(req.headers['content-length']) / (1024 * 1024);
+      console.log(`📦 Request size: ${sizeMB.toFixed(2)} MB`);
+    }
+  }
+  next();
+});
+
 // 🔥 ΝΕΟ: Video upload directory
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const VIDEO_UPLOAD_DIR = path.join(UPLOAD_DIR, 'videos');
@@ -109,6 +125,38 @@ app.get("/test", (req, res) => {
   res.sendFile(path.join(__dirname, "test.html"));
 });
 
+// 🔥 ΝΕΟ: Test endpoint για video upload
+app.post("/test-video-upload", upload.single('testVideo'), async (req, res) => {
+    try {
+        console.log("🧪 Test video upload received");
+        
+        if (!req.file) {
+            return res.json({
+                success: false,
+                error: "No file received",
+                receivedHeaders: req.headers,
+                receivedBody: Object.keys(req.body)
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: "Test upload successful",
+            fileName: req.file.originalname,
+            fileSize: req.file.size,
+            fileType: req.file.mimetype,
+            bufferSize: req.file.buffer.length
+        });
+        
+    } catch (error) {
+        console.error("❌ Test upload error:", error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Memory sessions as fallback
 const userSessions = new Map();
 const onlineUsers = new Map();
@@ -160,16 +208,31 @@ function getErrorMessage(error) {
   return String(error);
 }
 
-// 🔥 ΝΕΟ: Upload video chunk endpoint
+// 🔥 ΝΕΟ: Upload video chunk endpoint - SIMPLIFIED
 app.post("/upload-video-chunk", upload.single('videoChunk'), async (req, res) => {
     try {
-        const { chunkIndex, totalChunks, videoId, fileName, fileType, fileSize } = req.body;
+        console.log("📦 Video chunk upload request received");
         
-        if (!req.file || !videoId) {
-            return res.status(400).json({ success: false, error: "No chunk data" });
+        if (!req.file) {
+            console.log("❌ No file in request");
+            return res.status(400).json({ 
+                success: false, 
+                error: "No chunk data",
+                details: "No file was uploaded"
+            });
         }
         
+        const { chunkIndex, totalChunks, videoId, fileName, fileType, fileSize } = req.body;
+        
         console.log(`📦 Uploading video chunk ${parseInt(chunkIndex) + 1}/${totalChunks} for ${fileName}`);
+        console.log(`📦 Video ID: ${videoId}, File type: ${fileType}, Size: ${fileSize}`);
+        
+        if (!videoId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: "Video ID required" 
+            });
+        }
         
         // Store chunk in memory
         if (!videoChunks.has(videoId)) {
@@ -185,16 +248,26 @@ app.post("/upload-video-chunk", upload.single('videoChunk'), async (req, res) =>
         const videoData = videoChunks.get(videoId);
         videoData.chunks[parseInt(chunkIndex)] = req.file.buffer;
         
-        res.json({
+        const response = {
             success: true,
             chunkIndex: chunkIndex,
             totalChunks: totalChunks,
-            message: `Chunk ${parseInt(chunkIndex) + 1}/${totalChunks} uploaded`
-        });
+            message: `Chunk ${parseInt(chunkIndex) + 1}/${totalChunks} uploaded successfully`,
+            uploadedChunks: videoData.chunks.filter(c => c).length,
+            expectedChunks: videoData.totalChunks
+        };
+        
+        console.log("✅ Chunk upload successful:", response);
+        
+        res.json(response);
         
     } catch (error) {
         console.error("❌ Error uploading video chunk:", error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ 
+            success: false, 
+            error: "Server error during upload",
+            details: error.message 
+        });
     }
 });
 
@@ -1430,6 +1503,20 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
   }
 });
 
+// 🔥 ΝΕΟ: Καθαρισμός όλων των routes που μπορεί να επιστρέφουν HTML κατά λάθος
+app.get("*", (req, res, next) => {
+  // Αν το request είναι για API endpoint και περιμένει JSON, επιστροφή 404 JSON
+  if (req.path.startsWith('/api/') || req.path.includes('upload') || req.path.includes('video')) {
+    console.log(`⚠️ API route not found: ${req.path}`);
+    return res.status(404).json({ 
+      success: false, 
+      error: "API endpoint not found",
+      path: req.path 
+    });
+  }
+  next(); // Αφήστε το Express να χειριστεί τα static files
+});
+
 // ===== SOCKET.IO CONNECTION WITH ENHANCED UNREAD SYSTEM =====
 
 io.on("connection", async (socket) => {
@@ -1934,6 +2021,7 @@ async function startServer() {
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
       console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
       console.log(`🔧 FIXED: Directory creation with fallback`);
+      console.log(`🔍 DEBUGGING MIDDLEWARE: ENABLED`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
