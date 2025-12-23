@@ -1326,6 +1326,83 @@ app.get("/user-rooms/:username", validateSession, async (req, res) => {
   }
 });
 
+// Στον server.js προσθέτουμε:
+app.post('/upload-video-base64', authenticate, async (req, res) => {
+    try {
+        const { videoName, videoType, videoSize, videoData, sender, type, roomId, receiver } = req.body;
+        
+        console.log('🎬 Received Base64 video upload:', {
+            name: videoName,
+            type: videoType,
+            size: videoSize,
+            dataLength: videoData?.length || 0,
+            sender,
+            type,
+            roomId,
+            receiver
+        });
+        
+        // Save video to disk
+        const videoId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const fileName = videoId + '_' + videoName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = path.join(__dirname, 'uploads', 'videos', fileName);
+        
+        // Ensure directory exists
+        const videoDir = path.join(__dirname, 'uploads', 'videos');
+        if (!fs.existsSync(videoDir)) {
+            fs.mkdirSync(videoDir, { recursive: true });
+        }
+        
+        // Convert Base64 to buffer and save
+        const buffer = Buffer.from(videoData, 'base64');
+        fs.writeFileSync(filePath, buffer);
+        
+        console.log('✅ Video saved:', filePath);
+        
+        // Create file URL
+        const fileUrl = `/uploads/videos/${fileName}`;
+        
+        // Prepare data for WebSocket
+        const videoDataWs = {
+            fileId: videoId,
+            fileName: videoName,
+            fileType: videoType,
+            fileSize: videoSize,
+            fileUrl: fileUrl,
+            sender: sender,
+            time: new Date().toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            })
+        };
+        
+        // Emit to appropriate recipients
+        if (type === 'private') {
+            videoDataWs.receiver = receiver;
+            io.to(`private_${sender}_${receiver}`).to(`private_${receiver}_${sender}`).emit('video_upload', videoDataWs);
+        } else {
+            videoDataWs.room_id = roomId;
+            io.to(roomId).emit('video_upload', videoDataWs);
+        }
+        
+        res.json({ 
+            success: true, 
+            message: 'Video uploaded successfully',
+            videoId,
+            fileUrl 
+        });
+        
+    } catch (error) {
+        console.error('❌ Error uploading Base64 video:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to upload video: ' + error.message 
+        });
+    }
+});
+
+
 // Προσθήκη στο server.js - ΜΕΤΑ τα άλλα endpoints
 
 // ===== 🔥 ΝΕΟ ENDPOINT: CLEAR ROOM MESSAGES =====
