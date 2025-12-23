@@ -37,47 +37,56 @@ app.use(express.json());
 // Χειριστείτε OPTIONS requests για CORS
 app.options('*', cors());
 
-// 🔥 ΝΕΟ: Video upload directory
+// 🔥 FIX: Σωστός έλεγχος και δημιουργία directories
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const VIDEO_UPLOAD_DIR = path.join(UPLOAD_DIR, 'videos');
 
-// Create upload directories if they don't exist
-try {
-    // Check if uploads directory exists
-    if (!fs.existsSync(UPLOAD_DIR)) {
-        fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-        console.log('✅ Created uploads directory');
-    } else {
-        console.log('✅ Uploads directory already exists');
-    }
-    
-    // Check if there's a file named 'videos' instead of a directory
-    if (fs.existsSync(VIDEO_UPLOAD_DIR)) {
-        const stats = fs.statSync(VIDEO_UPLOAD_DIR);
-        if (!stats.isDirectory()) {
-            console.log(`⚠️ Found a file named 'videos' instead of directory. Removing it...`);
-            fs.unlinkSync(VIDEO_UPLOAD_DIR);
-            fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
-            console.log('✅ Created videos directory after removing file');
+function ensureUploadDirectories() {
+    try {
+        // Δημιουργία κύριου upload directory αν δεν υπάρχει
+        if (!fs.existsSync(UPLOAD_DIR)) {
+            fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+            console.log('✅ Created uploads directory:', UPLOAD_DIR);
         } else {
-            console.log('✅ Videos directory already exists');
+            console.log('✅ Uploads directory already exists');
         }
-    } else {
-        // Create videos directory if it doesn't exist
-        fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
-        console.log('✅ Created videos directory');
+
+        // Έλεγχος για το videos directory
+        if (fs.existsSync(VIDEO_UPLOAD_DIR)) {
+            // Αν υπάρχει, έλεγξε αν είναι directory ή αρχείο
+            const stats = fs.statSync(VIDEO_UPLOAD_DIR);
+            if (stats.isFile()) {
+                console.log(`⚠️ Found a file named 'videos' instead of directory. Removing it...`);
+                fs.unlinkSync(VIDEO_UPLOAD_DIR);
+                fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
+                console.log('✅ Created videos directory after removing file');
+            } else {
+                console.log('✅ Videos directory already exists');
+            }
+        } else {
+            // Δημιουργία directory αν δεν υπάρχει
+            fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
+            console.log('✅ Created videos directory:', VIDEO_UPLOAD_DIR);
+        }
+        
+        // Δημιουργία και άλλων απαραίτητων directories
+        const thumbnailsDir = path.join(UPLOAD_DIR, 'thumbnails');
+        if (!fs.existsSync(thumbnailsDir)) {
+            fs.mkdirSync(thumbnailsDir, { recursive: true });
+            console.log('✅ Created thumbnails directory');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error creating upload directories:', error);
+        // Continue execution even if directories can't be created
     }
-    
-} catch (error) {
-    console.error('❌ Error creating upload directories:', error);
-    // Don't crash if directory creation fails
-    // The app can still run without upload directories (files will use Base64)
 }
 
-// ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: Αφαίρεση του sharp και επεξεργασίας εικόνων στον δίσκο
-const storage = multer.memoryStorage(); // Αποθήκευση αρχείων στη μνήμη αντί για δίσκο
+// Καλέστε τη συνάρτηση κατά την εκκίνηση
+ensureUploadDirectories();
 
 // 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced multer configuration
+const storage = multer.memoryStorage(); // Αποθήκευση αρχείων στη μνήμη αντί για δίσκο
 const upload = multer({ 
     storage: storage,
     limits: { 
@@ -458,6 +467,37 @@ app.post("/combine-video-chunks", async (req, res) => {
     } catch (error) {
         console.error("❌ Error combining video chunks:", error);
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 🔥 Απλοποιημένο video upload endpoint
+app.post("/upload-video-simple", validateSession, upload.single('video'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: "No video uploaded" });
+        }
+        
+        console.log('🎬 Simple video upload:', {
+            name: req.file.originalname,
+            size: req.file.size,
+            type: req.file.mimetype
+        });
+        
+        // Εδώ μπορείτε να κάνετε την επεξεργασία που θέλετε
+        
+        return res.json({
+            success: true,
+            message: "Video received successfully",
+            file: {
+                name: req.file.originalname,
+                size: req.file.size,
+                type: req.file.mimetype
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Simple video upload error:', error);
+        return res.status(500).json({ success: false, error: error.message });
     }
 });
 
@@ -1330,85 +1370,6 @@ app.get("/user-rooms/:username", validateSession, async (req, res) => {
   }
 });
 
-// Στον server.js προσθέτουμε:
-app.post('/upload-video-base64', authenticate, async (req, res) => {
-    try {
-        const { videoName, videoType, videoSize, videoData, sender, type, roomId, receiver } = req.body;
-        
-        console.log('🎬 Received Base64 video upload:', {
-            name: videoName,
-            type: videoType,
-            size: videoSize,
-            dataLength: videoData?.length || 0,
-            sender,
-            type,
-            roomId,
-            receiver
-        });
-        
-        // Save video to disk
-        const videoId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        const fileName = videoId + '_' + videoName.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const filePath = path.join(__dirname, 'uploads', 'videos', fileName);
-        
-        // Ensure directory exists
-        const videoDir = path.join(__dirname, 'uploads', 'videos');
-        if (!fs.existsSync(videoDir)) {
-            fs.mkdirSync(videoDir, { recursive: true });
-        }
-        
-        // Convert Base64 to buffer and save
-        const buffer = Buffer.from(videoData, 'base64');
-        fs.writeFileSync(filePath, buffer);
-        
-        console.log('✅ Video saved:', filePath);
-        
-        // Create file URL
-        const fileUrl = `/uploads/videos/${fileName}`;
-        
-        // Prepare data for WebSocket
-        const videoDataWs = {
-            fileId: videoId,
-            fileName: videoName,
-            fileType: videoType,
-            fileSize: videoSize,
-            fileUrl: fileUrl,
-            sender: sender,
-            time: new Date().toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            })
-        };
-        
-        // Emit to appropriate recipients
-        if (type === 'private') {
-            videoDataWs.receiver = receiver;
-            io.to(`private_${sender}_${receiver}`).to(`private_${receiver}_${sender}`).emit('video_upload', videoDataWs);
-        } else {
-            videoDataWs.room_id = roomId;
-            io.to(roomId).emit('video_upload', videoDataWs);
-        }
-        
-        res.json({ 
-            success: true, 
-            message: 'Video uploaded successfully',
-            videoId,
-            fileUrl 
-        });
-        
-    } catch (error) {
-        console.error('❌ Error uploading Base64 video:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Failed to upload video: ' + error.message 
-        });
-    }
-});
-
-
-// Προσθήκη στο server.js - ΜΕΤΑ τα άλλα endpoints
-
 // ===== 🔥 ΝΕΟ ENDPOINT: CLEAR ROOM MESSAGES =====
 app.post("/clear-room-messages", validateSession, async (req, res) => {
     try {
@@ -1485,7 +1446,6 @@ app.post("/clear-room-messages", validateSession, async (req, res) => {
         });
     }
 });
-
 
 // Friend routes with session validation
 app.post("/send-friend-request", validateSession, async (req, res) => {
