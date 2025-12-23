@@ -33,11 +33,36 @@ const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const VIDEO_UPLOAD_DIR = path.join(UPLOAD_DIR, 'videos');
 
 // Create upload directories if they don't exist
-if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-if (!fs.existsSync(VIDEO_UPLOAD_DIR)) {
-    fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true }); // 🔥 ΔΙΟΡΘΩΣΗ: Αλλαγή από mkdirSync σε fs.mkdirSync
+try {
+    // Check if uploads directory exists
+    if (!fs.existsSync(UPLOAD_DIR)) {
+        fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+        console.log('✅ Created uploads directory');
+    } else {
+        console.log('✅ Uploads directory already exists');
+    }
+    
+    // Check if there's a file named 'videos' instead of a directory
+    if (fs.existsSync(VIDEO_UPLOAD_DIR)) {
+        const stats = fs.statSync(VIDEO_UPLOAD_DIR);
+        if (!stats.isDirectory()) {
+            console.log(`⚠️ Found a file named 'videos' instead of directory. Removing it...`);
+            fs.unlinkSync(VIDEO_UPLOAD_DIR);
+            fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
+            console.log('✅ Created videos directory after removing file');
+        } else {
+            console.log('✅ Videos directory already exists');
+        }
+    } else {
+        // Create videos directory if it doesn't exist
+        fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
+        console.log('✅ Created videos directory');
+    }
+    
+} catch (error) {
+    console.error('❌ Error creating upload directories:', error);
+    // Don't crash if directory creation fails
+    // The app can still run without upload directories (files will use Base64)
 }
 
 // ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: Αφαίρεση του sharp και επεξεργασίας εικόνων στον δίσκο
@@ -66,6 +91,14 @@ const videoChunks = new Map();
 
 // Serve static files correctly for Render
 app.use(express.static(path.join(__dirname)));
+
+// 🔥 ΝΕΟ: Serve uploaded files (if directory exists)
+if (fs.existsSync(UPLOAD_DIR)) {
+    app.use('/uploads', express.static(UPLOAD_DIR));
+    console.log('✅ Serving static files from /uploads');
+} else {
+    console.log('⚠️ Uploads directory not found, skipping /uploads route');
+}
 
 // Routes
 app.get("/", (req, res) => {
@@ -189,22 +222,32 @@ app.post("/combine-video-chunks", async (req, res) => {
         // Create unique filename
         const fileId = `video_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         const uniqueFileName = `${fileId}_${fileName.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-        const filePath = path.join(VIDEO_UPLOAD_DIR, uniqueFileName);
         
-        // Save file to disk
-        fs.writeFileSync(filePath, combinedBuffer);
+        let fileUrl = null;
+        let base64Preview = '';
         
-        console.log(`✅ Video saved: ${filePath} (${(combinedBuffer.length / (1024 * 1024)).toFixed(2)} MB)`);
+        // Try to save to disk if directory exists
+        if (fs.existsSync(VIDEO_UPLOAD_DIR)) {
+            try {
+                const filePath = path.join(VIDEO_UPLOAD_DIR, uniqueFileName);
+                fs.writeFileSync(filePath, combinedBuffer);
+                fileUrl = `/uploads/videos/${uniqueFileName}`;
+                console.log(`✅ Video saved to disk: ${filePath} (${(combinedBuffer.length / (1024 * 1024)).toFixed(2)} MB)`);
+            } catch (diskError) {
+                console.error("❌ Could not save video to disk, using Base64:", diskError.message);
+            }
+        }
         
         // Convert to Base64 for database storage (first 1MB only for preview)
-        let base64Preview = '';
         if (combinedBuffer.length > 0) {
             const previewBuffer = combinedBuffer.slice(0, Math.min(1024 * 1024, combinedBuffer.length));
             base64Preview = `data:${fileType};base64,${previewBuffer.toString('base64')}`;
         }
         
-        // Generate file URL for access
-        const fileUrl = `/uploads/videos/${uniqueFileName}`;
+        // If file not saved to disk, use Base64
+        if (!fileUrl) {
+            fileUrl = `data:${fileType};base64,${combinedBuffer.toString('base64')}`;
+        }
         
         // Save to database
         if (type === 'private') {
@@ -307,9 +350,6 @@ app.post("/combine-video-chunks", async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
-
-// 🔥 ΝΕΟ: Serve uploaded files
-app.use('/uploads', express.static(UPLOAD_DIR));
 
 // 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced file upload endpoint
 app.post("/upload-file", upload.single('file'), async (req, res) => {
@@ -1893,6 +1933,7 @@ async function startServer() {
       console.log(`🖼️ AVATAR SYSTEM: ENABLED (PERMANENT STORAGE)`);
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
       console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
+      console.log(`🔧 FIXED: Directory creation with fallback`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
