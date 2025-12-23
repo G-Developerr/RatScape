@@ -1,11 +1,9 @@
-// database.js - RatScape MongoDB Database - ENHANCED VERSION WITH FILE STORAGE
+// database.js - COMPLETE FIXED VERSION WITH VIDEO SUPPORT
 const mongoose = require('mongoose');
 
-// 🔥 ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιεί το MONGODB_URI από το Render Environment
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ratscape';
 
 console.log('🔍 Attempting to connect to MongoDB...');
-console.log('📍 Connection string exists:', !!process.env.MONGODB_URI);
 
 // ===== SCHEMAS =====
 
@@ -32,18 +30,31 @@ const roomMemberSchema = new mongoose.Schema({
     joined_at: { type: Date, default: Date.now }
 });
 
+// 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Επεκτείναμε το messageSchema για να υποστηρίζει video_data
 const messageSchema = new mongoose.Schema({
     room_id: { type: String, required: true },
     sender: { type: String, required: true },
     text: { type: String, required: true },
     time: { type: String, required: true },
     isFile: { type: Boolean, default: false },
+    fileType: { type: String, default: 'file' }, // 'file', 'image', 'video'
     file_data: {
         fileId: { type: String },
         fileName: { type: String },
         fileType: { type: String },
         fileSize: { type: String },
-        fileUrl: { type: String }
+        fileUrl: { type: String },
+        isVideo: { type: Boolean, default: false }, // 🔥 ΝΕΟ: Προσθήκη isVideo
+        preview: { type: String }
+    },
+    video_data: {  // 🔥 ΝΕΟ: Προσθήκη video_data
+        fileId: { type: String },
+        fileName: { type: String },
+        fileType: { type: String },
+        fileSize: { type: String },
+        fileUrl: { type: String },
+        preview: { type: String },
+        isVideo: { type: Boolean, default: true } // 🔥 Πάντα true για video_data
     },
     created_at: { type: Date, default: Date.now }
 });
@@ -54,12 +65,24 @@ const privateMessageSchema = new mongoose.Schema({
     text: { type: String, required: true },
     time: { type: String, required: true },
     isFile: { type: Boolean, default: false },
+    fileType: { type: String, default: 'file' }, // 🔥 ΝΕΟ
     file_data: {
         fileId: { type: String },
         fileName: { type: String },
         fileType: { type: String },
         fileSize: { type: String },
-        fileUrl: { type: String }
+        fileUrl: { type: String },
+        isVideo: { type: Boolean, default: false }, // 🔥 ΝΕΟ
+        preview: { type: String }
+    },
+    video_data: {  // 🔥 ΝΕΟ: Προσθήκη video_data
+        fileId: { type: String },
+        fileName: { type: String },
+        fileType: { type: String },
+        fileSize: { type: String },
+        fileUrl: { type: String },
+        preview: { type: String },
+        isVideo: { type: Boolean, default: true }
     },
     created_at: { type: Date, default: Date.now }
 });
@@ -90,7 +113,6 @@ const unreadMessageSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now }
 });
 
-// 🔥 ΝΕΟ: FILE STORAGE SCHEMA
 const fileSchema = new mongoose.Schema({
     file_id: { type: String, required: true, unique: true },
     room_id: { type: String },
@@ -99,7 +121,8 @@ const fileSchema = new mongoose.Schema({
     file_name: { type: String, required: true },
     file_type: { type: String, required: true },
     file_size: { type: Number, required: true },
-    file_data: { type: String, required: true }, // Base64 encoded
+    file_data: { type: String, required: true },
+    is_video: { type: Boolean, default: false }, // 🔥 ΝΕΟ
     created_at: { type: Date, default: Date.now }
 });
 
@@ -112,7 +135,7 @@ const PrivateMessage = mongoose.model('PrivateMessage', privateMessageSchema);
 const Friend = mongoose.model('Friend', friendSchema);
 const Session = mongoose.model('Session', sessionSchema);
 const UnreadMessage = mongoose.model('UnreadMessage', unreadMessageSchema);
-const File = mongoose.model('File', fileSchema); // 🔥 ΝΕΟ: File model
+const File = mongoose.model('File', fileSchema);
 
 // ===== DATABASE HELPERS =====
 
@@ -173,13 +196,10 @@ const dbHelpers = {
         const user = await User.findOne({ username });
         if (!user) return null;
 
-        const friends = await this.getFriends(username);
-        const rooms = await this.getUserRooms(username);
-
         const messages = await Message.countDocuments({
             $or: [
                 { sender: username },
-                { room_id: { $in: rooms.map(r => r.id) } }
+                { room_id: { $in: await this.getUserRooms(username).then(rooms => rooms.map(r => r.id)) } }
             ]
         });
 
@@ -278,7 +298,7 @@ const dbHelpers = {
         return members.map(m => ({ username: m.username, joined_at: m.joined_at }));
     },
 
-    // Message methods
+    // Message methods - 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη fileType και video_data
     saveMessage: async function(message) {
         const msg = new Message({
             room_id: message.room_id,
@@ -286,9 +306,12 @@ const dbHelpers = {
             text: message.text,
             time: message.time,
             isFile: message.isFile || false,
-            file_data: message.file_data || null
+            fileType: message.fileType || 'file',
+            file_data: message.file_data || null,
+            video_data: message.video_data || null  // 🔥 ΝΕΟ
         });
         await msg.save();
+        console.log(`✅ Message saved with type: ${message.fileType || 'text'}`);
         return msg;
     },
 
@@ -300,16 +323,33 @@ const dbHelpers = {
         return await Message.find(query).sort({ created_at: 1 });
     },
 
-    // 🔥 ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Μορφοποίηση μεγέθους αρχείου
-    formatFileSize: function(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Private message με video support
+    savePrivateMessage: async function(message) {
+        const msg = new PrivateMessage({
+            sender: message.sender,
+            receiver: message.receiver,
+            text: message.text,
+            time: message.time,
+            isFile: message.isFile || false,
+            fileType: message.fileType || 'file',
+            file_data: message.file_data || null,
+            video_data: message.video_data || null  // 🔥 ΝΕΟ
+        });
+        await msg.save();
+        console.log(`✅ Private message saved with type: ${message.fileType || 'text'}`);
+        return msg;
     },
 
-    // 🔥 ΝΕΟ: File storage methods
+    getPrivateMessages: async function(user1, user2) {
+        return await PrivateMessage.find({
+            $or: [
+                { sender: user1, receiver: user2 },
+                { sender: user2, receiver: user1 }
+            ]
+        }).sort({ created_at: 1 });
+    },
+
+    // File storage methods
     saveFile: async function(fileData) {
         try {
             const file = new File({
@@ -320,32 +360,16 @@ const dbHelpers = {
                 file_name: fileData.fileName,
                 file_type: fileData.fileType,
                 file_size: fileData.fileSize,
-                file_data: fileData.base64Data
+                file_data: fileData.base64Data,
+                is_video: fileData.is_video || false  // 🔥 ΝΕΟ
             });
             await file.save();
-            console.log(`✅ File saved: ${fileData.fileName} (${fileData.fileId})`);
+            console.log(`✅ File saved: ${fileData.fileName} (${fileData.is_video ? 'Video' : 'File'})`);
             return file;
         } catch (error) {
             console.error("❌ Error saving file:", error);
             throw error;
         }
-    },
-
-    getFilesByRoom: async function(roomId) {
-        return await File.find({ room_id: roomId }).sort({ created_at: -1 });
-    },
-
-    getFilesByUser: async function(username) {
-        return await File.find({ 
-            $or: [
-                { sender: username },
-                { receiver: username }
-            ]
-        }).sort({ created_at: -1 });
-    },
-
-    getFileById: async function(fileId) {
-        return await File.findOne({ file_id: fileId });
     },
 
     // Friend methods
@@ -417,29 +441,6 @@ const dbHelpers = {
             ]
         });
         console.log(`✅ Friendship removed: ${user1} ↔ ${user2}`);
-    },
-
-    // Private messages
-    savePrivateMessage: async function(message) {
-        const msg = new PrivateMessage({
-            sender: message.sender,
-            receiver: message.receiver,
-            text: message.text,
-            time: message.time,
-            isFile: message.isFile || false,
-            file_data: message.file_data || null
-        });
-        await msg.save();
-        return msg;
-    },
-
-    getPrivateMessages: async function(user1, user2) {
-        return await PrivateMessage.find({
-            $or: [
-                { sender: user1, receiver: user2 },
-                { sender: user2, receiver: user1 }
-            ]
-        }).sort({ created_at: 1 });
     },
 
     // Session methods
@@ -590,7 +591,16 @@ const dbHelpers = {
         }
     },
 
-    // 🔥 ΝΕΟ: Cleanup old files (optional, για διαχείριση χώρου)
+    // Βοηθητική συνάρτηση για μορφοποίηση μεγέθους αρχείου
+    formatFileSize: function(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
+    // 🔥 ΝΕΟ: Cleanup old files
     cleanupOldFiles: async function(days = 30) {
         try {
             const cutoffDate = new Date(Date.now() - (days * 24 * 60 * 60 * 1000));
@@ -603,68 +613,34 @@ const dbHelpers = {
         }
     },
 
-    // 🔥 ΝΕΟ: Get user upload statistics
-    getUserFileStats: async function(username) {
-        try {
-            const filesSent = await File.countDocuments({ sender: username });
-            const filesReceived = await File.countDocuments({ receiver: username });
-            const totalSize = await File.aggregate([
-                { 
-                    $match: { 
-                        $or: [
-                            { sender: username },
-                            { receiver: username }
-                        ]
-                    } 
-                },
-                { $group: { _id: null, total: { $sum: "$file_size" } } }
-            ]);
-            
-            return {
-                files_sent: filesSent,
-                files_received: filesReceived,
-                total_files: filesSent + filesReceived,
-                total_size: totalSize[0] ? totalSize[0].total : 0
-            };
-        } catch (error) {
-            console.error("❌ Error getting user file stats:", error);
-            return { files_sent: 0, files_received: 0, total_files: 0, total_size: 0 };
-        }
-    },
-
-    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη μεθόδου για να επιστρέφει το Message model
+    // Get models
     getMessageModel: function() {
         return Message;
     },
 
-    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη μεθόδου για να επιστρέφει το PrivateMessage model
     getPrivateMessageModel: function() {
         return PrivateMessage;
     },
 
-    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη μεθόδου για να επιστρέφει το File model
     getFileModel: function() {
         return File;
     }
 };
 
-// 🔥 FIXED: Initialize database connection με καλύτερο error handling
+// Database connection
 async function initializeDatabase() {
     try {
         console.log("🔄 Connecting to MongoDB...");
 
-        // Έλεγχος αν υπάρχει MONGODB_URI
         if (!process.env.MONGODB_URI) {
             console.warn("⚠️ WARNING: MONGODB_URI not found in environment variables!");
-            console.warn("⚠️ Using local MongoDB. This will NOT work on Render!");
         }
 
         await mongoose.connect(MONGODB_URI, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
-            serverSelectionTimeoutMS: 10000, // 10 seconds timeout
+            serverSelectionTimeoutMS: 10000,
             socketTimeoutMS: 45000,
-            // 🔥 ΠΡΟΣΘΗΚΗ: Retry configuration
             retryWrites: true,
             retryReads: true,
             maxPoolSize: 10
@@ -686,38 +662,28 @@ async function initializeDatabase() {
             console.log("✅ MongoDB reconnected successfully");
         });
 
-        mongoose.connection.on('connected', () => {
-            console.log("🔗 MongoDB connection established");
-        });
-
-        // 🔥 ΝΕΟ: Create indexes για καλύτερη απόδοση
+        // Create indexes
         await File.createIndexes();
         await UnreadMessage.createIndexes();
         
         console.log('📈 Database indexes created successfully');
         console.log('💾 File storage system: ENABLED');
-        console.log('📊 File schema: READY');
+        console.log('🎬 Video support: ENABLED');
 
         return mongoose.connection;
     } catch (error) {
         console.error("❌ Failed to connect to database:");
         console.error("Error message:", error.message);
-        console.error("Error name:", error.name);
 
-        // 🔥 Πιο χρήσιμα error messages
         if (error.name === 'MongooseServerSelectionError') {
-            console.error("❌ Cannot reach MongoDB server. Check:");
-            console.error("   1. Is MONGODB_URI environment variable set correctly in Render?");
-            console.error("   2. Is MongoDB Atlas cluster running?");
-            console.error("   3. Is the IP address whitelisted in MongoDB Atlas (0.0.0.0/0)?");
-            console.error("   4. Is the database user password correct?");
+            console.error("❌ Cannot reach MongoDB server.");
         }
 
         throw error;
     }
 }
 
-// 🔥 Εξαγωγή και των models για χρήση στο server.js
+// Εξαγωγή
 module.exports = { 
     dbHelpers, 
     initializeDatabase,
