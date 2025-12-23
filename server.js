@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION WITH PROPER DIRECTORY HANDLING
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR PROFILE PICS & LEAVE ROOM
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -23,88 +23,51 @@ const io = new Server(server, {
 
 // Middleware
 app.use(cors({
-  origin: ["https://ratscape.onrender.com", "http://localhost:3000"],
-  credentials: true
+  origin: ["https://ratscape.onrender.com", "http://localhost:3000", "http://localhost:10000"],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'X-Session-ID', 'Authorization']
 }));
 app.use(express.json());
 
-// 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Βελτιωμένος έλεγχος και δημιουργία directories
+// Χειριστείτε OPTIONS requests για CORS
+app.options('*', cors());
+
+// 🔥 ΝΕΟ: Video upload directory
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const VIDEO_UPLOAD_DIR = path.join(UPLOAD_DIR, 'videos');
 
-console.log('📁 Checking upload directories...');
-console.log('📁 Upload directory path:', UPLOAD_DIR);
-console.log('📁 Video directory path:', VIDEO_UPLOAD_DIR);
-
+// Create upload directories if they don't exist
 try {
     // Check if uploads directory exists
     if (!fs.existsSync(UPLOAD_DIR)) {
-        console.log('📁 Creating uploads directory...');
         fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-        console.log('✅ Uploads directory created');
+        console.log('✅ Created uploads directory');
     } else {
         console.log('✅ Uploads directory already exists');
     }
     
-    // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Ελέγχουμε αν το videos είναι αρχείο ή φάκελος
+    // Check if there's a file named 'videos' instead of a directory
     if (fs.existsSync(VIDEO_UPLOAD_DIR)) {
         const stats = fs.statSync(VIDEO_UPLOAD_DIR);
-        
-        if (stats.isFile()) {
-            // Αν είναι αρχείο, το διαγράφουμε
-            console.log(`⚠️ Found a FILE named 'videos' instead of directory. Removing it...`);
+        if (!stats.isDirectory()) {
+            console.log(`⚠️ Found a file named 'videos' instead of directory. Removing it...`);
             fs.unlinkSync(VIDEO_UPLOAD_DIR);
-            console.log('✅ File removed, now creating directory...');
             fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
-            console.log('✅ Videos directory created after removing file');
-        } else if (stats.isDirectory()) {
-            console.log('✅ Videos directory already exists');
+            console.log('✅ Created videos directory after removing file');
         } else {
-            // Αν είναι κάτι άλλο (symlink κλπ)
-            console.log(`⚠️ 'videos' exists but is not a directory or file. Removing it...`);
-            fs.rmSync(VIDEO_UPLOAD_DIR, { force: true, recursive: true });
-            fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
-            console.log('✅ Videos directory created after cleanup');
+            console.log('✅ Videos directory already exists');
         }
     } else {
-        // Αν δεν υπάρχει καθόλου, δημιουργούμε τον φάκελο
-        console.log('📁 Creating videos directory...');
+        // Create videos directory if it doesn't exist
         fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
-        console.log('✅ Videos directory created');
+        console.log('✅ Created videos directory');
     }
-    
-    console.log('✅ All upload directories are ready');
     
 } catch (error) {
-    console.error('❌ CRITICAL ERROR creating upload directories:', error);
-    console.error('❌ Error details:', {
-        message: error.message,
-        code: error.code,
-        path: error.path
-    });
-    
-    // Προσπαθούμε με εναλλακτικό τρόπο αν αποτύχει
-    try {
-        console.log('🔄 Trying alternative directory creation method...');
-        
-        // Προσπαθούμε να δημιουργήσουμε τους φακέλους με διαφορετικό τρόπο
-        if (!fs.existsSync(UPLOAD_DIR)) {
-            fs.mkdirSync(UPLOAD_DIR, { mode: 0o755 });
-        }
-        
-        // Διαγράφουμε οτιδήποτε υπάρχει στο VIDEO_UPLOAD_DIR
-        if (fs.existsSync(VIDEO_UPLOAD_DIR)) {
-            fs.rmSync(VIDEO_UPLOAD_DIR, { force: true, recursive: true });
-        }
-        
-        // Δημιουργούμε τον φάκελο
-        fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true, mode: 0o755 });
-        
-        console.log('✅ Alternative directory creation successful');
-    } catch (altError) {
-        console.error('❌ Alternative method also failed:', altError);
-        console.log('⚠️ Server will continue without upload directories');
-    }
+    console.error('❌ Error creating upload directories:', error);
+    // Don't crash if directory creation fails
+    // The app can still run without upload directories (files will use Base64)
 }
 
 // ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: Αφαίρεση του sharp και επεξεργασίας εικόνων στον δίσκο
@@ -117,15 +80,41 @@ const upload = multer({
       fileSize: 100 * 1024 * 1024, // Αύξηση σε 100MB για βίντεο
     },
     fileFilter: function (req, file, cb) {
-        const filetypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|txt|mp4|webm|ogg|mov|avi|mpeg|mkv|wmv|flv/;
-        const mimetype = filetypes.test(file.mimetype);
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        
-        if (mimetype && extname) {
-            return cb(null, true);
+        try {
+            const filetypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|txt|mp4|webm|ogg|mov|avi|mpeg|mkv|wmv|flv/;
+            const mimetype = filetypes.test(file.mimetype);
+            const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+            
+            if (mimetype && extname) {
+                return cb(null, true);
+            }
+            cb(new Error('Only image, video, PDF, Word and text files are allowed'));
+        } catch (error) {
+            cb(error);
         }
-        cb(new Error('Only image, video, PDF, Word and text files are allowed'));
     }
+});
+
+// Προσθέστε middleware για να κάνετε catch multer errors
+app.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({
+                success: false,
+                error: 'File too large. Maximum size is 100MB'
+            });
+        }
+        return res.status(400).json({
+            success: false,
+            error: error.message
+        });
+    } else if (error) {
+        return res.status(400).json({
+            success: false,
+            error: error.message
+        });
+    }
+    next();
 });
 
 // 🔥 ΝΕΟ: Store video chunks temporarily
@@ -151,17 +140,35 @@ app.get("/test", (req, res) => {
   res.sendFile(path.join(__dirname, "test.html"));
 });
 
-// 🔥 ΝΕΟ: Health check endpoint
-app.get("/health", (req, res) => {
-    res.json({
-        success: true,
-        status: "Server is healthy",
-        timestamp: new Date().toISOString(),
-        uploadDirs: {
-            uploads: fs.existsSync(UPLOAD_DIR) ? "Exists" : "Missing",
-            videos: fs.existsSync(VIDEO_UPLOAD_DIR) ? "Exists" : "Missing"
+// 🔥 TEST ENDPOINT: Simple video upload test
+app.post("/test-video-upload", upload.single('video'), async (req, res) => {
+    try {
+        console.log('🎬 Test video upload endpoint hit');
+        
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: "No file uploaded" });
         }
-    });
+        
+        console.log('📊 File received:', {
+            name: req.file.originalname,
+            size: req.file.size,
+            type: req.file.mimetype
+        });
+        
+        return res.json({
+            success: true,
+            message: "File received successfully",
+            file: {
+                name: req.file.originalname,
+                size: req.file.size,
+                type: req.file.mimetype
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Test upload error:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 // Memory sessions as fallback
@@ -215,31 +222,44 @@ function getErrorMessage(error) {
   return String(error);
 }
 
-// 🔥 ΝΕΟ: Upload video chunk endpoint - SIMPLIFIED VERSION
+// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Upload video chunk endpoint με session validation
 app.post("/upload-video-chunk", upload.single('videoChunk'), async (req, res) => {
+    console.log('🎬 Video chunk upload request received');
+    
     try {
-        console.log("📦 Video chunk upload request received");
+        console.log('📊 Headers:', req.headers);
+        console.log('📊 Body:', req.body);
+        console.log('📊 File:', req.file ? {
+            originalname: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype
+        } : 'No file');
+        
+        const sessionId = req.headers["x-session-id"];
+        const { sender, chunkIndex, totalChunks, videoId, fileName, fileType, fileSize } = req.body;
+        
+        console.log('🔍 Session validation check:', { sessionId, sender });
+        
+        // Validate session
+        if (!sessionId || !sender) {
+            console.log('❌ Missing session or sender');
+            return res.status(401).json({ success: false, error: "Session required" });
+        }
+        
+        const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
+        if (!session || session.username !== sender) {
+            console.log('❌ Invalid session:', { sessionId, sender, session: session ? session.username : 'no session' });
+            return res.status(401).json({ success: false, error: "Invalid session" });
+        }
+        
+        console.log('✅ Session validated for user:', sender);
         
         if (!req.file) {
-            console.log("❌ No file in request");
-            return res.status(400).json({ 
-                success: false, 
-                error: "No chunk data",
-                details: "No file was uploaded"
-            });
+            console.log('❌ No chunk data received');
+            return res.status(400).json({ success: false, error: "No chunk data" });
         }
-        
-        const { chunkIndex, totalChunks, videoId, fileName, fileType, fileSize } = req.body;
         
         console.log(`📦 Uploading video chunk ${parseInt(chunkIndex) + 1}/${totalChunks} for ${fileName}`);
-        console.log(`📦 Video ID: ${videoId}, File type: ${fileType}, Size: ${fileSize}`);
-        
-        if (!videoId) {
-            return res.status(400).json({ 
-                success: false, 
-                error: "Video ID required" 
-            });
-        }
         
         // Store chunk in memory
         if (!videoChunks.has(videoId)) {
@@ -255,33 +275,39 @@ app.post("/upload-video-chunk", upload.single('videoChunk'), async (req, res) =>
         const videoData = videoChunks.get(videoId);
         videoData.chunks[parseInt(chunkIndex)] = req.file.buffer;
         
-        const response = {
+        res.json({
             success: true,
             chunkIndex: chunkIndex,
             totalChunks: totalChunks,
-            message: `Chunk ${parseInt(chunkIndex) + 1}/${totalChunks} uploaded successfully`,
-            uploadedChunks: videoData.chunks.filter(c => c).length,
-            expectedChunks: videoData.totalChunks
-        };
-        
-        console.log("✅ Chunk upload successful:", response);
-        
-        res.json(response);
+            message: `Chunk ${parseInt(chunkIndex) + 1}/${totalChunks} uploaded`
+        });
         
     } catch (error) {
         console.error("❌ Error uploading video chunk:", error);
-        res.status(500).json({ 
-            success: false, 
-            error: "Server error during upload",
-            details: error.message 
-        });
+        console.error("❌ Error stack:", error.stack);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// 🔥 ΝΕΟ: Combine video chunks endpoint
+// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Combine video chunks endpoint με session validation
 app.post("/combine-video-chunks", async (req, res) => {
     try {
-        const { videoId, fileName, fileType, fileSize, sender, type, roomId, receiver } = req.body;
+        const sessionId = req.headers["x-session-id"];
+        const { sender, videoId, fileName, fileType, fileSize, type, roomId, receiver } = req.body;
+        
+        console.log('🎬 Combine video chunks request:', { sender, videoId, fileName });
+        
+        // Validate session
+        if (!sessionId || !sender) {
+            console.log('❌ Missing session or sender');
+            return res.status(401).json({ success: false, error: "Session required" });
+        }
+        
+        const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
+        if (!session || session.username !== sender) {
+            console.log('❌ Invalid session');
+            return res.status(401).json({ success: false, error: "Invalid session" });
+        }
         
         if (!videoId || !videoChunks.has(videoId)) {
             return res.status(400).json({ success: false, error: "Video not found" });
@@ -316,8 +342,6 @@ app.post("/combine-video-chunks", async (req, res) => {
             } catch (diskError) {
                 console.error("❌ Could not save video to disk, using Base64:", diskError.message);
             }
-        } else {
-            console.log("⚠️ Video upload directory not found, using Base64 only");
         }
         
         // Convert to Base64 for database storage (first 1MB only for preview)
@@ -432,15 +456,6 @@ app.post("/combine-video-chunks", async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
-
-// Βοηθητική συνάρτηση για μορφοποίηση μεγέθους αρχείου
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
 
 // 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced file upload endpoint
 app.post("/upload-file", upload.single('file'), async (req, res) => {
@@ -588,6 +603,15 @@ app.post("/upload-file", upload.single('file'), async (req, res) => {
         });
     }
 });
+
+// Βοηθητική συνάρτηση για μορφοποίηση μεγέθους αρχείου
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
 // 🔥 ΝΕΟ ENDPOINT: GET PROFILE PICTURE - ΑΠΛΟΠΟΙΗΜΕΝΟ
 app.get("/get-profile-picture/:username", async (req, res) => {
@@ -1999,9 +2023,8 @@ async function startServer() {
     
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`\n🚀 RatScape Server running on port ${PORT}`);
+      console.log(`🚀 RatScape Server running on port ${PORT}`);
       console.log(`📱 Available at: http://localhost:${PORT}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`💬 Enhanced security with session management`);
       console.log(`📬 UNREAD MESSAGES SYSTEM: ENABLED`);
       console.log(`👤 PROFILE SYSTEM: ENABLED`);
@@ -2015,9 +2038,10 @@ async function startServer() {
       console.log(`😀 EMOJI PICKER: ENABLED`);
       console.log(`🖼️ AVATAR SYSTEM: ENABLED (PERMANENT STORAGE)`);
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
-      console.log(`🔧 FIXED: Directory creation with file detection`);
-      console.log(`📂 Upload directory: ${UPLOAD_DIR}`);
-      console.log(`📂 Video directory: ${VIDEO_UPLOAD_DIR}`);
+      console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
+      console.log(`🔧 FIXED: Directory creation with fallback`);
+      console.log(`🔧 FIXED: Video upload with session validation`);
+      console.log(`🔧 FIXED: CORS configuration`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
