@@ -1742,7 +1742,7 @@ function addMessageToChat(message) {
     
     // Check if it's a file (including video)
     if (message.isFile || message.file_data || message.video_data) {
-        const fileData = message.file_data || message.video_data || message;
+        const fileData = message.video_data || message.file_data || {};
         const fileExtension = fileData.fileName ? fileData.fileName.split('.').pop().toLowerCase() : '';
         const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension);
         const isVideo = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mpeg', 'mkv', 'wmv', 'flv'].includes(fileExtension);
@@ -4700,4 +4700,5 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
 
