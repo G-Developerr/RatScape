@@ -234,7 +234,7 @@ function showVideoPreview(file) {
     }
 }
 
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Upload video in chunks - ΜΕ ΕΞΑΙΡΕΤΙΚΟ DEBUGGING
+// 🔥 ΑΠΛΟΠΟΙΗΣΗ: Upload video directly as Base64 (μέχρι 30MB)
 async function uploadVideo() {
     if (!selectedFile || fileUploadInProgress) {
         console.log('❌ No file selected or upload in progress');
@@ -251,10 +251,15 @@ async function uploadVideo() {
     console.log('🔍 Session ID:', currentUser.sessionId);
     console.log('🔍 Current room:', currentRoom);
     
+    // Check file size - limit to 30MB για Base64
+    const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
+    if (selectedFile.size > MAX_VIDEO_SIZE) {
+        showNotification('Video too large! Maximum size: 30MB. Please use a smaller video.', 'error', 'File Too Large');
+        cancelFileUpload();
+        return;
+    }
+    
     fileUploadInProgress = true;
-    videoUploadId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    videoChunks = [];
-    videoUploadProgress = 0;
     
     const uploadProgress = document.getElementById('upload-progress');
     const uploadStatus = document.getElementById('upload-status');
@@ -268,209 +273,78 @@ async function uploadVideo() {
         }
         
         if (uploadStatus) {
-            uploadStatus.textContent = 'Preparing video...';
+            uploadStatus.textContent = 'Reading video file...';
         }
         
         if (sendFileBtn) {
             sendFileBtn.disabled = true;
-            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
+            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reading...';
         }
         
-        // Calculate chunks
-        const totalChunks = Math.ceil(selectedFile.size / VIDEO_CHUNK_SIZE);
-        console.log(`📦 Video will be uploaded in ${totalChunks} chunks`);
+        // Convert video to Base64
+        const base64Video = await fileToBase64(selectedFile);
         
-        // Upload chunks
-        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-            const start = chunkIndex * VIDEO_CHUNK_SIZE;
-            const end = Math.min(start + VIDEO_CHUNK_SIZE, selectedFile.size);
-            const chunk = selectedFile.slice(start, end);
-            
-            if (uploadStatus) {
-                uploadStatus.textContent = `Uploading chunk ${chunkIndex + 1}/${totalChunks}...`;
-            }
-            
-            const formData = new FormData();
-            formData.append('videoChunk', chunk);
-            formData.append('chunkIndex', chunkIndex);
-            formData.append('totalChunks', totalChunks);
-            formData.append('videoId', videoUploadId);
-            formData.append('fileName', selectedFile.name);
-            formData.append('fileType', selectedFile.type);
-            formData.append('fileSize', selectedFile.size);
-            formData.append('sender', currentUser.username);
-            formData.append('type', currentRoom.isPrivate ? 'private' : 'group');
-            
-            if (currentRoom.id) {
-                formData.append('roomId', currentRoom.id);
-            }
-            
-            if (currentRoom.isPrivate) {
-                formData.append('receiver', currentRoom.name);
-            }
-            
-            console.log('📤 Sending video chunk with session:', currentUser.sessionId);
-            
-            const response = await fetch('/upload-video-chunk', {
-                method: 'POST',
-                headers: {
-                    'X-Session-ID': currentUser.sessionId
-                },
-                body: formData
-            });
-            
-            console.log('📥 Response status:', response.status);
-            console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
-            
-            if (!response.ok) {
-                let errorMessage;
-                const responseText = await response.text();
-                
-                console.log('📥 Full response text (first 500 chars):', responseText.substring(0, 500));
-                
-                // Check if it's HTML error page
-                if (responseText.includes('<!DOCTYPE html>') || responseText.includes('<html>') || 
-                    responseText.includes('Error') || responseText.includes('error')) {
-                    
-                    console.error('❌ Server returned HTML error page');
-                    
-                    // Extract meaningful error from HTML if possible
-                    const errorMatch = responseText.match(/<title>(.*?)<\/title>/i) || 
-                                       responseText.match(/<h1>(.*?)<\/h1>/i) ||
-                                       responseText.match(/<div.*?class=".*?error.*?".*?>(.*?)<\/div>/i);
-                    
-                    if (errorMatch && errorMatch[1]) {
-                        errorMessage = `Server error: ${errorMatch[1].trim()}`;
-                    } else if (response.status === 404) {
-                        errorMessage = 'Upload endpoint not found (404). Check server routes.';
-                    } else if (response.status === 500) {
-                        errorMessage = 'Server internal error (500). Check server logs.';
-                    } else if (response.status === 401 || response.status === 403) {
-                        errorMessage = 'Session expired or unauthorized. Please login again.';
-                    } else {
-                        errorMessage = `Server returned error ${response.status}: ${response.statusText}`;
-                    }
-                } else {
-                    try {
-                        const errorData = JSON.parse(responseText);
-                        errorMessage = errorData.error || errorData.message || `Failed to upload chunk ${chunkIndex + 1}`;
-                    } catch (jsonError) {
-                        errorMessage = `Server error ${response.status}: ${responseText.substring(0, 100)}`;
-                    }
-                }
-                throw new Error(errorMessage);
-            } else {
-                // Successful response
-                const responseText = await response.text();
-                
-                if (responseText.trim() === '') {
-                    // Empty response, assume success
-                    console.log(`✅ Uploaded chunk ${chunkIndex + 1}/${totalChunks} (empty response)`);
-                    videoChunks.push(chunkIndex);
-                } else {
-                    try {
-                        const data = JSON.parse(responseText);
-                        console.log(`✅ Uploaded chunk ${chunkIndex + 1}/${totalChunks}:`, data);
-                        videoChunks.push(chunkIndex);
-                    } catch (jsonError) {
-                        console.error('❌ Failed to parse chunk response:', responseText.substring(0, 200));
-                        console.log(`⚠️ Chunk ${chunkIndex + 1} got non-JSON response, assuming success`);
-                        videoChunks.push(chunkIndex);
-                    }
-                }
-                
-                // Update progress
-                videoUploadProgress = ((chunkIndex + 1) / totalChunks) * 100;
-                if (uploadProgress) {
-                    uploadProgress.style.width = `${videoUploadProgress}%`;
-                    uploadProgress.setAttribute('data-progress', `${Math.round(videoUploadProgress)}%`);
-                }
-            }
+        if (uploadProgress) {
+            uploadProgress.style.width = '30%';
+            uploadProgress.setAttribute('data-progress', '30%');
         }
         
-        // All chunks uploaded, now combine them
         if (uploadStatus) {
-            uploadStatus.textContent = 'Combining video chunks...';
+            uploadStatus.textContent = 'Uploading video...';
         }
         
-        console.log('🎬 Combining video chunks with session:', currentUser.sessionId);
+        if (sendFileBtn) {
+            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        }
         
-        const combineResponse = await fetch('/combine-video-chunks', {
+        // Prepare upload data
+        const uploadData = {
+            videoName: selectedFile.name,
+            videoType: selectedFile.type,
+            videoSize: selectedFile.size,
+            videoData: base64Video, // 🔥 Base64 string
+            sender: currentUser.username,
+            type: currentRoom.isPrivate ? 'private' : 'group'
+        };
+        
+        if (currentRoom.id) {
+            uploadData.roomId = currentRoom.id;
+        }
+        
+        if (currentRoom.isPrivate) {
+            uploadData.receiver = currentRoom.name;
+        }
+        
+        console.log('📤 Uploading video (Base64, size:', Math.round(base64Video.length / 1024), 'KB)');
+        
+        const response = await fetch('/upload-video-base64', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Session-ID': currentUser.sessionId
             },
-            body: JSON.stringify({
-                videoId: videoUploadId,
-                fileName: selectedFile.name,
-                fileType: selectedFile.type,
-                fileSize: selectedFile.size,
-                sender: currentUser.username,
-                type: currentRoom.isPrivate ? 'private' : 'group',
-                roomId: currentRoom.id || null,
-                receiver: currentRoom.isPrivate ? currentRoom.name : null
-            })
+            body: JSON.stringify(uploadData)
         });
         
-        console.log('📥 Combine response status:', combineResponse.status);
-        console.log('📥 Combine response headers:', Object.fromEntries(combineResponse.headers.entries()));
+        if (uploadProgress) {
+            uploadProgress.style.width = '70%';
+            uploadProgress.setAttribute('data-progress', '70%');
+        }
         
-        if (!combineResponse.ok) {
+        console.log('📥 Response status:', response.status);
+        
+        if (!response.ok) {
             let errorMessage;
-            const responseText = await combineResponse.text();
-            
-            console.log('📥 Combine response text (first 500 chars):', responseText.substring(0, 500));
-            
-            // Check if it's HTML error page
-            if (responseText.includes('<!DOCTYPE html>') || responseText.includes('<html>') || 
-                responseText.includes('Error') || responseText.includes('error')) {
-                
-                console.error('❌ Server returned HTML error page for combine');
-                
-                // Extract meaningful error from HTML if possible
-                const errorMatch = responseText.match(/<title>(.*?)<\/title>/i) || 
-                                   responseText.match(/<h1>(.*?)<\/h1>/i) ||
-                                   responseText.match(/<div.*?class=".*?error.*?".*?>(.*?)<\/div>/i);
-                
-                if (errorMatch && errorMatch[1]) {
-                    errorMessage = `Server combine error: ${errorMatch[1].trim()}`;
-                } else if (combineResponse.status === 404) {
-                    errorMessage = 'Combine endpoint not found (404). Check server routes.';
-                } else if (combineResponse.status === 500) {
-                    errorMessage = 'Server internal error (500) during combine. Check server logs.';
-                } else if (combineResponse.status === 401 || combineResponse.status === 403) {
-                    errorMessage = 'Session expired or unauthorized for combine. Please login again.';
-                } else {
-                    errorMessage = `Server returned error ${combineResponse.status}: ${combineResponse.statusText}`;
-                }
-            } else {
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.error || errorData.message || 'Failed to combine video chunks';
-                } catch (jsonError) {
-                    errorMessage = `Server combine error ${combineResponse.status}: ${responseText.substring(0, 100)}`;
-                }
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || 'Upload failed';
+            } catch (jsonError) {
+                errorMessage = `Server error ${response.status}`;
             }
             throw new Error(errorMessage);
         }
         
-        // Parse successful combine response
-        const combineResponseText = await combineResponse.text();
-        let combineData;
-        
-        if (combineResponseText.trim() === '') {
-            console.error('❌ Empty combine response');
-            combineData = { success: false, error: 'Empty response from server' };
-        } else {
-            try {
-                combineData = JSON.parse(combineResponseText);
-                console.log('✅ Combine response data:', combineData);
-            } catch (jsonError) {
-                console.error('❌ Failed to parse combine response:', combineResponseText.substring(0, 200));
-                combineData = { success: false, error: 'Invalid JSON response from server' };
-            }
-        }
+        const data = await response.json();
         
         if (uploadProgress) {
             uploadProgress.style.width = '100%';
@@ -478,31 +352,23 @@ async function uploadVideo() {
         }
         
         if (uploadStatus) {
-            if (combineData.success) {
-                uploadStatus.textContent = 'Video uploaded successfully!';
-                uploadStatus.style.color = 'var(--success)';
-            } else {
-                uploadStatus.textContent = 'Upload completed with issues!';
-                uploadStatus.style.color = 'var(--warning)';
-            }
+            uploadStatus.textContent = 'Video uploaded successfully!';
+            uploadStatus.style.color = 'var(--success)';
         }
         
-        if (combineData.success) {
+        if (data.success) {
             showNotification('Video uploaded successfully!', 'success', 'Video Uploaded');
             
             // The server will send the video via WebSocket
-            // We just need to clear the preview
             setTimeout(() => {
                 cancelFileUpload();
             }, 1000);
         } else {
-            const errorMsg = combineData.error || combineData.message || 'Video upload failed on server';
-            throw new Error(errorMsg);
+            throw new Error(data.error || 'Upload failed on server');
         }
         
     } catch (error) {
         console.error('❌ Error uploading video:', error);
-        console.error('❌ Error stack:', error.stack);
         showNotification('Video upload failed: ' + error.message, 'error', 'Upload Error');
         
         if (uploadStatus) {
@@ -516,9 +382,6 @@ async function uploadVideo() {
         }
     } finally {
         fileUploadInProgress = false;
-        videoUploadId = null;
-        videoChunks = [];
-        videoUploadProgress = 0;
         
         if (sendFileBtn) {
             sendFileBtn.disabled = false;
@@ -529,12 +392,23 @@ async function uploadVideo() {
     }
 }
 
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ TEST FUNCTION: Test video upload endpoints
+// 🔥 ΒΟΗΘΗΤΙΚΗ: Convert file to Base64
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            // Το reader.result είναι "data:video/mp4;base64,AAAAA..."
+            // Κρατάμε μόνο το Base64 μέρος
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// 🔥 TEST FUNCTION: Simple video upload test
 async function testVideoUpload() {
-    console.log('🎬 Testing video upload system...');
-    
-    // Test 1: Test simple file upload endpoint
-    console.log('🧪 Test 1: Testing /test-video-upload endpoint');
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'video/*';
@@ -544,7 +418,7 @@ async function testVideoUpload() {
         const file = e.target.files[0];
         if (!file) return;
         
-        console.log('🎬 Test: Selected file:', file.name, 'Size:', file.size);
+        console.log('🎬 Test: Selected file:', file.name);
         
         const formData = new FormData();
         formData.append('video', file);
@@ -557,24 +431,17 @@ async function testVideoUpload() {
             });
             
             console.log('🎬 Test: Response status:', response.status);
-            console.log('🎬 Test: Response headers:', Object.fromEntries(response.headers.entries()));
-            
-            const responseText = await response.text();
-            console.log('🎬 Test: Response text (first 500 chars):', responseText.substring(0, 500));
             
             if (!response.ok) {
+                const text = await response.text();
+                console.error('❌ Test: Server returned:', text.substring(0, 200));
                 showNotification('Test failed: ' + response.status, 'error', 'Test Error');
                 return;
             }
             
-            try {
-                const data = JSON.parse(responseText);
-                console.log('✅ Test: Success!', data);
-                showNotification('Test upload successful!', 'success', 'Test Complete');
-            } catch (jsonError) {
-                console.log('⚠️ Test: Non-JSON response:', responseText);
-                showNotification('Test got non-JSON response', 'warning', 'Test Warning');
-            }
+            const data = await response.json();
+            console.log('✅ Test: Success!', data);
+            showNotification('Test upload successful!', 'success', 'Test Complete');
             
         } catch (error) {
             console.error('❌ Test error:', error);
@@ -587,90 +454,9 @@ async function testVideoUpload() {
     setTimeout(() => {
         document.body.removeChild(fileInput);
     }, 1000);
-    
-    // Test 2: Test chunk upload endpoint
-    console.log('🧪 Test 2: Testing /upload-video-chunk endpoint (without file)');
-    try {
-        const testFormData = new FormData();
-        testFormData.append('test', 'test');
-        
-        const testResponse = await fetch('/upload-video-chunk', {
-            method: 'POST',
-            body: testFormData
-        });
-        
-        console.log('🧪 Chunk endpoint status:', testResponse.status);
-        console.log('🧪 Chunk endpoint headers:', Object.fromEntries(testResponse.headers.entries()));
-        
-        const testResponseText = await testResponse.text();
-        console.log('🧪 Chunk endpoint response (first 200 chars):', testResponseText.substring(0, 200));
-        
-        if (testResponse.ok) {
-            console.log('✅ Chunk endpoint is reachable');
-        } else {
-            console.log('⚠️ Chunk endpoint returned error:', testResponse.status);
-        }
-    } catch (error) {
-        console.error('❌ Chunk endpoint test error:', error);
-    }
-    
-    // Test 3: Test combine endpoint
-    console.log('🧪 Test 3: Testing /combine-video-chunks endpoint');
-    try {
-        const testCombineResponse = await fetch('/combine-video-chunks', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ test: 'test' })
-        });
-        
-        console.log('🧪 Combine endpoint status:', testCombineResponse.status);
-        console.log('🧪 Combine endpoint headers:', Object.fromEntries(testCombineResponse.headers.entries()));
-        
-        const combineResponseText = await testCombineResponse.text();
-        console.log('🧪 Combine endpoint response (first 200 chars):', combineResponseText.substring(0, 200));
-        
-        if (testCombineResponse.ok) {
-            console.log('✅ Combine endpoint is reachable');
-        } else {
-            console.log('⚠️ Combine endpoint returned error:', testCombineResponse.status);
-        }
-    } catch (error) {
-        console.error('❌ Combine endpoint test error:', error);
-    }
 }
 
-// 🔥 ΔΙΕΥΚΟΛΥΝΣΗ: Προσθήκη test button στο UI
-function addTestVideoUploadButton() {
-    // Check if test button already exists
-    if (document.getElementById('test-video-upload-btn')) {
-        return;
-    }
-    
-    // Create test button
-    const testBtn = document.createElement('button');
-    testBtn.id = 'test-video-upload-btn';
-    testBtn.className = 'btn btn-warning btn-sm';
-    testBtn.innerHTML = '<i class="fas fa-video"></i> Test Upload';
-    testBtn.title = 'Test video upload system';
-    testBtn.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 9999;
-        opacity: 0.7;
-    `;
-    
-    testBtn.addEventListener('click', function() {
-        console.log('🧪 Video upload test initiated by user');
-        testVideoUpload();
-    });
-    
-    document.body.appendChild(testBtn);
-}
-
-// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced cancelFileUpload function
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced cancelFileUpload function για video
 function cancelFileUpload() {
     const filePreview = document.getElementById('file-preview');
     const fileInput = document.getElementById('file-upload-input');
@@ -702,12 +488,15 @@ function cancelFileUpload() {
     
     selectedFile = null;
     fileUploadInProgress = false;
-    videoUploadId = null;
-    videoChunks = [];
-    videoUploadProgress = 0;
+    
+    // 🔥 ΚΑΙΝΟΥΡΓΙΟ: Reset send button text
+    const sendFileBtn = document.getElementById('send-file-btn');
+    if (sendFileBtn) {
+        sendFileBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send File';
+    }
 }
 
-// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced handleFileSelection function
+// 🔥 ΕΝΗΜΕΡΩΣΗ: HandleFileSelection - Προσθήκη video type validation
 function handleFileSelection(file) {
     // Check file type
     const allowedTypes = [
@@ -716,14 +505,21 @@ function handleFileSelection(file) {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ];
     
-    if (!allowedTypes.includes(file.type) && !file.type.startsWith('video/')) {
-        showNotification('Only images, videos, PDF and Word files are allowed!', 'error', 'Invalid File');
+    // Allowed video types
+    const allowedVideoTypes = [
+        'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
+        'video/x-msvideo', 'video/x-matroska', 'video/x-flv'
+    ];
+    
+    if (!allowedTypes.includes(file.type) && !allowedVideoTypes.includes(file.type)) {
+        showNotification('Only images, videos (MP4, WebM, OGG), PDF and Word files are allowed!', 'error', 'Invalid File');
         return;
     }
     
     // Check file size
-    if (file.size > 100 * 1024 * 1024) {
-        showNotification('File too large! Maximum size: 100MB', 'error', 'File Too Large');
+    const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
+    if (file.size > MAX_FILE_SIZE) {
+        showNotification('File too large! Maximum size: 30MB', 'error', 'File Too Large');
         return;
     }
     
@@ -858,7 +654,7 @@ async function uploadFile() {
         return uploadVideo();
     }
     
-    // Otherwise use normal file upload
+    // Otherwise use normal file upload (FormData)
     isUploading = true;
     fileUploadInProgress = true;
     
