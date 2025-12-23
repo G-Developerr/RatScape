@@ -234,30 +234,14 @@ function showVideoPreview(file) {
     }
 }
 
-// 🔥 ΑΠΛΟΠΟΙΗΣΗ: Upload video directly as Base64 (μέχρι 30MB)
+// 🔥 ΑΠΛΟΠΟΙΗΣΗ: Upload video με FormData
 async function uploadVideo() {
     if (!selectedFile || fileUploadInProgress) {
         console.log('❌ No file selected or upload in progress');
         return;
     }
     
-    if (!selectedFile.type.startsWith('video/')) {
-        // If not video, use normal upload
-        return uploadFile();
-    }
-    
     console.log('🎬 Starting video upload:', selectedFile.name, 'Size:', selectedFile.size);
-    console.log('🔍 Current user:', currentUser);
-    console.log('🔍 Session ID:', currentUser.sessionId);
-    console.log('🔍 Current room:', currentRoom);
-    
-    // Check file size - limit to 30MB για Base64
-    const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
-    if (selectedFile.size > MAX_VIDEO_SIZE) {
-        showNotification('Video too large! Maximum size: 30MB. Please use a smaller video.', 'error', 'File Too Large');
-        cancelFileUpload();
-        return;
-    }
     
     fileUploadInProgress = true;
     
@@ -266,72 +250,37 @@ async function uploadVideo() {
     const sendFileBtn = document.getElementById('send-file-btn');
     const originalBtnText = sendFileBtn ? sendFileBtn.innerHTML : '';
     
+    const formData = new FormData();
+    formData.append('video', selectedFile);
+    
+    if (currentRoom.id) {
+        formData.append('roomId', currentRoom.id);
+    }
+    
+    formData.append('sender', currentUser.username);
+    formData.append('type', currentRoom.isPrivate ? 'private' : 'group');
+    
+    if (currentRoom.isPrivate) {
+        formData.append('receiver', currentRoom.name);
+    }
+    
     try {
-        if (uploadProgress) {
-            uploadProgress.style.width = '5%';
-            uploadProgress.setAttribute('data-progress', '5%');
-        }
-        
-        if (uploadStatus) {
-            uploadStatus.textContent = 'Reading video file...';
-        }
-        
+        if (uploadProgress) uploadProgress.style.width = '30%';
+        if (uploadStatus) uploadStatus.textContent = 'Uploading video...';
         if (sendFileBtn) {
             sendFileBtn.disabled = true;
-            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reading...';
-        }
-        
-        // Convert video to Base64
-        const base64Video = await fileToBase64(selectedFile);
-        
-        if (uploadProgress) {
-            uploadProgress.style.width = '30%';
-            uploadProgress.setAttribute('data-progress', '30%');
-        }
-        
-        if (uploadStatus) {
-            uploadStatus.textContent = 'Uploading video...';
-        }
-        
-        if (sendFileBtn) {
             sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
         }
         
-        // Prepare upload data
-        const uploadData = {
-            videoName: selectedFile.name,
-            videoType: selectedFile.type,
-            videoSize: selectedFile.size,
-            videoData: base64Video, // 🔥 Base64 string
-            sender: currentUser.username,
-            type: currentRoom.isPrivate ? 'private' : 'group'
-        };
-        
-        if (currentRoom.id) {
-            uploadData.roomId = currentRoom.id;
-        }
-        
-        if (currentRoom.isPrivate) {
-            uploadData.receiver = currentRoom.name;
-        }
-        
-        console.log('📤 Uploading video (Base64, size:', Math.round(base64Video.length / 1024), 'KB)');
-        
-        const response = await fetch('/upload-video-base64', {
+        const response = await fetch('/upload-video', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-Session-ID': currentUser.sessionId
             },
-            body: JSON.stringify(uploadData)
+            body: formData
         });
         
-        if (uploadProgress) {
-            uploadProgress.style.width = '70%';
-            uploadProgress.setAttribute('data-progress', '70%');
-        }
-        
-        console.log('📥 Response status:', response.status);
+        if (uploadProgress) uploadProgress.style.width = '70%';
         
         if (!response.ok) {
             let errorMessage;
@@ -346,11 +295,7 @@ async function uploadVideo() {
         
         const data = await response.json();
         
-        if (uploadProgress) {
-            uploadProgress.style.width = '100%';
-            uploadProgress.setAttribute('data-progress', '100%');
-        }
-        
+        if (uploadProgress) uploadProgress.style.width = '100%';
         if (uploadStatus) {
             uploadStatus.textContent = 'Video uploaded successfully!';
             uploadStatus.style.color = 'var(--success)';
@@ -358,8 +303,6 @@ async function uploadVideo() {
         
         if (data.success) {
             showNotification('Video uploaded successfully!', 'success', 'Video Uploaded');
-            
-            // The server will send the video via WebSocket
             setTimeout(() => {
                 cancelFileUpload();
             }, 1000);
