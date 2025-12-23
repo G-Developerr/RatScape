@@ -234,7 +234,7 @@ function showVideoPreview(file) {
     }
 }
 
-// 🔥 ΝΕΟ: Upload video in chunks
+// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Upload video in chunks
 async function uploadVideo() {
     if (!selectedFile || fileUploadInProgress) {
         console.log('❌ No file selected or upload in progress');
@@ -247,6 +247,9 @@ async function uploadVideo() {
     }
     
     console.log('🎬 Starting video upload:', selectedFile.name, 'Size:', selectedFile.size);
+    console.log('🔍 Current user:', currentUser);
+    console.log('🔍 Session ID:', currentUser.sessionId);
+    console.log('🔍 Current room:', currentRoom);
     
     fileUploadInProgress = true;
     videoUploadId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -306,6 +309,8 @@ async function uploadVideo() {
                 formData.append('receiver', currentRoom.name);
             }
             
+            console.log('📤 Sending video chunk with session:', currentUser.sessionId);
+            
             const response = await fetch('/upload-video-chunk', {
                 method: 'POST',
                 headers: {
@@ -314,9 +319,19 @@ async function uploadVideo() {
                 body: formData
             });
             
+            console.log('📥 Response status:', response.status);
+            
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `Failed to upload chunk ${chunkIndex + 1}`);
+                let errorMessage;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || `Failed to upload chunk ${chunkIndex + 1}`;
+                } catch (jsonError) {
+                    errorMessage = await response.text();
+                    console.error('❌ Server returned HTML instead of JSON:', errorMessage.substring(0, 200));
+                    errorMessage = 'Server returned an error page. Check server logs.';
+                }
+                throw new Error(errorMessage);
             }
             
             const data = await response.json();
@@ -337,6 +352,8 @@ async function uploadVideo() {
             uploadStatus.textContent = 'Combining video chunks...';
         }
         
+        console.log('🎬 Combining video chunks with session:', currentUser.sessionId);
+        
         const combineResponse = await fetch('/combine-video-chunks', {
             method: 'POST',
             headers: {
@@ -355,9 +372,19 @@ async function uploadVideo() {
             })
         });
         
+        console.log('📥 Combine response status:', combineResponse.status);
+        
         if (!combineResponse.ok) {
-            const errorData = await combineResponse.json();
-            throw new Error(errorData.error || 'Failed to combine video chunks');
+            let errorMessage;
+            try {
+                const errorData = await combineResponse.json();
+                errorMessage = errorData.error || 'Failed to combine video chunks';
+            } catch (jsonError) {
+                errorMessage = await combineResponse.text();
+                console.error('❌ Server returned HTML instead of JSON:', errorMessage.substring(0, 200));
+                errorMessage = 'Server returned an error page. Check server logs.';
+            }
+            throw new Error(errorMessage);
         }
         
         const combineData = await combineResponse.json();
@@ -383,7 +410,8 @@ async function uploadVideo() {
         }
         
     } catch (error) {
-        console.error('Error uploading video:', error);
+        console.error('❌ Error uploading video:', error);
+        console.error('❌ Error stack:', error.stack);
         showNotification('Video upload failed: ' + error.message, 'error', 'Upload Error');
         
         if (uploadStatus) {
@@ -408,6 +436,55 @@ async function uploadVideo() {
         
         console.log('✅ Video upload completed');
     }
+}
+
+// 🔥 TEST FUNCTION: Simple video upload test
+async function testVideoUpload() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'video/*';
+    fileInput.style.display = 'none';
+    
+    fileInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        console.log('🎬 Test: Selected file:', file.name);
+        
+        const formData = new FormData();
+        formData.append('video', file);
+        
+        try {
+            console.log('🎬 Test: Sending to /test-video-upload');
+            const response = await fetch('/test-video-upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            console.log('🎬 Test: Response status:', response.status);
+            
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('❌ Test: Server returned:', text.substring(0, 200));
+                showNotification('Test failed: ' + response.status, 'error', 'Test Error');
+                return;
+            }
+            
+            const data = await response.json();
+            console.log('✅ Test: Success!', data);
+            showNotification('Test upload successful!', 'success', 'Test Complete');
+            
+        } catch (error) {
+            console.error('❌ Test error:', error);
+            showNotification('Test failed: ' + error.message, 'error', 'Test Error');
+        }
+    });
+    
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    setTimeout(() => {
+        document.body.removeChild(fileInput);
+    }, 1000);
 }
 
 // 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced cancelFileUpload function
@@ -4032,6 +4109,10 @@ function updateMobileUI() {
 
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("🐀 RatScape client initialized");
+    
+    // Προσθήκη debugging logs για video upload system
+    console.log('🔧 Video upload system initialized');
+    console.log('🔧 VIDEO_CHUNK_SIZE:', VIDEO_CHUNK_SIZE);
 
     // Create notification container first
     createNotificationContainer();
