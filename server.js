@@ -37,7 +37,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 if (!fs.existsSync(VIDEO_UPLOAD_DIR)) {
-    mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
+    fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true }); // 🔥 ΔΙΟΡΘΩΣΗ: Αλλαγή από mkdirSync σε fs.mkdirSync
 }
 
 // ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: Αφαίρεση του sharp και επεξεργασίας εικόνων στον δίσκο
