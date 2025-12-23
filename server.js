@@ -281,25 +281,12 @@ app.post("/upload-video-chunk", upload.single('videoChunk'), async (req, res) =>
                 totalChunks: parseInt(totalChunks),
                 fileName: fileName,
                 fileType: fileType,
-                fileSize: parseInt(fileSize),
-                sender: sender,
-                timestamp: Date.now()
+                fileSize: parseInt(fileSize)
             });
         }
         
         const videoData = videoChunks.get(videoId);
-        
-        // Ensure chunks array is big enough
-        const chunkIndexNum = parseInt(chunkIndex);
-        if (videoData.chunks.length <= chunkIndexNum) {
-            videoData.chunks.length = chunkIndexNum + 1;
-        }
-        
-        videoData.chunks[chunkIndexNum] = req.file.buffer;
-        videoData.timestamp = Date.now(); // Update timestamp
-        
-        console.log(`✅ Chunk ${chunkIndexNum + 1}/${videoData.totalChunks} stored for ${videoId}`);
-        console.log(`📊 Current chunks: ${videoData.chunks.filter(c => c).length}/${videoData.totalChunks}`);
+        videoData.chunks[parseInt(chunkIndex)] = req.file.buffer;
         
         res.json({
             success: true,
@@ -343,10 +330,6 @@ app.post("/combine-video-chunks", async (req, res) => {
         
         // Check if all chunks are uploaded
         if (videoData.chunks.length !== videoData.totalChunks || videoData.chunks.some(chunk => !chunk)) {
-            console.log('❌ Missing chunks:', { 
-                expected: videoData.totalChunks, 
-                actual: videoData.chunks.filter(c => c).length 
-            });
             return res.status(400).json({ success: false, error: "Not all chunks uploaded" });
         }
         
@@ -385,7 +368,7 @@ app.post("/combine-video-chunks", async (req, res) => {
             fileUrl = `data:${fileType};base64,${combinedBuffer.toString('base64')}`;
         }
         
-        // 🔥 ΚΥΡΙΑ ΑΛΛΑΓΗ: Save to database με video_data
+        // Save to database
         if (type === 'private') {
             await dbHelpers.savePrivateMessage({
                 sender: sender,
@@ -397,8 +380,7 @@ app.post("/combine-video-chunks", async (req, res) => {
                     hour12: false,
                 }),
                 isFile: true,
-                fileType: 'video',  // 🔥 Προσθήκη αυτού
-                video_data: {  // 🔥 Χρησιμοποιήστε video_data αντί για file_data
+                video_data: {
                     fileId: fileId,
                     fileName: fileName,
                     fileType: fileType,
@@ -418,8 +400,7 @@ app.post("/combine-video-chunks", async (req, res) => {
                     hour12: false,
                 }),
                 isFile: true,
-                fileType: 'video',  // 🔥 Προσθήκη αυτού
-                video_data: {  // 🔥 Χρησιμοποιήστε video_data αντί για file_data
+                video_data: {
                     fileId: fileId,
                     fileName: fileName,
                     fileType: fileType,
