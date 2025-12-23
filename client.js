@@ -17,10 +17,16 @@ let currentRoom = {
     isPrivate: false,
 };
 
-// ===== FILE UPLOAD SYSTEM =====
+// ===== ENHANCED FILE UPLOAD SYSTEM WITH VIDEO SUPPORT =====
 let fileUploadInProgress = false;
 let selectedFile = null;
-let fileUploadListenersInitialized = false; // 🔥 ΝΕΟ: Flag για αρχικοποίηση listeners
+let fileUploadListenersInitialized = false;
+
+// 🔥 ΝΕΟ: Video upload settings
+const VIDEO_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+let videoUploadId = null;
+let videoChunks = [];
+let videoUploadProgress = 0;
 
 // ===== EMOJI PICKER SYSTEM =====
 const emojiCategories = {
@@ -82,6 +88,395 @@ function clearChatState() {
     localStorage.removeItem('ratscape_chat_state');
 }
 
+// 🔥 ΝΕΟ: Initialize video upload system
+function initVideoUploadSystem() {
+    console.log('🎬 Initializing video upload system');
+    
+    // Add video upload button
+    const inputActions = document.querySelector('.input-actions');
+    if (inputActions && !document.querySelector('.video-upload-btn')) {
+        const videoBtn = document.createElement('button');
+        videoBtn.className = 'video-upload-btn';
+        videoBtn.title = 'Upload video';
+        videoBtn.innerHTML = '<i class="fas fa-video"></i>';
+        videoBtn.style.cssText = `
+            background: rgba(51, 51, 51, 0.5);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        `;
+        
+        videoBtn.addEventListener('mouseenter', function() {
+            this.style.background = 'var(--primary)';
+            this.style.color = 'white';
+            this.style.borderColor = 'var(--primary)';
+            this.style.transform = 'translateY(-1px)';
+        });
+        
+        videoBtn.addEventListener('mouseleave', function() {
+            this.style.background = 'rgba(51, 51, 51, 0.5)';
+            this.style.color = 'var(--text-light)';
+            this.style.borderColor = 'var(--border-color)';
+            this.style.transform = 'none';
+        });
+        
+        videoBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const videoInput = document.createElement('input');
+            videoInput.type = 'file';
+            videoInput.accept = 'video/*';
+            videoInput.style.display = 'none';
+            videoInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    handleVideoSelection(file);
+                }
+            });
+            document.body.appendChild(videoInput);
+            videoInput.click();
+            setTimeout(() => {
+                document.body.removeChild(videoInput);
+            }, 1000);
+        });
+        
+        inputActions.insertBefore(videoBtn, inputActions.firstChild);
+    }
+}
+
+// 🔥 ΝΕΟ: Handle video selection
+function handleVideoSelection(file) {
+    // Check if it's a video
+    if (!file.type.startsWith('video/')) {
+        showNotification('Please select a video file!', 'error', 'Invalid File');
+        return;
+    }
+    
+    // Check file size (max 100MB)
+    if (file.size > 100 * 1024 * 1024) {
+        showNotification('Video too large! Maximum size: 100MB', 'error', 'File Too Large');
+        return;
+    }
+    
+    selectedFile = file;
+    showVideoPreview(file);
+}
+
+// 🔥 ΝΕΟ: Show video preview
+function showVideoPreview(file) {
+    const filePreview = document.getElementById('file-preview');
+    const previewImage = document.getElementById('preview-image');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+    const uploadProgress = document.getElementById('upload-progress');
+    
+    if (!filePreview) return;
+    
+    // Hide image preview
+    if (previewImage) {
+        previewImage.style.display = 'none';
+    }
+    
+    // Create video preview if it doesn't exist
+    let videoPreview = document.getElementById('video-preview');
+    if (!videoPreview) {
+        videoPreview = document.createElement('video');
+        videoPreview.id = 'video-preview';
+        videoPreview.className = 'video-upload-preview';
+        videoPreview.style.cssText = `
+            width: 100px;
+            height: 100px;
+            border-radius: var(--radius);
+            object-fit: cover;
+            border: 2px solid var(--border-color);
+            display: none;
+        `;
+        
+        const filePreviewContent = document.querySelector('.file-preview-content');
+        if (filePreviewContent) {
+            filePreviewContent.insertBefore(videoPreview, filePreviewContent.firstChild);
+        }
+    }
+    
+    const videoUrl = URL.createObjectURL(file);
+    videoPreview.src = videoUrl;
+    videoPreview.style.display = 'block';
+    
+    filePreview.style.display = 'block';
+    
+    // File info
+    if (fileName) {
+        fileName.textContent = file.name.length > 25 ? file.name.substring(0, 25) + '...' : file.name;
+    }
+    
+    if (fileSize) {
+        const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+        fileSize.textContent = sizeInMB + ' MB (Video)';
+    }
+    
+    // Reset progress bar
+    if (uploadProgress) {
+        uploadProgress.style.width = '0%';
+        uploadProgress.setAttribute('data-progress', '0%');
+    }
+    
+    // Change send button text for video
+    const sendFileBtn = document.getElementById('send-file-btn');
+    if (sendFileBtn) {
+        sendFileBtn.innerHTML = '<i class="fas fa-video"></i> Upload Video';
+    }
+}
+
+// 🔥 ΝΕΟ: Upload video in chunks
+async function uploadVideo() {
+    if (!selectedFile || fileUploadInProgress) {
+        console.log('❌ No file selected or upload in progress');
+        return;
+    }
+    
+    if (!selectedFile.type.startsWith('video/')) {
+        // If not video, use normal upload
+        return uploadFile();
+    }
+    
+    console.log('🎬 Starting video upload:', selectedFile.name, 'Size:', selectedFile.size);
+    
+    fileUploadInProgress = true;
+    videoUploadId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    videoChunks = [];
+    videoUploadProgress = 0;
+    
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadStatus = document.getElementById('upload-status');
+    const sendFileBtn = document.getElementById('send-file-btn');
+    const originalBtnText = sendFileBtn ? sendFileBtn.innerHTML : '';
+    
+    try {
+        if (uploadProgress) {
+            uploadProgress.style.width = '5%';
+            uploadProgress.setAttribute('data-progress', '5%');
+        }
+        
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Preparing video...';
+        }
+        
+        if (sendFileBtn) {
+            sendFileBtn.disabled = true;
+            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
+        }
+        
+        // Calculate chunks
+        const totalChunks = Math.ceil(selectedFile.size / VIDEO_CHUNK_SIZE);
+        console.log(`📦 Video will be uploaded in ${totalChunks} chunks`);
+        
+        // Upload chunks
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+            const start = chunkIndex * VIDEO_CHUNK_SIZE;
+            const end = Math.min(start + VIDEO_CHUNK_SIZE, selectedFile.size);
+            const chunk = selectedFile.slice(start, end);
+            
+            if (uploadStatus) {
+                uploadStatus.textContent = `Uploading chunk ${chunkIndex + 1}/${totalChunks}...`;
+            }
+            
+            const formData = new FormData();
+            formData.append('videoChunk', chunk);
+            formData.append('chunkIndex', chunkIndex);
+            formData.append('totalChunks', totalChunks);
+            formData.append('videoId', videoUploadId);
+            formData.append('fileName', selectedFile.name);
+            formData.append('fileType', selectedFile.type);
+            formData.append('fileSize', selectedFile.size);
+            formData.append('sender', currentUser.username);
+            formData.append('type', currentRoom.isPrivate ? 'private' : 'group');
+            
+            if (currentRoom.id) {
+                formData.append('roomId', currentRoom.id);
+            }
+            
+            if (currentRoom.isPrivate) {
+                formData.append('receiver', currentRoom.name);
+            }
+            
+            const response = await fetch('/upload-video-chunk', {
+                method: 'POST',
+                headers: {
+                    'X-Session-ID': currentUser.sessionId
+                },
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Failed to upload chunk ${chunkIndex + 1}`);
+            }
+            
+            const data = await response.json();
+            videoChunks.push(chunkIndex);
+            
+            // Update progress
+            videoUploadProgress = ((chunkIndex + 1) / totalChunks) * 100;
+            if (uploadProgress) {
+                uploadProgress.style.width = `${videoUploadProgress}%`;
+                uploadProgress.setAttribute('data-progress', `${Math.round(videoUploadProgress)}%`);
+            }
+            
+            console.log(`✅ Uploaded chunk ${chunkIndex + 1}/${totalChunks}`);
+        }
+        
+        // All chunks uploaded, now combine them
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Combining video chunks...';
+        }
+        
+        const combineResponse = await fetch('/combine-video-chunks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-ID': currentUser.sessionId
+            },
+            body: JSON.stringify({
+                videoId: videoUploadId,
+                fileName: selectedFile.name,
+                fileType: selectedFile.type,
+                fileSize: selectedFile.size,
+                sender: currentUser.username,
+                type: currentRoom.isPrivate ? 'private' : 'group',
+                roomId: currentRoom.id || null,
+                receiver: currentRoom.isPrivate ? currentRoom.name : null
+            })
+        });
+        
+        if (!combineResponse.ok) {
+            const errorData = await combineResponse.json();
+            throw new Error(errorData.error || 'Failed to combine video chunks');
+        }
+        
+        const combineData = await combineResponse.json();
+        
+        if (uploadProgress) {
+            uploadProgress.style.width = '100%';
+            uploadProgress.setAttribute('data-progress', '100%');
+        }
+        
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Video uploaded successfully!';
+            uploadStatus.style.color = 'var(--success)';
+        }
+        
+        if (combineData.success) {
+            showNotification('Video uploaded successfully!', 'success', 'Video Uploaded');
+            
+            // The server will send the video via WebSocket
+            // We just need to clear the preview
+            setTimeout(() => {
+                cancelFileUpload();
+            }, 1000);
+        }
+        
+    } catch (error) {
+        console.error('Error uploading video:', error);
+        showNotification('Video upload failed: ' + error.message, 'error', 'Upload Error');
+        
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Upload failed!';
+            uploadStatus.style.color = 'var(--accent-red)';
+        }
+        
+        if (uploadProgress) {
+            uploadProgress.style.width = '0%';
+            uploadProgress.setAttribute('data-progress', '0%');
+        }
+    } finally {
+        fileUploadInProgress = false;
+        videoUploadId = null;
+        videoChunks = [];
+        videoUploadProgress = 0;
+        
+        if (sendFileBtn) {
+            sendFileBtn.disabled = false;
+            sendFileBtn.innerHTML = originalBtnText;
+        }
+        
+        console.log('✅ Video upload completed');
+    }
+}
+
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced cancelFileUpload function
+function cancelFileUpload() {
+    const filePreview = document.getElementById('file-preview');
+    const fileInput = document.getElementById('file-upload-input');
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadStatus = document.getElementById('upload-status');
+    const videoPreview = document.getElementById('video-preview');
+    
+    if (filePreview) {
+        filePreview.style.display = 'none';
+    }
+    
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    
+    if (uploadProgress) {
+        uploadProgress.style.width = '0%';
+        uploadProgress.textContent = '';
+    }
+    
+    if (uploadStatus) {
+        uploadStatus.textContent = '';
+    }
+    
+    if (videoPreview) {
+        videoPreview.src = '';
+        videoPreview.style.display = 'none';
+    }
+    
+    selectedFile = null;
+    fileUploadInProgress = false;
+    videoUploadId = null;
+    videoChunks = [];
+    videoUploadProgress = 0;
+}
+
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced handleFileSelection function
+function handleFileSelection(file) {
+    // Check file type
+    const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp', 
+        'application/pdf', 'text/plain', 'application/msword', 
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    
+    if (!allowedTypes.includes(file.type) && !file.type.startsWith('video/')) {
+        showNotification('Only images, videos, PDF and Word files are allowed!', 'error', 'Invalid File');
+        return;
+    }
+    
+    // Check file size
+    if (file.size > 100 * 1024 * 1024) {
+        showNotification('File too large! Maximum size: 100MB', 'error', 'File Too Large');
+        return;
+    }
+    
+    selectedFile = file;
+    
+    // Show appropriate preview
+    if (file.type.startsWith('video/')) {
+        showVideoPreview(file);
+    } else {
+        showFilePreview(file);
+    }
+}
+
 // ===== INITIALIZE FILE UPLOAD & EMOJI PICKER =====
 
 // 🔥 ΑΡΧΙΚΟΠΟΙΗΣΗ FILE UPLOAD SYSTEM - FIXED: ΜΟΝΟ ΜΙΑ ΦΟΡΑ
@@ -141,26 +536,6 @@ function initEmojiPickerSystem() {
     }
 }
 
-// 🔥 HANDLE FILE SELECTION
-function handleFileSelection(file) {
-    // Έλεγχος τύπου αρχείου
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    
-    if (!allowedTypes.includes(file.type)) {
-        showNotification('Μόνο εικόνες, PDF και Word αρχεία επιτρέπονται!', 'error', 'Λάθος Αρχείο');
-        return;
-    }
-    
-    // Έλεγχος μεγέθους (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-        showNotification('Το αρχείο είναι πολύ μεγάλο! Μέγιστο μέγεθος: 10MB', 'error', 'Μεγάλο Αρχείο');
-        return;
-    }
-    
-    selectedFile = file;
-    showFilePreview(file);
-}
-
 // 🔥 SHOW FILE PREVIEW
 function showFilePreview(file) {
     const filePreview = document.getElementById('file-preview');
@@ -204,34 +579,6 @@ function showFilePreview(file) {
     reader.readAsDataURL(file);
 }
 
-// 🔥 CANCEL FILE UPLOAD
-function cancelFileUpload() {
-    const filePreview = document.getElementById('file-preview');
-    const fileInput = document.getElementById('file-upload-input');
-    const uploadProgress = document.getElementById('upload-progress');
-    const uploadStatus = document.getElementById('upload-status');
-    
-    if (filePreview) {
-        filePreview.style.display = 'none';
-    }
-    
-    if (fileInput) {
-        fileInput.value = '';
-    }
-    
-    if (uploadProgress) {
-        uploadProgress.style.width = '0%';
-        uploadProgress.textContent = '';
-    }
-    
-    if (uploadStatus) {
-        uploadStatus.textContent = '';
-    }
-    
-    selectedFile = null;
-    fileUploadInProgress = false;
-}
-
 // 🔥 ΚΡΙΤΙΚΟ FIX: UPLOAD FILE TO SERVER - ΜΟΝΟ ΜΙΑ ΦΟΡΑ ΑΠΟΣΤΟΛΗ
 let isUploading = false;
 
@@ -246,6 +593,12 @@ async function uploadFile() {
         return;
     }
     
+    // If it's a video, use video upload
+    if (selectedFile.type.startsWith('video/')) {
+        return uploadVideo();
+    }
+    
+    // Otherwise use normal file upload
     isUploading = true;
     fileUploadInProgress = true;
     
@@ -277,12 +630,12 @@ async function uploadFile() {
         }
         
         if (uploadStatus) {
-            uploadStatus.textContent = 'Αποστολή αρχείου...';
+            uploadStatus.textContent = 'Uploading file...';
         }
         
         if (sendFileBtn) {
             sendFileBtn.disabled = true;
-            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Αποστολή...';
+            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
         }
         
         const response = await fetch('/upload-file', {
@@ -301,7 +654,7 @@ async function uploadFile() {
         const data = await response.json();
         
         if (!response.ok) {
-            throw new Error(data.error || 'Αποτυχία αποστολής αρχείου');
+            throw new Error(data.error || 'Upload failed');
         }
         
         if (uploadProgress) {
@@ -310,16 +663,12 @@ async function uploadFile() {
         }
         
         if (uploadStatus) {
-            uploadStatus.textContent = 'Αποστολή επιτυχής!';
+            uploadStatus.textContent = 'Upload successful!';
             uploadStatus.style.color = 'var(--success)';
         }
         
         if (data.success) {
-            // 🔥 ΚΡΙΤΙΚΟ FIX: ΔΕΝ ΣΤΕΛΝΟΥΜΕ ΤΟ ΜΗΝΥΜΑ ΑΠΟ ΕΔΩ!
-            // Το server θα στείλει το μήνυμα μέσω WebSocket
-            // Απλά δείχνουμε notification
-            
-            showNotification('Το αρχείο στάλθηκε επιτυχώς!', 'success', 'Αποστολή Αρχείου');
+            showNotification('File uploaded successfully!', 'success', 'Upload Complete');
             
             setTimeout(() => {
                 cancelFileUpload();
@@ -328,10 +677,10 @@ async function uploadFile() {
         
     } catch (error) {
         console.error('Error uploading file:', error);
-        showNotification('Σφάλμα κατά την αποστολή αρχείου: ' + error.message, 'error', 'Σφάλμα');
+        showNotification('Upload failed: ' + error.message, 'error', 'Upload Error');
         
         if (uploadStatus) {
-            uploadStatus.textContent = 'Σφάλμα!';
+            uploadStatus.textContent = 'Upload failed!';
             uploadStatus.style.color = 'var(--accent-red)';
         }
         
@@ -489,34 +838,30 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// 🔥 FIX: INITIALIZE EVENT LISTENERS - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced initializeUploadAndEmojiListeners function
 function initializeUploadAndEmojiListeners() {
     console.log('🔄 Initializing upload and emoji listeners');
     
-    // 🔥 ΑΡΧΙΚΟΠΟΙΗΣΗ ΜΟΝΟ ΑΝ ΔΕΝ ΕΧΕΙ ΓΙΝΕΙ ΗΔΗ
     if (!fileUploadListenersInitialized) {
         initFileUploadSystem();
     }
     
+    initVideoUploadSystem(); // 🔥 ΝΕΟ: Initialize video upload
     initEmojiPickerSystem();
     initEmojiPickerContent();
     
-    // 🔥 Send file button - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
     const sendFileBtn = document.getElementById('send-file-btn');
     if (sendFileBtn) {
-        // Αφαίρεση όλων των προηγούμενων listeners
         const newSendFileBtn = sendFileBtn.cloneNode(true);
         sendFileBtn.parentNode.replaceChild(newSendFileBtn, sendFileBtn);
         
-        // Προσθήκη ΜΟΝΟ ΕΝΟΣ listener
         newSendFileBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             console.log('📤 Send file button clicked');
             
-            // Έλεγχος αν τρέχει ήδη upload
             if (!isUploading && !fileUploadInProgress) {
-                uploadFile();
+                uploadFile(); // This will handle both files and videos
             } else {
                 console.log('⚠️ Upload already in progress');
             }
@@ -1388,6 +1733,7 @@ function updateUIForAuthState() {
     }
 }
 
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced addMessageToChat function for videos
 function addMessageToChat(message) {
     const messagesContainer = document.getElementById("messages-container");
     const messageDiv = document.createElement("div");
@@ -1395,14 +1741,15 @@ function addMessageToChat(message) {
 
     messageDiv.className = `message ${isOwn ? "own" : "other"}`;
     
-    // Ειδική επεξεργασία για αρχεία
-    if (message.isFile || message.file_data) {
-        const fileData = message.file_data || message;
+    // Check if it's a file (including video)
+    if (message.isFile || message.file_data || message.video_data) {
+        const fileData = message.file_data || message.video_data || message;
         const fileExtension = fileData.fileName ? fileData.fileName.split('.').pop().toLowerCase() : '';
         const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension);
+        const isVideo = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mpeg', 'mkv', 'wmv', 'flv'].includes(fileExtension);
         
         if (isImage && fileData.fileUrl) {
-            // Εικόνα - εμφάνιση preview
+            // Image - show preview
             messageDiv.innerHTML = `
                 <div class="message-header">
                     <span class="message-sender">${message.sender}</span>
@@ -1420,8 +1767,49 @@ function addMessageToChat(message) {
                     </div>
                 </div>
             `;
+        } else if (isVideo && fileData.fileUrl) {
+            // Video - show video player
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span class="message-sender">${message.sender}</span>
+                    <span class="message-time">${message.time || getCurrentTime()}</span>
+                </div>
+                <div class="message-file">
+                    <div class="video-message-preview">
+                        <video controls playsinline preload="metadata" class="message-video">
+                            <source src="${fileData.fileUrl}" type="${fileData.fileType || 'video/mp4'}">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="video-message-controls">
+                            <span class="video-message-title">
+                                <i class="fas fa-video"></i> ${fileData.fileName}
+                            </span>
+                            <a href="${fileData.fileUrl}" download="${fileData.fileName}" class="video-message-download" title="Download video">
+                                <i class="fas fa-download"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="file-info" style="margin-top: 8px;">
+                        <a href="${fileData.fileUrl}" download="${fileData.fileName}" class="file-download-btn">
+                            <i class="fas fa-download"></i> Download Video (${fileData.fileSize})
+                        </a>
+                    </div>
+                </div>
+            `;
+            
+            // Add click handler for fullscreen
+            setTimeout(() => {
+                const videoElement = messageDiv.querySelector('.message-video');
+                if (videoElement) {
+                    videoElement.addEventListener('click', function(e) {
+                        if (!e.target.classList.contains('video-message-download')) {
+                            openVideoPreview(fileData.fileUrl, fileData.fileType);
+                        }
+                    });
+                }
+            }, 100);
         } else {
-            // Άλλο αρχείο - μόνο download link
+            // Other file - show download link
             messageDiv.innerHTML = `
                 <div class="message-header">
                     <span class="message-sender">${message.sender}</span>
@@ -1433,7 +1821,7 @@ function addMessageToChat(message) {
                         <div class="file-details">
                             <span class="file-name">${fileData.fileName}</span>
                             <a href="${fileData.fileUrl}" download="${fileData.fileName}" class="file-download-link">
-                                <i class="fas fa-download"></i> Κατέβασμα
+                                <i class="fas fa-download"></i> Download
                             </a>
                         </div>
                     </div>
@@ -1441,7 +1829,7 @@ function addMessageToChat(message) {
             `;
         }
     } else {
-        // Κανονικό μήνυμα κειμένου
+        // Text message
         messageDiv.innerHTML = `
             <div class="message-header">
                 <span class="message-sender">${message.sender}</span>
@@ -1480,6 +1868,51 @@ function openImagePreview(imageUrl) {
 function closeImagePreview() {
     const modal = document.querySelector('.image-preview-modal');
     if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
+    }
+}
+
+// 🔥 ΝΕΟ: Open video in fullscreen modal
+function openVideoPreview(videoUrl, videoType) {
+    const modal = document.createElement('div');
+    modal.className = 'video-preview-modal active';
+    modal.innerHTML = `
+        <div class="video-preview-content">
+            <button class="close-video-preview" onclick="closeVideoPreview()">×</button>
+            <video controls autoplay class="full-size-video">
+                <source src="${videoUrl}" type="${videoType || 'video/mp4'}">
+                Your browser does not support the video tag.
+            </video>
+            <div class="video-actions">
+                <a href="${videoUrl}" download class="btn btn-primary">
+                    <i class="fas fa-download"></i> Download Video
+                </a>
+                <button class="btn btn-secondary" onclick="closeVideoPreview()">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+    
+    // Auto-play
+    setTimeout(() => {
+        const video = modal.querySelector('.full-size-video');
+        if (video) {
+            video.play().catch(e => console.log("Auto-play prevented:", e));
+        }
+    }, 100);
+}
+
+function closeVideoPreview() {
+    const modal = document.querySelector('.video-preview-modal');
+    if (modal) {
+        const video = modal.querySelector('video');
+        if (video) {
+            video.pause();
+        }
         modal.remove();
         document.body.style.overflow = '';
     }
@@ -3015,6 +3448,42 @@ socket.on("file_upload", (data) => {
     }
 });
 
+// 🔥 ΝΕΟ: WebSocket event for video upload
+socket.on("video_upload", (data) => {
+    console.log("🎬 Video upload received:", data);
+    
+    // Check if we're in the right room/chat
+    const shouldDisplay = (
+        (currentRoom.isPrivate && (data.sender === currentRoom.name || data.receiver === currentRoom.name)) ||
+        (!currentRoom.isPrivate && data.room_id === currentRoom.id)
+    );
+    
+    if (shouldDisplay) {
+        addMessageToChat({
+            text: `🎬 ${data.fileName}`,
+            sender: data.sender,
+            time: data.time || getCurrentTime(),
+            isFile: true,
+            video_data: {
+                fileId: data.fileId,
+                fileName: data.fileName,
+                fileType: data.fileType,
+                fileSize: data.fileSize,
+                fileUrl: data.fileUrl
+            }
+        });
+        
+        // Show notification only if we're not the sender
+        if (data.sender !== currentUser.username) {
+            showNotification(
+                `${data.sender} sent a video: ${data.fileName}`,
+                "info",
+                "New Video"
+            );
+        }
+    }
+});
+
 // 🔥 ΝΕΟ: Unread summary από server
 socket.on("unread_summary", (summary) => {
     console.log("📊 Received unread summary:", summary);
@@ -3576,7 +4045,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateMobileUI();
     });
 
-    // Προσθήκη CSS animations για unread system, file upload, και emoji picker
+    // 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced CSS styles
     const unreadStyle = document.createElement('style');
     unreadStyle.textContent = `
         @keyframes highlightPulse {
@@ -3743,6 +4212,121 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         
         .image-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        
+        /* Video upload preview */
+        .video-upload-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: var(--radius);
+            object-fit: cover;
+            border: 2px solid var(--border-color);
+            background: #000;
+        }
+        
+        /* Video message styling */
+        .video-message-preview {
+            max-width: 300px;
+            border-radius: var(--radius);
+            background: #000;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        
+        .message-video {
+            width: 100%;
+            height: auto;
+            border-radius: var(--radius);
+            cursor: pointer;
+            display: block;
+        }
+        
+        .video-message-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.7);
+        }
+        
+        .video-message-title {
+            color: white;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            max-width: 80%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .video-message-download {
+            color: white;
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 5px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .video-message-download:hover {
+            background: rgba(139, 0, 0, 0.5);
+        }
+        
+        /* Video preview modal */
+        .video-preview-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .video-preview-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .full-size-video {
+            max-width: 100%;
+            max-height: 80vh;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .close-video-preview {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            padding: 5px;
+            transition: color 0.2s ease;
+        }
+        
+        .close-video-preview:hover {
+            color: var(--accent-red);
+        }
+        
+        .video-actions {
             display: flex;
             gap: 10px;
             margin-top: 20px;
@@ -3926,6 +4510,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         .file-download-link:hover {
             text-decoration: underline;
+        }
+        
+        /* Responsive video styling */
+        @media (max-width: 768px) {
+            .video-message-preview {
+                max-width: 250px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .video-message-preview {
+                max-width: 200px;
+            }
         }
     `;
     document.head.appendChild(unreadStyle);
