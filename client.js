@@ -234,7 +234,7 @@ function showVideoPreview(file) {
     }
 }
 
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Upload video in chunks
+// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Upload video in chunks - FIXED για "body stream already read"
 async function uploadVideo() {
     if (!selectedFile || fileUploadInProgress) {
         console.log('❌ No file selected or upload in progress');
@@ -322,29 +322,40 @@ async function uploadVideo() {
             console.log('📥 Response status:', response.status);
             
             if (!response.ok) {
+                // 🔥 ΦΙΞ: Μην διαβάσεις την απάντηση δύο φορές
                 let errorMessage;
+                const responseText = await response.text(); // 🔥 Αυτό το διαβάζουμε ΜΟΝΟ ΜΙΑ ΦΟΡΑ
+                
                 try {
-                    const errorData = await response.json();
+                    const errorData = JSON.parse(responseText);
                     errorMessage = errorData.error || `Failed to upload chunk ${chunkIndex + 1}`;
                 } catch (jsonError) {
-                    errorMessage = await response.text();
-                    console.error('❌ Server returned HTML instead of JSON:', errorMessage.substring(0, 200));
+                    console.error('❌ Server returned non-JSON response:', responseText.substring(0, 200));
                     errorMessage = 'Server returned an error page. Check server logs.';
                 }
                 throw new Error(errorMessage);
+            } else {
+                // 🔥 ΦΙΞ: Για successful responses
+                const responseText = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (jsonError) {
+                    console.error('❌ Failed to parse successful response:', responseText.substring(0, 200));
+                    data = { success: true }; // Default σε success αν δεν μπορεί να parse
+                }
+                
+                videoChunks.push(chunkIndex);
+                
+                // Update progress
+                videoUploadProgress = ((chunkIndex + 1) / totalChunks) * 100;
+                if (uploadProgress) {
+                    uploadProgress.style.width = `${videoUploadProgress}%`;
+                    uploadProgress.setAttribute('data-progress', `${Math.round(videoUploadProgress)}%`);
+                }
+                
+                console.log(`✅ Uploaded chunk ${chunkIndex + 1}/${totalChunks}`);
             }
-            
-            const data = await response.json();
-            videoChunks.push(chunkIndex);
-            
-            // Update progress
-            videoUploadProgress = ((chunkIndex + 1) / totalChunks) * 100;
-            if (uploadProgress) {
-                uploadProgress.style.width = `${videoUploadProgress}%`;
-                uploadProgress.setAttribute('data-progress', `${Math.round(videoUploadProgress)}%`);
-            }
-            
-            console.log(`✅ Uploaded chunk ${chunkIndex + 1}/${totalChunks}`);
         }
         
         // All chunks uploaded, now combine them
@@ -375,19 +386,30 @@ async function uploadVideo() {
         console.log('📥 Combine response status:', combineResponse.status);
         
         if (!combineResponse.ok) {
+            // 🔥 ΦΙΞ: Ίδια λογική για combine response
             let errorMessage;
+            const responseText = await combineResponse.text(); // 🔥 Διάβασε ΜΟΝΟ ΜΙΑ ΦΟΡΑ
+            
             try {
-                const errorData = await combineResponse.json();
+                const errorData = JSON.parse(responseText);
                 errorMessage = errorData.error || 'Failed to combine video chunks';
             } catch (jsonError) {
-                errorMessage = await combineResponse.text();
-                console.error('❌ Server returned HTML instead of JSON:', errorMessage.substring(0, 200));
+                console.error('❌ Server returned HTML instead of JSON:', responseText.substring(0, 200));
                 errorMessage = 'Server returned an error page. Check server logs.';
             }
             throw new Error(errorMessage);
         }
         
-        const combineData = await combineResponse.json();
+        // 🔥 ΦΙΞ: Διάβασε την combine response ΜΟΝΟ ΜΙΑ ΦΟΡΑ
+        const combineResponseText = await combineResponse.text();
+        let combineData;
+        try {
+            combineData = JSON.parse(combineResponseText);
+        } catch (jsonError) {
+            console.error('❌ Failed to parse combine response:', combineResponseText.substring(0, 200));
+            combineData = { success: false, error: 'Invalid server response' };
+            throw new Error('Invalid server response format');
+        }
         
         if (uploadProgress) {
             uploadProgress.style.width = '100%';
@@ -407,6 +429,8 @@ async function uploadVideo() {
             setTimeout(() => {
                 cancelFileUpload();
             }, 1000);
+        } else {
+            throw new Error(combineData.error || 'Video upload failed on server');
         }
         
     } catch (error) {
@@ -437,6 +461,7 @@ async function uploadVideo() {
         console.log('✅ Video upload completed');
     }
 }
+
 
 // 🔥 TEST FUNCTION: Simple video upload test
 async function testVideoUpload() {
@@ -4778,3 +4803,4 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
