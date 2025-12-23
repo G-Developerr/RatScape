@@ -272,7 +272,7 @@ async function uploadVideo() {
             sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
         }
         
-        const response = await fetch('/upload-video', {
+        const response = await fetch('/upload-video-simple', {
             method: 'POST',
             headers: {
                 'X-Session-ID': currentUser.sessionId
@@ -4700,3 +4700,4 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
