@@ -613,6 +613,161 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+// 🔥 ΔΙΟΡΘΩΜΕΝΟ ENDPOINT: Upload video as Base64 - Διορθώνουμε το authenticate -> validateSession
+app.post('/upload-video-base64', validateSession, async (req, res) => {
+    try {
+        const { videoName, videoType, videoSize, videoData, sender, type, roomId, receiver } = req.body;
+        
+        console.log('🎬 Received Base64 video upload:', {
+            name: videoName,
+            type: videoType,
+            size: videoSize,
+            dataLength: videoData?.length || 0,
+            sender,
+            type,
+            roomId,
+            receiver
+        });
+        
+        // Βεβαιωθείτε ότι ο χρήστης είναι αυτός που ισχυρίζεται
+        const sessionId = req.headers["x-session-id"];
+        const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
+        if (!session || session.username !== sender) {
+            return res.status(401).json({ success: false, error: "Invalid session" });
+        }
+        
+        // Create video ID
+        const videoId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const fileName = videoId + '_' + videoName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        
+        let fileUrl = null;
+        let base64Preview = '';
+        
+        // Try to save to disk if directory exists
+        if (fs.existsSync(VIDEO_UPLOAD_DIR)) {
+            try {
+                const filePath = path.join(VIDEO_UPLOAD_DIR, fileName);
+                const buffer = Buffer.from(videoData, 'base64');
+                fs.writeFileSync(filePath, buffer);
+                fileUrl = `/uploads/videos/${fileName}`;
+                console.log('✅ Video saved to disk:', filePath, `(${(buffer.length / (1024 * 1024)).toFixed(2)} MB)`);
+                
+                // Create preview (first 1MB)
+                const previewBuffer = buffer.slice(0, Math.min(1024 * 1024, buffer.length));
+                base64Preview = `data:${videoType};base64,${previewBuffer.toString('base64')}`;
+            } catch (diskError) {
+                console.error("❌ Could not save video to disk, using Base64:", diskError.message);
+            }
+        }
+        
+        // If file not saved to disk, use Base64
+        if (!fileUrl) {
+            fileUrl = `data:${videoType};base64,${videoData}`;
+            base64Preview = `data:${videoType};base64,${videoData.substring(0, Math.min(50000, videoData.length))}`;
+        }
+        
+        // Save to database
+        if (type === 'private') {
+            await dbHelpers.savePrivateMessage({
+                sender: sender,
+                receiver: receiver,
+                text: `🎬 Video: ${videoName}`,
+                time: new Date().toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                }),
+                isFile: true,
+                video_data: {
+                    fileId: videoId,
+                    fileName: videoName,
+                    fileType: videoType,
+                    fileSize: formatFileSize(parseInt(videoSize)),
+                    fileUrl: fileUrl,
+                    preview: base64Preview
+                }
+            });
+        } else {
+            await dbHelpers.saveMessage({
+                room_id: roomId,
+                sender: sender,
+                text: `🎬 Video: ${videoName}`,
+                time: new Date().toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                }),
+                isFile: true,
+                video_data: {
+                    fileId: videoId,
+                    fileName: videoName,
+                    fileType: videoType,
+                    fileSize: formatFileSize(parseInt(videoSize)),
+                    fileUrl: fileUrl,
+                    preview: base64Preview
+                }
+            });
+        }
+        
+        // Send via WebSocket
+        const videoDataWs = {
+            fileId: videoId,
+            fileName: videoName,
+            fileType: videoType,
+            fileSize: formatFileSize(parseInt(videoSize)),
+            fileUrl: fileUrl,
+            preview: base64Preview,
+            sender: sender,
+            time: new Date().toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+            }),
+            isVideo: true
+        };
+        
+        if (type === 'private') {
+            videoDataWs.receiver = receiver;
+            videoDataWs.type = 'private';
+            
+            const receiverData = onlineUsers.get(receiver);
+            if (receiverData) {
+                io.to(receiverData.socketId).emit("video_upload", videoDataWs);
+            }
+            
+            const senderData = onlineUsers.get(sender);
+            if (senderData) {
+                io.to(senderData.socketId).emit("video_upload", videoDataWs);
+            }
+        } else {
+            videoDataWs.room_id = roomId;
+            videoDataWs.type = 'group';
+            
+            io.to(roomId).emit("video_upload", videoDataWs);
+        }
+        
+        console.log(`✅ Base64 video uploaded successfully: ${videoName}`);
+        
+        res.json({
+            success: true,
+            fileUrl: fileUrl,
+            fileName: videoName,
+            fileSize: formatFileSize(parseInt(videoSize)),
+            fileType: videoType,
+            fileId: videoId,
+            preview: base64Preview,
+            message: "Video uploaded successfully"
+        });
+        
+    } catch (error) {
+        console.error('❌ Error uploading Base64 video:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to upload video: ' + error.message 
+        });
+    }
+});
+
 // 🔥 ΝΕΟ ENDPOINT: GET PROFILE PICTURE - ΑΠΛΟΠΟΙΗΜΕΝΟ
 app.get("/get-profile-picture/:username", async (req, res) => {
   try {
@@ -1325,83 +1480,6 @@ app.get("/user-rooms/:username", validateSession, async (req, res) => {
     res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
-
-// Στον server.js προσθέτουμε:
-app.post('/upload-video-base64', authenticate, async (req, res) => {
-    try {
-        const { videoName, videoType, videoSize, videoData, sender, type, roomId, receiver } = req.body;
-        
-        console.log('🎬 Received Base64 video upload:', {
-            name: videoName,
-            type: videoType,
-            size: videoSize,
-            dataLength: videoData?.length || 0,
-            sender,
-            type,
-            roomId,
-            receiver
-        });
-        
-        // Save video to disk
-        const videoId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        const fileName = videoId + '_' + videoName.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const filePath = path.join(__dirname, 'uploads', 'videos', fileName);
-        
-        // Ensure directory exists
-        const videoDir = path.join(__dirname, 'uploads', 'videos');
-        if (!fs.existsSync(videoDir)) {
-            fs.mkdirSync(videoDir, { recursive: true });
-        }
-        
-        // Convert Base64 to buffer and save
-        const buffer = Buffer.from(videoData, 'base64');
-        fs.writeFileSync(filePath, buffer);
-        
-        console.log('✅ Video saved:', filePath);
-        
-        // Create file URL
-        const fileUrl = `/uploads/videos/${fileName}`;
-        
-        // Prepare data for WebSocket
-        const videoDataWs = {
-            fileId: videoId,
-            fileName: videoName,
-            fileType: videoType,
-            fileSize: videoSize,
-            fileUrl: fileUrl,
-            sender: sender,
-            time: new Date().toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            })
-        };
-        
-        // Emit to appropriate recipients
-        if (type === 'private') {
-            videoDataWs.receiver = receiver;
-            io.to(`private_${sender}_${receiver}`).to(`private_${receiver}_${sender}`).emit('video_upload', videoDataWs);
-        } else {
-            videoDataWs.room_id = roomId;
-            io.to(roomId).emit('video_upload', videoDataWs);
-        }
-        
-        res.json({ 
-            success: true, 
-            message: 'Video uploaded successfully',
-            videoId,
-            fileUrl 
-        });
-        
-    } catch (error) {
-        console.error('❌ Error uploading Base64 video:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Failed to upload video: ' + error.message 
-        });
-    }
-});
-
 
 // Προσθήκη στο server.js - ΜΕΤΑ τα άλλα endpoints
 
