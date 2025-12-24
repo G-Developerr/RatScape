@@ -22,8 +22,8 @@ let fileUploadInProgress = false;
 let selectedFile = null;
 let fileUploadListenersInitialized = false;
 
-// 🔥 ΝΕΟ: Video upload settings
-const VIDEO_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+// 🔥 ΒΕΛΤΙΩΜΕΝΟ: Video upload settings με μικρότερα chunks
+const VIDEO_CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks (μικρότερα για σταθερότητα)
 let videoUploadId = null;
 let videoChunks = [];
 let videoUploadProgress = 0;
@@ -91,12 +91,12 @@ function clearChatState() {
 // 🔥 EMERGENCY FIX: Convert old format messages
 function convertMessageFormat(message) {
     if (message.video_data && !message.file_data) {
-        // Αν έχει video_data αλλά όχι file_data, δημιούργησε file_data
+        // Αν έχει video_data αλλά όχι file_data, δημιουργησε file_data
         message.file_data = message.video_data;
         message.isFile = true;
     }
     if (message.file_data && !message.video_data && message.file_data.fileName) {
-        // Αν έχει file_data αλλά όχι video_data και είναι video, δημιούργησε video_data
+        // Αν έχει file_data αλλά όχι video_data και είναι video, δημιουργησε video_data
         const ext = message.file_data.fileName.split('.').pop().toLowerCase();
         const videoExts = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mpeg', 'mkv', 'wmv', 'flv'];
         if (videoExts.includes(ext)) {
@@ -106,7 +106,7 @@ function convertMessageFormat(message) {
     return message;
 }
 
-// 🔥 ΝΕΟ: Initialize video upload system
+// 🔥 ΒΕΛΤΙΩΜΕΝΟ: Initialize video upload system
 function initVideoUploadSystem() {
     console.log('🎬 Initializing video upload system');
     
@@ -169,7 +169,7 @@ function initVideoUploadSystem() {
     }
 }
 
-// 🔥 ΝΕΟ: Handle video selection
+// 🔥 ΒΕΛΤΙΩΜΕΝΟ: Handle video selection με καλύτερο έλεγχο μεγέθους
 function handleVideoSelection(file) {
     // Check if it's a video
     if (!file.type.startsWith('video/')) {
@@ -177,9 +177,10 @@ function handleVideoSelection(file) {
         return;
     }
     
-    // Check file size (max 100MB)
-    if (file.size > 100 * 1024 * 1024) {
-        showNotification('Video too large! Maximum size: 100MB', 'error', 'File Too Large');
+    // Check file size (max 50MB για σταθερότητα)
+    const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_VIDEO_SIZE) {
+        showNotification(`Video too large! Maximum size: 50MB (Selected: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`, 'error', 'File Too Large');
         return;
     }
     
@@ -187,7 +188,7 @@ function handleVideoSelection(file) {
     showVideoPreview(file);
 }
 
-// 🔥 ΝΕΟ: Show video preview
+// 🔥 ΒΕΛΤΙΩΜΕΝΟ: Show video preview
 function showVideoPreview(file) {
     const filePreview = document.getElementById('file-preview');
     const previewImage = document.getElementById('preview-image');
@@ -252,14 +253,14 @@ function showVideoPreview(file) {
     }
 }
 
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ: Upload video με το νέο endpoint
+// 🔥 ΣΗΜΑΝΤΙΚΟ FIX: Βελτιωμένο video upload με chunking
 async function uploadVideo() {
     if (!selectedFile || fileUploadInProgress) {
         console.log('❌ No file selected or upload in progress');
         return;
     }
     
-    console.log('🎬 Starting video upload:', selectedFile.name, 'Size:', selectedFile.size);
+    console.log('🎬 Starting video upload:', selectedFile.name, 'Size:', selectedFile.size, 'Type:', selectedFile.type);
     
     fileUploadInProgress = true;
     
@@ -268,15 +269,66 @@ async function uploadVideo() {
     const sendFileBtn = document.getElementById('send-file-btn');
     const originalBtnText = sendFileBtn ? sendFileBtn.innerHTML : '';
     
+    try {
+        if (uploadProgress) uploadProgress.style.width = '10%';
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Preparing video...';
+            uploadStatus.style.color = 'var(--text-light)';
+        }
+        
+        if (sendFileBtn) {
+            sendFileBtn.disabled = true;
+            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
+        }
+        
+        // Χρησιμοποίησε απλή μέθοδο αν το αρχείο είναι μικρό
+        if (selectedFile.size <= 10 * 1024 * 1024) { // 10MB
+            console.log('🎬 Small video, using simple upload');
+            await uploadVideoSimple(selectedFile);
+        } else {
+            console.log('🎬 Large video, using chunked upload');
+            await uploadVideoChunked(selectedFile);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error uploading video:', error);
+        showNotification('Video upload failed: ' + error.message, 'error', 'Upload Error');
+        
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Upload failed!';
+            uploadStatus.style.color = 'var(--accent-red)';
+        }
+        
+        if (uploadProgress) {
+            uploadProgress.style.width = '0%';
+            uploadProgress.setAttribute('data-progress', '0%');
+        }
+    } finally {
+        fileUploadInProgress = false;
+        
+        if (sendFileBtn) {
+            sendFileBtn.disabled = false;
+            sendFileBtn.innerHTML = originalBtnText;
+        }
+        
+        console.log('✅ Video upload completed');
+    }
+}
+
+// 🔥 ΝΕΟ: Απλή μέθοδος για μικρά βίντεο
+async function uploadVideoSimple(file) {
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadStatus = document.getElementById('upload-status');
+    
     const formData = new FormData();
-    formData.append('video', selectedFile);
+    formData.append('video', file);
     
     // Προσθήκη όλων των απαραίτητων πεδίων
     formData.append('sender', currentUser.username);
     formData.append('type', currentRoom.isPrivate ? 'private' : 'group');
-    formData.append('fileName', selectedFile.name);
-    formData.append('fileSize', selectedFile.size.toString());
-    formData.append('fileType', selectedFile.type);
+    formData.append('fileName', file.name);
+    formData.append('fileSize', file.size.toString());
+    formData.append('fileType', file.type);
     
     if (currentRoom.isPrivate) {
         formData.append('receiver', currentRoom.name);
@@ -288,15 +340,8 @@ async function uploadVideo() {
         if (uploadProgress) uploadProgress.style.width = '30%';
         if (uploadStatus) {
             uploadStatus.textContent = 'Uploading video...';
-            uploadStatus.style.color = 'var(--text-light)';
         }
         
-        if (sendFileBtn) {
-            sendFileBtn.disabled = true;
-            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
-        }
-        
-        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Χρησιμοποίησε το νέο endpoint
         const response = await fetch('/upload-video-message', {
             method: 'POST',
             headers: {
@@ -304,8 +349,6 @@ async function uploadVideo() {
             },
             body: formData
         });
-        
-        if (uploadProgress) uploadProgress.style.width = '70%';
         
         if (!response.ok) {
             let errorMessage;
@@ -338,28 +381,148 @@ async function uploadVideo() {
         }
         
     } catch (error) {
-        console.error('❌ Error uploading video:', error);
-        showNotification('Video upload failed: ' + error.message, 'error', 'Upload Error');
-        
-        if (uploadStatus) {
-            uploadStatus.textContent = 'Upload failed!';
-            uploadStatus.style.color = 'var(--accent-red)';
-        }
-        
-        if (uploadProgress) {
-            uploadProgress.style.width = '0%';
-            uploadProgress.setAttribute('data-progress', '0%');
-        }
-    } finally {
-        fileUploadInProgress = false;
-        
-        if (sendFileBtn) {
-            sendFileBtn.disabled = false;
-            sendFileBtn.innerHTML = originalBtnText;
-        }
-        
-        console.log('✅ Video upload completed');
+        console.error('❌ Error in simple video upload:', error);
+        throw error;
     }
+}
+
+// 🔥 ΒΕΛΤΙΩΜΕΝΟ: Chunked upload για μεγάλα βίντεο
+async function uploadVideoChunked(file) {
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadStatus = document.getElementById('upload-status');
+    const sendFileBtn = document.getElementById('send-file-btn');
+    
+    const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const videoId = `video_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    
+    console.log(`🎬 Starting chunked upload: ${totalChunks} chunks of ${CHUNK_SIZE / 1024 / 1024}MB each`);
+    
+    // Ενημέρωση για προετοιμασία
+    if (uploadStatus) {
+        uploadStatus.textContent = `Uploading video (0/${totalChunks} chunks)...`;
+    }
+    
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        
+        const formData = new FormData();
+        formData.append('videoChunk', chunk);
+        formData.append('sender', currentUser.username);
+        formData.append('chunkIndex', chunkIndex.toString());
+        formData.append('totalChunks', totalChunks.toString());
+        formData.append('videoId', videoId);
+        formData.append('fileName', file.name);
+        formData.append('fileType', file.type);
+        formData.append('fileSize', file.size.toString());
+        
+        try {
+            console.log(`🎬 Uploading chunk ${chunkIndex + 1}/${totalChunks}`);
+            
+            const response = await fetch('/upload-video-chunk', {
+                method: 'POST',
+                headers: {
+                    'X-Session-ID': currentUser.sessionId
+                },
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Chunk ${chunkIndex + 1} failed: ${errorData.error || 'Unknown error'}`);
+            }
+            
+            // Update progress
+            const progress = ((chunkIndex + 1) / totalChunks) * 100;
+            if (uploadProgress) {
+                uploadProgress.style.width = `${progress}%`;
+                uploadProgress.setAttribute('data-progress', `${Math.round(progress)}%`);
+            }
+            
+            if (uploadStatus) {
+                uploadStatus.textContent = `Uploading video (${chunkIndex + 1}/${totalChunks} chunks)...`;
+            }
+            
+            if (sendFileBtn) {
+                sendFileBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${Math.round(progress)}%`;
+            }
+            
+        } catch (error) {
+            console.error(`❌ Error uploading chunk ${chunkIndex + 1}:`, error);
+            throw new Error(`Failed to upload chunk ${chunkIndex + 1}: ${error.message}`);
+        }
+    }
+    
+    // Combine chunks
+    console.log('🎬 All chunks uploaded, combining...');
+    
+    if (uploadStatus) {
+        uploadStatus.textContent = 'Combining video chunks...';
+    }
+    
+    try {
+        const combineResponse = await fetch('/combine-video-chunks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-ID': currentUser.sessionId
+            },
+            body: JSON.stringify({
+                sender: currentUser.username,
+                videoId: videoId,
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                type: currentRoom.isPrivate ? 'private' : 'group',
+                roomId: currentRoom.id,
+                receiver: currentRoom.isPrivate ? currentRoom.name : null
+            })
+        });
+        
+        if (!combineResponse.ok) {
+            const errorData = await combineResponse.json();
+            throw new Error(`Failed to combine chunks: ${errorData.error || 'Unknown error'}`);
+        }
+        
+        const data = await combineResponse.json();
+        
+        if (uploadProgress) uploadProgress.style.width = '100%';
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Video uploaded successfully!';
+            uploadStatus.style.color = 'var(--success)';
+        }
+        
+        if (data.success) {
+            showNotification('Video uploaded successfully!', 'success', 'Video Uploaded');
+            
+            // Κλείσιμο του preview μετά από 1.5 δευτερόλεπτα
+            setTimeout(() => {
+                cancelFileUpload();
+            }, 1500);
+        } else {
+            throw new Error(data.error || 'Failed to combine video chunks');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error combining video chunks:', error);
+        throw error;
+    }
+}
+
+// ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Safe array buffer reading
+function readArrayBuffer(file, start, end) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            resolve(e.target.result);
+        };
+        reader.onerror = reject;
+        
+        const slice = file.slice(start, end);
+        reader.readAsArrayBuffer(slice);
+    });
 }
 
 // 🔥 ΒΟΗΘΗΤΙΚΗ: Convert file to Base64
@@ -487,9 +650,9 @@ function handleFileSelection(file) {
     }
     
     // Check file size
-    const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB για βίντεο
     if (file.size > MAX_FILE_SIZE) {
-        showNotification('File too large! Maximum size: 30MB', 'error', 'File Too Large');
+        showNotification('File too large! Maximum size: 50MB', 'error', 'File Too Large');
         return;
     }
     
