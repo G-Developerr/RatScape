@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR VIDEO UPLOAD
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR CHUNKED VIDEO UPLOAD
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -8,15 +8,12 @@ const fs = require("fs");
 const { dbHelpers, initializeDatabase } = require("./database.js");
 const multer = require('multer');
 
-// 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Αύξηση buffer size για video uploads
-require('buffer').constants.MAX_LENGTH = 128 * 1024 * 1024; // 128MB
-
 const app = express();
 const server = createServer(app);
 
-// 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Αύξηση payload size limits για video uploads
-app.use(express.json({ limit: '200mb' }));
-app.use(express.urlencoded({ extended: true, limit: '200mb' }));
+// Increase payload size limits for chunked uploads
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // FIXED: WebSocket config for Render
 const io = new Server(server, {
@@ -40,7 +37,7 @@ app.use(express.json());
 // Χειριστείτε OPTIONS requests για CORS
 app.options('*', cors());
 
-// 🔥 FIX: Σωστός έλεγχος και δημιουργία directories
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Σωστός έλεγχος και δημιουργία directories
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const VIDEO_UPLOAD_DIR = path.join(UPLOAD_DIR, 'videos');
 
@@ -87,13 +84,12 @@ function ensureUploadDirectories() {
 // Καλέστε τη συνάρτηση κατά την εκκίνηση
 ensureUploadDirectories();
 
-// 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Enhanced multer configuration με μεγαλύτερα limits
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced multer configuration για chunked upload
 const storage = multer.memoryStorage();
 const upload = multer({ 
     storage: storage,
     limits: { 
-      fileSize: 200 * 1024 * 1024, // Αύξηση σε 200MB για βίντεο
-      fieldSize: 100 * 1024 * 1024, // Προσθήκη fieldSize limit
+      fileSize: 10 * 1024 * 1024, // 10MB ανά chunk
     },
     fileFilter: function (req, file, cb) {
         try {
@@ -117,7 +113,7 @@ app.use((error, req, res, next) => {
         if (error.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({
                 success: false,
-                error: 'File too large. Maximum size is 200MB'
+                error: 'Chunk too large. Maximum size per chunk is 10MB'
             });
         }
         return res.status(400).json({
@@ -133,7 +129,7 @@ app.use((error, req, res, next) => {
     next();
 });
 
-// 🔥 ΝΕΟ: Store video chunks temporarily
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Store video chunks temporarily
 const videoChunks = new Map();
 
 // Serve static files correctly for Render
@@ -152,59 +148,181 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.get("/test", (req, res) => {
-  res.sendFile(path.join(__dirname, "test.html"));
-});
+// ===== ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΑΠΟΜΑΚΡΥΝΣΗ ΤΟΥ /upload-video-message (που στέλνει ολόκληρο το αρχείο) =====
+// Αυτό το endpoint προκαλεί το πρόβλημα με το Render's proxy
 
-// 🔥 ΔΙΟΡΘΩΜΕΝΟ: Upload and save video as message
-app.post("/upload-video-message", validateSession, upload.single('video'), async (req, res) => {
+// Αντί αυτού, θα χρησιμοποιήσουμε ΜΟΝΟ το chunked upload system:
+// 1. /upload-video-chunk - για κάθε chunk
+// 2. /combine-video-chunks - για συνδυασμό των chunks
+
+// 🔥 ΚΡΙΤΙΚΟ ENDPOINT: Upload video chunk
+app.post("/upload-video-chunk", upload.single('videoChunk'), async (req, res) => {
+    console.log('🎬 Video chunk upload request received');
+    
     try {
-        console.log('🎬 Upload video message request received');
-        
-        if (!req.file) {
-            return res.status(400).json({ success: false, error: "No video uploaded" });
-        }
-        
-        const { sender, receiver, roomId, type, fileName, fileSize, fileType } = req.body;
         const sessionId = req.headers["x-session-id"];
+        const { sender, chunkIndex, totalChunks, videoId, fileName, fileType, fileSize } = req.body;
         
-        console.log('📊 Video upload details:', {
-            sender, receiver, roomId, type, 
-            originalName: req.file.originalname,
-            size: req.file.size,
-            mimetype: req.file.mimetype
+        console.log('🔍 Session validation check:', { 
+            sender, 
+            chunkIndex: parseInt(chunkIndex) + 1, 
+            totalChunks 
         });
         
-        // Validate session
         if (!sessionId || !sender) {
+            console.log('❌ Missing session or sender');
             return res.status(401).json({ success: false, error: "Session required" });
         }
         
         const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
         if (!session || session.username !== sender) {
+            console.log('❌ Invalid session:', { 
+                sessionId, 
+                sender, 
+                session: session ? session.username : 'no session' 
+            });
             return res.status(401).json({ success: false, error: "Invalid session" });
         }
         
         console.log('✅ Session validated for user:', sender);
         
-        // Create unique file ID
+        if (!req.file) {
+            console.log('❌ No chunk data received');
+            return res.status(400).json({ success: false, error: "No chunk data" });
+        }
+        
+        console.log(`📦 Uploading video chunk ${parseInt(chunkIndex) + 1}/${totalChunks} for ${fileName} (${formatFileSize(req.file.size)})`);
+        
+        // 🔥 ΕΝΗΜΕΡΩΣΗ: Δημιουργία πίνακα chunks αν δεν υπάρχει
+        if (!videoChunks.has(videoId)) {
+            videoChunks.set(videoId, {
+                chunks: new Array(parseInt(totalChunks)).fill(null),
+                totalChunks: parseInt(totalChunks),
+                fileName: fileName,
+                fileType: fileType,
+                fileSize: parseInt(fileSize),
+                createdAt: Date.now(),
+                sender: sender
+            });
+        }
+        
+        const videoData = videoChunks.get(videoId);
+        videoData.chunks[parseInt(chunkIndex)] = req.file.buffer;
+        
+        // 🔥 ΒΕΛΤΙΩΣΗ: Έλεγχος αν όλα τα chunks έχουν ανεβεί
+        const uploadedChunks = videoData.chunks.filter(chunk => chunk !== null).length;
+        console.log(`📊 Progress: ${uploadedChunks}/${totalChunks} chunks uploaded`);
+        
+        res.json({
+            success: true,
+            chunkIndex: chunkIndex,
+            totalChunks: totalChunks,
+            uploadedChunks: uploadedChunks,
+            message: `Chunk ${parseInt(chunkIndex) + 1}/${totalChunks} uploaded successfully`
+        });
+        
+    } catch (error) {
+        console.error("❌ Error uploading video chunk:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || "Internal server error" 
+        });
+    }
+});
+
+// 🔥 ΚΡΙΤΙΚΟ ENDPOINT: Combine video chunks
+app.post("/combine-video-chunks", async (req, res) => {
+    try {
+        const sessionId = req.headers["x-session-id"];
+        const { sender, videoId, fileName, fileType, fileSize, type, roomId, receiver } = req.body;
+        
+        console.log('🎬 Combine video chunks request:', { 
+            sender, 
+            videoId, 
+            fileName,
+            type,
+            roomId: roomId || 'private',
+            receiver: receiver || 'none'
+        });
+        
+        if (!sessionId || !sender) {
+            console.log('❌ Missing session or sender');
+            return res.status(401).json({ success: false, error: "Session required" });
+        }
+        
+        const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
+        if (!session || session.username !== sender) {
+            console.log('❌ Invalid session');
+            return res.status(401).json({ success: false, error: "Invalid session" });
+        }
+        
+        if (!videoId || !videoChunks.has(videoId)) {
+            console.log('❌ Video not found:', videoId);
+            return res.status(400).json({ success: false, error: "Video not found or expired" });
+        }
+        
+        const videoData = videoChunks.get(videoId);
+        
+        // Έλεγχος αν όλα τα chunks έχουν ανεβεί
+        if (videoData.chunks.length !== videoData.totalChunks || videoData.chunks.some(chunk => !chunk)) {
+            console.log('❌ Not all chunks uploaded:', {
+                received: videoData.chunks.filter(c => c).length,
+                expected: videoData.totalChunks
+            });
+            return res.status(400).json({ 
+                success: false, 
+                error: "Not all chunks uploaded. Please try again." 
+            });
+        }
+        
+        console.log(`🎬 Combining ${videoData.totalChunks} chunks for video: ${fileName}`);
+        
+        // Συνδυασμός των chunks
+        const combinedBuffer = Buffer.concat(videoData.chunks);
+        console.log(`✅ Combined buffer size: ${formatFileSize(combinedBuffer.length)}`);
+        
         const fileId = `video_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         
-        // Convert to Base64 for storage
-        const base64Video = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-        const actualFileName = fileName || req.file.originalname;
-        const actualFileSize = fileSize || req.file.size;
-        const actualFileType = fileType || req.file.mimetype;
+        let fileUrl = null;
+        let base64Preview = '';
         
-        console.log(`🎬 Saving video to database: ${actualFileName} (${formatFileSize(actualFileSize)})`);
+        // Προσπάθεια αποθήκευσης στο disk
+        if (fs.existsSync(VIDEO_UPLOAD_DIR)) {
+            try {
+                const safeFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+                const uniqueFileName = `${fileId}_${safeFileName}`;
+                const filePath = path.join(VIDEO_UPLOAD_DIR, uniqueFileName);
+                
+                fs.writeFileSync(filePath, combinedBuffer);
+                fileUrl = `/uploads/videos/${uniqueFileName}`;
+                
+                console.log(`✅ Video saved to disk: ${filePath} (${(combinedBuffer.length / (1024 * 1024)).toFixed(2)} MB)`);
+            } catch (diskError) {
+                console.error("❌ Could not save video to disk, using Base64:", diskError.message);
+            }
+        }
         
-        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Δημιουργία data object με ΚΑΙ file_data ΚΑΙ video_data
+        // Δημιουργία preview (πρώτα 1MB)
+        if (combinedBuffer.length > 0) {
+            const previewSize = Math.min(1024 * 1024, combinedBuffer.length);
+            const previewBuffer = combinedBuffer.slice(0, previewSize);
+            base64Preview = `data:${fileType};base64,${previewBuffer.toString('base64')}`;
+        }
+        
+        // Αν αποτύχει το disk, χρησιμοποιούμε Base64
+        if (!fileUrl) {
+            console.log('ℹ️ Using Base64 for video storage');
+            fileUrl = `data:${fileType};base64,${combinedBuffer.toString('base64')}`;
+        }
+        
+        // Δημιουργία του video data object
         const videoDataObject = {
             fileId: fileId,
-            fileName: actualFileName,
-            fileType: actualFileType,
-            fileSize: formatFileSize(actualFileSize),
-            fileUrl: base64Video
+            fileName: fileName,
+            fileType: fileType,
+            fileSize: formatFileSize(parseInt(fileSize)),
+            fileUrl: fileUrl,
+            preview: base64Preview
         };
         
         let savedMessage;
@@ -214,132 +332,98 @@ app.post("/upload-video-message", validateSession, upload.single('video'), async
             savedMessage = await dbHelpers.savePrivateMessage({
                 sender: sender,
                 receiver: receiver,
-                text: `🎬 Video: ${actualFileName}`,
+                text: `🎬 Video: ${fileName}`,
                 time: new Date().toLocaleTimeString("en-US", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
                 }),
                 isFile: true,
-                file_data: videoDataObject,    // ✅ ΠΡΟΣΘΗΚΗ file_data
-                video_data: videoDataObject    // ✅ ΚΡΑΤΑΜΕ video_data για συμβατότητα
+                file_data: videoDataObject,
+                video_data: videoDataObject
             });
             
             console.log(`✅ Private video message saved for ${sender} -> ${receiver}`);
-            
-            // Send via WebSocket
-            const videoData = {
-                ...videoDataObject,
-                sender: sender,
-                receiver: receiver,
-                time: new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                }),
-                isVideo: true,
-                isFile: true,  // ✅ ΠΡΟΣΘΗΚΗ
-                type: 'private'
-            };
-            
-            // Send to receiver if online
-            const receiverData = onlineUsers.get(receiver);
-            if (receiverData) {
-                io.to(receiverData.socketId).emit("video_upload", videoData);
-                io.to(receiverData.socketId).emit("chat message", {
-                    sender: sender,
-                    receiver: receiver,
-                    text: `🎬 Video: ${actualFileName}`,
-                    time: videoData.time,
-                    isFile: true,
-                    file_data: videoDataObject,
-                    video_data: videoDataObject
-                });
-            }
-            
-            // Send back to sender
-            const senderData = onlineUsers.get(sender);
-            if (senderData) {
-                io.to(senderData.socketId).emit("video_upload", videoData);
-                io.to(senderData.socketId).emit("chat message", {
-                    sender: sender,
-                    receiver: receiver,
-                    text: `🎬 Video: ${actualFileName}`,
-                    time: videoData.time,
-                    isFile: true,
-                    file_data: videoDataObject,
-                    video_data: videoDataObject
-                });
-            }
             
         } else {
             // Save as group message
             savedMessage = await dbHelpers.saveMessage({
                 room_id: roomId,
                 sender: sender,
-                text: `🎬 Video: ${actualFileName}`,
+                text: `🎬 Video: ${fileName}`,
                 time: new Date().toLocaleTimeString("en-US", {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: false,
                 }),
-                isFile: true,
-                file_data: videoDataObject,    // ✅ ΠΡΟΣΘΗΚΗ file_data
-                video_data: videoDataObject    // ✅ ΚΡΑΤΑΜΕ video_data για συμβατότητα
-            });
-            
-            console.log(`✅ Group video message saved in room ${roomId} by ${sender}`);
-            
-            // Send via WebSocket to room
-            const videoData = {
-                ...videoDataObject,
-                sender: sender,
-                room_id: roomId,
-                time: new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                }),
-                isVideo: true,
-                isFile: true,  // ✅ ΠΡΟΣΘΗΚΗ
-                type: 'group'
-            };
-            
-            io.to(roomId).emit("video_upload", videoData);
-            io.to(roomId).emit("chat message", {
-                room_id: roomId,
-                sender: sender,
-                text: `🎬 Video: ${actualFileName}`,
-                time: videoData.time,
                 isFile: true,
                 file_data: videoDataObject,
                 video_data: videoDataObject
             });
+            
+            console.log(`✅ Group video message saved in room ${roomId} by ${sender}`);
         }
         
-        console.log(`✅ Video message saved successfully: ${actualFileName}`);
+        // Δημιουργία data για WebSocket
+        const videoDataWs = {
+            ...videoDataObject,
+            sender: sender,
+            time: new Date().toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+            }),
+            isVideo: true,
+            isFile: true,
+            type: type
+        };
+        
+        if (type === 'private') {
+            videoDataWs.receiver = receiver;
+            
+            // Send to receiver if online
+            const receiverData = onlineUsers.get(receiver);
+            if (receiverData) {
+                io.to(receiverData.socketId).emit("video_upload", videoDataWs);
+            }
+            
+            // Send back to sender
+            const senderData = onlineUsers.get(sender);
+            if (senderData) {
+                io.to(senderData.socketId).emit("video_upload", videoDataWs);
+            }
+            
+        } else {
+            videoDataWs.room_id = roomId;
+            
+            // Send via WebSocket to room
+            io.to(roomId).emit("video_upload", videoDataWs);
+        }
+        
+        // Καθαρισμός από memory
+        videoChunks.delete(videoId);
+        
+        console.log(`✅ Video uploaded successfully: ${fileName}`);
         
         res.json({
             success: true,
-            message: "Video uploaded and saved successfully",
-            file: {
-                fileId: fileId,
-                fileName: actualFileName,
-                fileSize: formatFileSize(actualFileSize),
-                fileType: actualFileType,
-                fileUrl: base64Video
-            }
+            fileUrl: fileUrl,
+            fileName: fileName,
+            fileSize: formatFileSize(parseInt(fileSize)),
+            fileType: fileType,
+            fileId: fileId,
+            preview: base64Preview,
+            message: "Video uploaded successfully"
         });
         
     } catch (error) {
-        console.error('❌ Error uploading video message:', error);
-        return res.status(500).json({ 
+        console.error("❌ Error combining video chunks:", error);
+        res.status(500).json({ 
             success: false, 
-            error: error.message || 'Failed to upload video' 
+            error: error.message || "Failed to combine video chunks" 
         });
     }
 });
-
 
 // Βοηθητική συνάρτηση για μορφοποίηση μεγέθους αρχείου
 function formatFileSize(bytes) {
@@ -724,7 +808,7 @@ app.post("/upload-profile-picture", validateSession, upload.single('profile_pict
     }
 });
 
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Upload file endpoint
+// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Upload file endpoint (για μη-video αρχεία)
 app.post("/upload-file", upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
@@ -756,7 +840,7 @@ app.post("/upload-file", upload.single('file'), async (req, res) => {
             return res.status(400).json({ success: false, error: "Invalid session" });
         }
         
-        // Αν είναι video, χρησιμοποίησε το video endpoint
+        // 🔥 ΣΗΜΑΝΤΙΚΟ: Αν είναι video, χρησιμοποίησε το chunked video upload
         if (req.file.mimetype.startsWith('video/')) {
             return res.status(400).json({ 
                 success: false, 
@@ -1342,250 +1426,6 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
   }
 });
 
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Upload video chunk endpoint
-app.post("/upload-video-chunk", upload.single('videoChunk'), async (req, res) => {
-    console.log('🎬 Video chunk upload request received');
-    
-    try {
-        const sessionId = req.headers["x-session-id"];
-        const { sender, chunkIndex, totalChunks, videoId, fileName, fileType, fileSize } = req.body;
-        
-        console.log('🔍 Session validation check:', { sessionId, sender });
-        
-        if (!sessionId || !sender) {
-            console.log('❌ Missing session or sender');
-            return res.status(401).json({ success: false, error: "Session required" });
-        }
-        
-        const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
-        if (!session || session.username !== sender) {
-            console.log('❌ Invalid session:', { sessionId, sender, session: session ? session.username : 'no session' });
-            return res.status(401).json({ success: false, error: "Invalid session" });
-        }
-        
-        console.log('✅ Session validated for user:', sender);
-        
-        if (!req.file) {
-            console.log('❌ No chunk data received');
-            return res.status(400).json({ success: false, error: "No chunk data" });
-        }
-        
-        console.log(`📦 Uploading video chunk ${parseInt(chunkIndex) + 1}/${totalChunks} for ${fileName}`);
-        
-        if (!videoChunks.has(videoId)) {
-            videoChunks.set(videoId, {
-                chunks: [],
-                totalChunks: parseInt(totalChunks),
-                fileName: fileName,
-                fileType: fileType,
-                fileSize: parseInt(fileSize)
-            });
-        }
-        
-        const videoData = videoChunks.get(videoId);
-        videoData.chunks[parseInt(chunkIndex)] = req.file.buffer;
-        
-        res.json({
-            success: true,
-            chunkIndex: chunkIndex,
-            totalChunks: totalChunks,
-            message: `Chunk ${parseInt(chunkIndex) + 1}/${totalChunks} uploaded`
-        });
-        
-    } catch (error) {
-        console.error("❌ Error uploading video chunk:", error);
-        console.error("❌ Error stack:", error.stack);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Combine video chunks endpoint
-app.post("/combine-video-chunks", async (req, res) => {
-    try {
-        const sessionId = req.headers["x-session-id"];
-        const { sender, videoId, fileName, fileType, fileSize, type, roomId, receiver } = req.body;
-        
-        console.log('🎬 Combine video chunks request:', { sender, videoId, fileName });
-        
-        if (!sessionId || !sender) {
-            console.log('❌ Missing session or sender');
-            return res.status(401).json({ success: false, error: "Session required" });
-        }
-        
-        const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
-        if (!session || session.username !== sender) {
-            console.log('❌ Invalid session');
-            return res.status(401).json({ success: false, error: "Invalid session" });
-        }
-        
-        if (!videoId || !videoChunks.has(videoId)) {
-            return res.status(400).json({ success: false, error: "Video not found" });
-        }
-        
-        const videoData = videoChunks.get(videoId);
-        
-        if (videoData.chunks.length !== videoData.totalChunks || videoData.chunks.some(chunk => !chunk)) {
-            return res.status(400).json({ success: false, error: "Not all chunks uploaded" });
-        }
-        
-        console.log(`🎬 Combining ${videoData.totalChunks} chunks for video: ${fileName}`);
-        
-        const combinedBuffer = Buffer.concat(videoData.chunks);
-        
-        const fileId = `video_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        const uniqueFileName = `${fileId}_${fileName.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-        
-        let fileUrl = null;
-        let base64Preview = '';
-        
-        if (fs.existsSync(VIDEO_UPLOAD_DIR)) {
-            try {
-                const filePath = path.join(VIDEO_UPLOAD_DIR, uniqueFileName);
-                fs.writeFileSync(filePath, combinedBuffer);
-                fileUrl = `/uploads/videos/${uniqueFileName}`;
-                console.log(`✅ Video saved to disk: ${filePath} (${(combinedBuffer.length / (1024 * 1024)).toFixed(2)} MB)`);
-            } catch (diskError) {
-                console.error("❌ Could not save video to disk, using Base64:", diskError.message);
-            }
-        }
-        
-        if (combinedBuffer.length > 0) {
-            const previewBuffer = combinedBuffer.slice(0, Math.min(1024 * 1024, combinedBuffer.length));
-            base64Preview = `data:${fileType};base64,${previewBuffer.toString('base64')}`;
-        }
-        
-        if (!fileUrl) {
-            fileUrl = `data:${fileType};base64,${combinedBuffer.toString('base64')}`;
-        }
-        
-        if (type === 'private') {
-            await dbHelpers.savePrivateMessage({
-                sender: sender,
-                receiver: receiver,
-                text: `🎬 Video: ${fileName}`,
-                time: new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                }),
-                isFile: true,
-                video_data: {
-                    fileId: fileId,
-                    fileName: fileName,
-                    fileType: fileType,
-                    fileSize: formatFileSize(parseInt(fileSize)),
-                    fileUrl: fileUrl,
-                    preview: base64Preview
-                }
-            });
-        } else {
-            await dbHelpers.saveMessage({
-                room_id: roomId,
-                sender: sender,
-                text: `🎬 Video: ${fileName}`,
-                time: new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                }),
-                isFile: true,
-                video_data: {
-                    fileId: fileId,
-                    fileName: fileName,
-                    fileType: fileType,
-                    fileSize: formatFileSize(parseInt(fileSize)),
-                    fileUrl: fileUrl,
-                    preview: base64Preview
-                }
-            });
-        }
-        
-        const videoDataWs = {
-            fileId: fileId,
-            fileName: fileName,
-            fileType: fileType,
-            fileSize: formatFileSize(parseInt(fileSize)),
-            fileUrl: fileUrl,
-            preview: base64Preview,
-            sender: sender,
-            time: new Date().toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: false,
-            }),
-            isVideo: true
-        };
-        
-        if (type === 'private') {
-            videoDataWs.receiver = receiver;
-            videoDataWs.type = 'private';
-            
-            const receiverData = onlineUsers.get(receiver);
-            if (receiverData) {
-                io.to(receiverData.socketId).emit("video_upload", videoDataWs);
-            }
-            
-            const senderData = onlineUsers.get(sender);
-            if (senderData) {
-                io.to(senderData.socketId).emit("video_upload", videoDataWs);
-            }
-        } else {
-            videoDataWs.room_id = roomId;
-            videoDataWs.type = 'group';
-            
-            io.to(roomId).emit("video_upload", videoDataWs);
-        }
-        
-        videoChunks.delete(videoId);
-        
-        console.log(`✅ Video uploaded successfully: ${fileName}`);
-        
-        res.json({
-            success: true,
-            fileUrl: fileUrl,
-            fileName: fileName,
-            fileSize: formatFileSize(parseInt(fileSize)),
-            fileType: fileType,
-            fileId: fileId,
-            preview: base64Preview,
-            message: "Video uploaded successfully"
-        });
-        
-    } catch (error) {
-        console.error("❌ Error combining video chunks:", error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// 🔥 Απλοποιημένο video upload endpoint (για testing)
-app.post("/upload-video-simple", validateSession, upload.single('video'), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ success: false, error: "No video uploaded" });
-        }
-        
-        console.log('🎬 Simple video upload:', {
-            name: req.file.originalname,
-            size: req.file.size,
-            type: req.file.mimetype
-        });
-        
-        return res.json({
-            success: true,
-            message: "Video received successfully",
-            file: {
-                name: req.file.originalname,
-                size: req.file.size,
-                type: req.file.mimetype
-            }
-        });
-        
-    } catch (error) {
-        console.error('❌ Simple video upload error:', error);
-        return res.status(500).json({ success: false, error: error.message });
-    }
-});
-
 // ===== SOCKET.IO CONNECTION =====
 
 io.on("connection", async (socket) => {
@@ -1719,7 +1559,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // ΒΗΜΑ 2: Αλλαγή στο socket.on("chat message") για consistent data structure
   socket.on("chat message", async (data) => {
     try {
       if (!currentRoomId || !currentUsername || !currentSessionId) {
@@ -1742,7 +1581,7 @@ io.on("connection", async (socket) => {
       // 🔥 ΒΕΛΤΙΩΣΗ: Αν είναι video, ναι μεν κρατάμε το video_data, αλλά και το file_data για συμβατότητα
       if (data.video_data) {
         messageData.isFile = true;
-        messageData.file_data = data.video_data; // 🔥 ΠΡΟΣΘΗΚΗ: Δημιουργία αντιγράφου για συμβατότητα
+        messageData.file_data = data.video_data;
         
         console.log('🎬 Video message in socket:', {
           fileName: data.video_data.fileName,
@@ -1880,7 +1719,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // ΒΗΜΑ 3: Προσθήκη debug logs για video upload
   socket.on("video_upload", async (data) => {
     try {
       console.log("🎬 Video upload received via WebSocket:", JSON.stringify(data, null, 2));
@@ -1889,8 +1727,8 @@ io.on("connection", async (socket) => {
       const videoMessage = {
         ...data,
         isFile: true,
-        video_data: data, // 🔥 Χρήση video_data
-        file_data: data   // 🔥 ΚΑΙ file_data για συμβατότητα
+        video_data: data,
+        file_data: data
       };
       
       // Εξετάστε αν το video αφορά το τρέχον chat του χρήστη
@@ -2062,14 +1900,14 @@ setInterval(async () => {
   }
 }, 60 * 60 * 1000);
 
-// Clean up old video chunks
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Clean up old video chunks (1 ώρα)
 setInterval(() => {
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
     const videoIds = Array.from(videoChunks.keys());
     
     videoIds.forEach(videoId => {
-        const timestamp = parseInt(videoId.split('_')[1]);
-        if (timestamp && timestamp < oneHourAgo) {
+        const videoData = videoChunks.get(videoId);
+        if (videoData && videoData.createdAt < oneHourAgo) {
             videoChunks.delete(videoId);
             console.log(`🧹 Cleaned up old video chunks: ${videoId}`);
         }
@@ -2112,17 +1950,15 @@ async function startServer() {
       console.log(`🔔 NOTIFICATION SYSTEM: ENABLED`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
       console.log(`📸 IMAGE STORAGE: BASE64 IN MONGODB`);
-      console.log(`💾 MAX FILE SIZE: 200MB`);
+      console.log(`💾 MAX FILE SIZE: 100MB (CHUNKED)`);
       console.log(`📁 FILE UPLOAD SYSTEM: ENABLED`);
-      console.log(`🎬 VIDEO UPLOAD SYSTEM: ENABLED`);
+      console.log(`🎬 VIDEO UPLOAD SYSTEM: ENABLED (CHUNKED - 5MB per chunk)`);
       console.log(`😀 EMOJI PICKER: ENABLED`);
       console.log(`🖼️ AVATAR SYSTEM: ENABLED`);
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
-      console.log(`🔧 FIXED: Video upload system`);
-      console.log(`🔧 FIXED: Consistent data structure for video messages`);
-      console.log(`🔧 ADDED: Debug logs for video upload`);
-      console.log(`🔧 INCREASED: Buffer limits for large video uploads`);
-      console.log(`🔧 BUFFER MAX_LENGTH: 128MB`);
+      console.log(`🔧 FIXED: CHUNKED video upload system`);
+      console.log(`🔧 REMOVED: Single-upload endpoints that caused Render proxy errors`);
+      console.log(`🔧 ADDED: Enhanced chunk management and cleanup`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
