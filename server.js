@@ -8,12 +8,15 @@ const fs = require("fs");
 const { dbHelpers, initializeDatabase } = require("./database.js");
 const multer = require('multer');
 
+// 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Αύξηση buffer size για video uploads
+require('buffer').constants.MAX_LENGTH = 128 * 1024 * 1024; // 128MB
+
 const app = express();
 const server = createServer(app);
 
-// Increase payload size limits for file uploads
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Αύξηση payload size limits για video uploads
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ extended: true, limit: '200mb' }));
 
 // FIXED: WebSocket config for Render
 const io = new Server(server, {
@@ -84,12 +87,13 @@ function ensureUploadDirectories() {
 // Καλέστε τη συνάρτηση κατά την εκκίνηση
 ensureUploadDirectories();
 
-// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced multer configuration
+// 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Enhanced multer configuration με μεγαλύτερα limits
 const storage = multer.memoryStorage();
 const upload = multer({ 
     storage: storage,
     limits: { 
-      fileSize: 100 * 1024 * 1024, // Αύξηση σε 100MB για βίντεο
+      fileSize: 200 * 1024 * 1024, // Αύξηση σε 200MB για βίντεο
+      fieldSize: 100 * 1024 * 1024, // Προσθήκη fieldSize limit
     },
     fileFilter: function (req, file, cb) {
         try {
@@ -113,7 +117,7 @@ app.use((error, req, res, next) => {
         if (error.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({
                 success: false,
-                error: 'File too large. Maximum size is 100MB'
+                error: 'File too large. Maximum size is 200MB'
             });
         }
         return res.status(400).json({
@@ -2108,7 +2112,7 @@ async function startServer() {
       console.log(`🔔 NOTIFICATION SYSTEM: ENABLED`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
       console.log(`📸 IMAGE STORAGE: BASE64 IN MONGODB`);
-      console.log(`💾 MAX FILE SIZE: 100MB`);
+      console.log(`💾 MAX FILE SIZE: 200MB`);
       console.log(`📁 FILE UPLOAD SYSTEM: ENABLED`);
       console.log(`🎬 VIDEO UPLOAD SYSTEM: ENABLED`);
       console.log(`😀 EMOJI PICKER: ENABLED`);
@@ -2117,6 +2121,8 @@ async function startServer() {
       console.log(`🔧 FIXED: Video upload system`);
       console.log(`🔧 FIXED: Consistent data structure for video messages`);
       console.log(`🔧 ADDED: Debug logs for video upload`);
+      console.log(`🔧 INCREASED: Buffer limits for large video uploads`);
+      console.log(`🔧 BUFFER MAX_LENGTH: 128MB`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
