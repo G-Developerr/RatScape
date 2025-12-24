@@ -88,6 +88,24 @@ function clearChatState() {
     localStorage.removeItem('ratscape_chat_state');
 }
 
+// 🔥 EMERGENCY FIX: Convert old format messages
+function convertMessageFormat(message) {
+    if (message.video_data && !message.file_data) {
+        // Αν έχει video_data αλλά όχι file_data, δημιούργησε file_data
+        message.file_data = message.video_data;
+        message.isFile = true;
+    }
+    if (message.file_data && !message.video_data && message.file_data.fileName) {
+        // Αν έχει file_data αλλά όχι video_data και είναι video, δημιούργησε video_data
+        const ext = message.file_data.fileName.split('.').pop().toLowerCase();
+        const videoExts = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mpeg', 'mkv', 'wmv', 'flv'];
+        if (videoExts.includes(ext)) {
+            message.video_data = message.file_data;
+        }
+    }
+    return message;
+}
+
 // 🔥 ΝΕΟ: Initialize video upload system
 function initVideoUploadSystem() {
     console.log('🎬 Initializing video upload system');
@@ -1743,6 +1761,9 @@ function updateUIForAuthState() {
 
 // 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced addMessageToChat function for videos
 function addMessageToChat(message) {
+    // 🔥 ΠΡΟΣΘΗΚΗ: Μετατροπή μορφής μηνύματος
+    message = convertMessageFormat(message);
+    
     const messagesContainer = document.getElementById("messages-container");
     const messageDiv = document.createElement("div");
     const isOwn = message.sender === currentUser.username;
@@ -1750,8 +1771,11 @@ function addMessageToChat(message) {
     messageDiv.className = `message ${isOwn ? "own" : "other"}`;
     
     // Check if it's a file (including video)
-    if (message.isFile || message.file_data || message.video_data) {
-        const fileData = message.file_data || message.video_data || message;
+    // 🔥 ΑΛΛΑΓΗ: Έλεγχος για video_data ΚΑΙ file_data
+    const hasFileData = message.file_data || message.video_data;
+    const fileData = message.file_data || message.video_data || message;
+    
+    if (hasFileData) {
         const fileExtension = fileData.fileName ? fileData.fileName.split('.').pop().toLowerCase() : '';
         const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension);
         const isVideo = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mpeg', 'mkv', 'wmv', 'flv'].includes(fileExtension);
@@ -1776,7 +1800,7 @@ function addMessageToChat(message) {
                 </div>
             `;
         } else if (isVideo && fileData.fileUrl) {
-            // Video - show video player
+            // 🔥 ΒΕΛΤΙΩΣΗ: Βελτιωμένο video player με καλύτερο styling
             messageDiv.innerHTML = `
                 <div class="message-header">
                     <span class="message-sender">${message.sender}</span>
@@ -1784,13 +1808,13 @@ function addMessageToChat(message) {
                 </div>
                 <div class="message-file">
                     <div class="video-message-preview">
-                        <video controls playsinline preload="metadata" class="message-video">
+                        <video controls playsinline preload="metadata" class="message-video" style="width: 100%; max-width: 300px; border-radius: 8px;">
                             <source src="${fileData.fileUrl}" type="${fileData.fileType || 'video/mp4'}">
                             Your browser does not support the video tag.
                         </video>
                         <div class="video-message-controls">
                             <span class="video-message-title">
-                                <i class="fas fa-video"></i> ${fileData.fileName}
+                                <i class="fas fa-video"></i> ${fileData.fileName.length > 30 ? fileData.fileName.substring(0, 30) + '...' : fileData.fileName}
                             </span>
                             <a href="${fileData.fileUrl}" download="${fileData.fileName}" class="video-message-download" title="Download video">
                                 <i class="fas fa-download"></i>
@@ -1805,7 +1829,7 @@ function addMessageToChat(message) {
                 </div>
             `;
             
-            // Add click handler for fullscreen
+            // Προσθήκη click handler για fullscreen
             setTimeout(() => {
                 const videoElement = messageDiv.querySelector('.message-video');
                 if (videoElement) {
@@ -4474,7 +4498,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         .social-icon:hover {
             transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         
         .social-icon.instagram {
