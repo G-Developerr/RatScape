@@ -45,6 +45,13 @@ const messageSchema = new mongoose.Schema({
         fileSize: { type: String },
         fileUrl: { type: String }
     },
+    video_data: { 
+        fileId: { type: String },
+        fileName: { type: String },
+        fileType: { type: String },
+        fileSize: { type: String },
+        fileUrl: { type: String }
+    },
     created_at: { type: Date, default: Date.now }
 });
 
