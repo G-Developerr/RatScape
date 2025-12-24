@@ -152,7 +152,7 @@ app.get("/test", (req, res) => {
   res.sendFile(path.join(__dirname, "test.html"));
 });
 
-// 🔥 ΝΕΟ ENDPOINT: Upload and save video as message
+// 🔥 ΔΙΟΡΘΩΜΕΝΟ: Upload and save video as message
 app.post("/upload-video-message", validateSession, upload.single('video'), async (req, res) => {
     try {
         console.log('🎬 Upload video message request received');
@@ -194,6 +194,15 @@ app.post("/upload-video-message", validateSession, upload.single('video'), async
         
         console.log(`🎬 Saving video to database: ${actualFileName} (${formatFileSize(actualFileSize)})`);
         
+        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Δημιουργία data object με ΚΑΙ file_data ΚΑΙ video_data
+        const videoDataObject = {
+            fileId: fileId,
+            fileName: actualFileName,
+            fileType: actualFileType,
+            fileSize: formatFileSize(actualFileSize),
+            fileUrl: base64Video
+        };
+        
         let savedMessage;
         
         if (type === 'private') {
@@ -208,25 +217,15 @@ app.post("/upload-video-message", validateSession, upload.single('video'), async
                     hour12: false,
                 }),
                 isFile: true,
-                video_data: {
-                    fileId: fileId,
-                    fileName: actualFileName,
-                    fileType: actualFileType,
-                    fileSize: formatFileSize(actualFileSize),
-                    fileUrl: base64Video,
-                    preview: base64Video.substring(0, 5000) + '...'
-                }
+                file_data: videoDataObject,    // ✅ ΠΡΟΣΘΗΚΗ file_data
+                video_data: videoDataObject    // ✅ ΚΡΑΤΑΜΕ video_data για συμβατότητα
             });
             
             console.log(`✅ Private video message saved for ${sender} -> ${receiver}`);
             
             // Send via WebSocket
             const videoData = {
-                fileId: fileId,
-                fileName: actualFileName,
-                fileType: actualFileType,
-                fileSize: formatFileSize(actualFileSize),
-                fileUrl: base64Video,
+                ...videoDataObject,
                 sender: sender,
                 receiver: receiver,
                 time: new Date().toLocaleTimeString("en-US", {
@@ -235,6 +234,7 @@ app.post("/upload-video-message", validateSession, upload.single('video'), async
                     hour12: false,
                 }),
                 isVideo: true,
+                isFile: true,  // ✅ ΠΡΟΣΘΗΚΗ
                 type: 'private'
             };
             
@@ -242,12 +242,30 @@ app.post("/upload-video-message", validateSession, upload.single('video'), async
             const receiverData = onlineUsers.get(receiver);
             if (receiverData) {
                 io.to(receiverData.socketId).emit("video_upload", videoData);
+                io.to(receiverData.socketId).emit("chat message", {
+                    sender: sender,
+                    receiver: receiver,
+                    text: `🎬 Video: ${actualFileName}`,
+                    time: videoData.time,
+                    isFile: true,
+                    file_data: videoDataObject,
+                    video_data: videoDataObject
+                });
             }
             
             // Send back to sender
             const senderData = onlineUsers.get(sender);
             if (senderData) {
                 io.to(senderData.socketId).emit("video_upload", videoData);
+                io.to(senderData.socketId).emit("chat message", {
+                    sender: sender,
+                    receiver: receiver,
+                    text: `🎬 Video: ${actualFileName}`,
+                    time: videoData.time,
+                    isFile: true,
+                    file_data: videoDataObject,
+                    video_data: videoDataObject
+                });
             }
             
         } else {
@@ -262,25 +280,15 @@ app.post("/upload-video-message", validateSession, upload.single('video'), async
                     hour12: false,
                 }),
                 isFile: true,
-                video_data: {
-                    fileId: fileId,
-                    fileName: actualFileName,
-                    fileType: actualFileType,
-                    fileSize: formatFileSize(actualFileSize),
-                    fileUrl: base64Video,
-                    preview: base64Video.substring(0, 5000) + '...'
-                }
+                file_data: videoDataObject,    // ✅ ΠΡΟΣΘΗΚΗ file_data
+                video_data: videoDataObject    // ✅ ΚΡΑΤΑΜΕ video_data για συμβατότητα
             });
             
             console.log(`✅ Group video message saved in room ${roomId} by ${sender}`);
             
             // Send via WebSocket to room
             const videoData = {
-                fileId: fileId,
-                fileName: actualFileName,
-                fileType: actualFileType,
-                fileSize: formatFileSize(actualFileSize),
-                fileUrl: base64Video,
+                ...videoDataObject,
                 sender: sender,
                 room_id: roomId,
                 time: new Date().toLocaleTimeString("en-US", {
@@ -289,10 +297,20 @@ app.post("/upload-video-message", validateSession, upload.single('video'), async
                     hour12: false,
                 }),
                 isVideo: true,
+                isFile: true,  // ✅ ΠΡΟΣΘΗΚΗ
                 type: 'group'
             };
             
             io.to(roomId).emit("video_upload", videoData);
+            io.to(roomId).emit("chat message", {
+                room_id: roomId,
+                sender: sender,
+                text: `🎬 Video: ${actualFileName}`,
+                time: videoData.time,
+                isFile: true,
+                file_data: videoDataObject,
+                video_data: videoDataObject
+            });
         }
         
         console.log(`✅ Video message saved successfully: ${actualFileName}`);
@@ -317,6 +335,7 @@ app.post("/upload-video-message", validateSession, upload.single('video'), async
         });
     }
 });
+
 
 // Βοηθητική συνάρτηση για μορφοποίηση μεγέθους αρχείου
 function formatFileSize(bytes) {
