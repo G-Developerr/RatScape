@@ -234,7 +234,7 @@ function showVideoPreview(file) {
     }
 }
 
-// 🔥 ΑΠΛΟΠΟΙΗΣΗ: Upload video με FormData
+// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ: Upload video με το νέο endpoint
 async function uploadVideo() {
     if (!selectedFile || fileUploadInProgress) {
         console.log('❌ No file selected or upload in progress');
@@ -253,26 +253,33 @@ async function uploadVideo() {
     const formData = new FormData();
     formData.append('video', selectedFile);
     
-    if (currentRoom.id) {
-        formData.append('roomId', currentRoom.id);
-    }
-    
+    // Προσθήκη όλων των απαραίτητων πεδίων
     formData.append('sender', currentUser.username);
     formData.append('type', currentRoom.isPrivate ? 'private' : 'group');
+    formData.append('fileName', selectedFile.name);
+    formData.append('fileSize', selectedFile.size.toString());
+    formData.append('fileType', selectedFile.type);
     
     if (currentRoom.isPrivate) {
         formData.append('receiver', currentRoom.name);
+    } else if (currentRoom.id) {
+        formData.append('roomId', currentRoom.id);
     }
     
     try {
         if (uploadProgress) uploadProgress.style.width = '30%';
-        if (uploadStatus) uploadStatus.textContent = 'Uploading video...';
+        if (uploadStatus) {
+            uploadStatus.textContent = 'Uploading video...';
+            uploadStatus.style.color = 'var(--text-light)';
+        }
+        
         if (sendFileBtn) {
             sendFileBtn.disabled = true;
             sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
         }
         
-        const response = await fetch('/upload-video-simple', {
+        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Χρησιμοποίησε το νέο endpoint
+        const response = await fetch('/upload-video-message', {
             method: 'POST',
             headers: {
                 'X-Session-ID': currentUser.sessionId
@@ -303,9 +310,11 @@ async function uploadVideo() {
         
         if (data.success) {
             showNotification('Video uploaded successfully!', 'success', 'Video Uploaded');
+            
+            // Κλείσιμο του preview μετά από 1.5 δευτερόλεπτα
             setTimeout(() => {
                 cancelFileUpload();
-            }, 1000);
+            }, 1500);
         } else {
             throw new Error(data.error || 'Upload failed on server');
         }
@@ -3447,19 +3456,23 @@ socket.on("file_upload", (data) => {
     }
 });
 
-// 🔥 ΝΕΟ: WebSocket event for video upload
+// 🔥 ΚΡΙΤΙΚΟ: WebSocket event για video upload
 socket.on("video_upload", (data) => {
-    console.log("🎬 Video upload received:", data);
+    console.log("🎬 Video upload received via WebSocket:", data);
     
-    // Check if we're in the right room/chat
+    // Έλεγχος αν το video αφορά το τρέχον chat
     const shouldDisplay = (
-        (currentRoom.isPrivate && (data.sender === currentRoom.name || data.receiver === currentRoom.name)) ||
+        (currentRoom.isPrivate && 
+         ((data.sender === currentRoom.name && data.receiver === currentUser.username) ||
+          (data.receiver === currentRoom.name && data.sender === currentUser.username))) ||
         (!currentRoom.isPrivate && data.room_id === currentRoom.id)
     );
     
     if (shouldDisplay) {
-        addMessageToChat({
-            text: `🎬 ${data.fileName}`,
+        console.log("✅ Displaying video in current chat:", data.fileName);
+        
+        // Δημιουργία του μηνύματος για το video
+        const videoMessage = {
             sender: data.sender,
             time: data.time || getCurrentTime(),
             isFile: true,
@@ -3470,7 +3483,15 @@ socket.on("video_upload", (data) => {
                 fileSize: data.fileSize,
                 fileUrl: data.fileUrl
             }
-        });
+        };
+        
+        addMessageToChat(videoMessage);
+        
+        // Scroll to bottom
+        const messagesContainer = document.getElementById("messages-container");
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
         
         // Show notification only if we're not the sender
         if (data.sender !== currentUser.username) {
@@ -3480,6 +3501,8 @@ socket.on("video_upload", (data) => {
                 "New Video"
             );
         }
+    } else {
+        console.log("ℹ️ Video received but not for current chat");
     }
 });
 
@@ -4700,4 +4723,3 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
-
