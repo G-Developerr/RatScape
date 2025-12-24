@@ -177,9 +177,10 @@ function handleVideoSelection(file) {
         return;
     }
     
-    // Check file size (max 30MB για απλή μέθοδο)
-    if (file.size > 30 * 1024 * 1024) {
-        showNotification('Video too large! Maximum size: 30MB', 'error', 'File Too Large');
+    // Check file size (max 50MB για ασφάλεια)
+    const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_VIDEO_SIZE) {
+        showNotification(`Video too large! Maximum size: 50MB. Your file: ${(file.size / (1024 * 1024)).toFixed(2)}MB`, 'error', 'File Too Large');
         return;
     }
     
@@ -4535,3 +4536,4 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
