@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION WITH WORKING VIDEO UPLOAD
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR VIDEO UPLOAD
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -84,7 +84,30 @@ function ensureUploadDirectories() {
 // Καλέστε τη συνάρτηση κατά την εκκίνηση
 ensureUploadDirectories();
 
-// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced multer configuration
+// 🔥 ΚΡΙΤΙΚΟ FIX: Multer configuration ΓΙΑ VIDEO (SIMPLIFIED)
+const videoUpload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { 
+        fileSize: 50 * 1024 * 1024, // 50MB
+    },
+    fileFilter: function (req, file, cb) {
+        // Μόνο video files
+        if (!file.mimetype.startsWith('video/')) {
+            return cb(new Error('Only video files are allowed'));
+        }
+        
+        const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 
+                              'video/quicktime', 'video/x-msvideo'];
+        
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Unsupported video format'));
+        }
+    }
+});
+
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced multer configuration για files
 const storage = multer.memoryStorage();
 const upload = multer({ 
     storage: storage,
@@ -152,180 +175,156 @@ app.get("/test", (req, res) => {
   res.sendFile(path.join(__dirname, "test.html"));
 });
 
-// 🔥 ΔΙΟΡΘΩΜΕΝΟ: Upload and save video as message - ΕΝΙΑΙΟ ENDPOINT
-app.post("/upload-video", upload.single('video'), async (req, res) => {
+// 🔥 ΚΡΙΤΙΚΟ FIX: Server-side video upload
+// ΚΥΡΙΟ ENDPOINT: Upload video message (SIMPLIFIED)
+app.post("/upload-video-message", validateSession, videoUpload.single('video'), async (req, res) => {
+    console.log('🎬 Video upload request received');
+    
     try {
-        console.log('🎬 Video upload request received');
-        
+        // Validation
         if (!req.file) {
-            return res.status(400).json({ success: false, error: "No video uploaded" });
+            console.log('❌ No video file in request');
+            return res.status(400).json({ 
+                success: false, 
+                error: "No video uploaded" 
+            });
         }
         
-        const { sender, receiver, roomId, type } = req.body;
+        const { sender, receiver, roomId, type, fileName, fileSize, fileType } = req.body;
         const sessionId = req.headers["x-session-id"];
         
-        console.log('📊 Video upload details:', {
-            sender, receiver, roomId, type, 
-            originalName: req.file.originalname,
-            size: req.file.size,
+        console.log('📊 Upload info:', {
+            sender,
+            type,
+            fileName: req.file.originalname,
+            size: formatFileSize(req.file.size),
             mimetype: req.file.mimetype
         });
         
-        // Validate session
+        // Session validation
         if (!sessionId || !sender) {
-            return res.status(401).json({ success: false, error: "Session required" });
+            console.log('❌ Missing session or sender');
+            return res.status(401).json({ 
+                success: false, 
+                error: "Authentication required" 
+            });
         }
         
         const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
         if (!session || session.username !== sender) {
-            return res.status(401).json({ success: false, error: "Invalid session" });
+            console.log('❌ Invalid session');
+            return res.status(401).json({ 
+                success: false, 
+                error: "Invalid session" 
+            });
         }
         
-        console.log('✅ Session validated for user:', sender);
+        console.log('✅ Session validated');
         
-        // Create unique file ID
+        // 🔥 ΚΡΙΤΙΚΟ: Δημιουργία video data object
         const fileId = `video_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        const actualFileName = fileName || req.file.originalname;
+        const actualFileSize = fileSize || req.file.size;
+        const actualFileType = fileType || req.file.mimetype;
         
-        // Convert to Base64 for storage
-        const base64Video = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+        // Convert to Base64
+        const base64Video = `data:${actualFileType};base64,${req.file.buffer.toString('base64')}`;
         
-        console.log(`🎬 Saving video to database: ${req.file.originalname} (${formatFileSize(req.file.size)})`);
+        console.log(`📦 Video converted to Base64: ${formatFileSize(actualFileSize)}`);
         
-        // Δημιουργία data object
         const videoDataObject = {
             fileId: fileId,
-            fileName: req.file.originalname,
-            fileType: req.file.mimetype,
-            fileSize: formatFileSize(req.file.size),
+            fileName: actualFileName,
+            fileType: actualFileType,
+            fileSize: formatFileSize(actualFileSize),
             fileUrl: base64Video
         };
         
+        const timestamp = new Date().toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        });
+        
+        // 🔥 ΚΡΙΤΙΚΟ: Save to database
         let savedMessage;
         
         if (type === 'private') {
-            // Save as private message
+            console.log(`💬 Saving private video: ${sender} → ${receiver}`);
+            
             savedMessage = await dbHelpers.savePrivateMessage({
                 sender: sender,
                 receiver: receiver,
-                text: `🎬 Video: ${req.file.originalname}`,
-                time: new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                }),
+                text: `🎬 Video: ${actualFileName}`,
+                time: timestamp,
                 isFile: true,
                 file_data: videoDataObject,
                 video_data: videoDataObject
             });
             
-            console.log(`✅ Private video message saved for ${sender} -> ${receiver}`);
-            
-            // Send via WebSocket
+            // WebSocket broadcast
             const videoData = {
                 ...videoDataObject,
                 sender: sender,
                 receiver: receiver,
-                time: new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                }),
+                time: timestamp,
                 isVideo: true,
                 isFile: true,
                 type: 'private'
             };
             
-            // Send to receiver if online
+            // Send to receiver
             const receiverData = onlineUsers.get(receiver);
             if (receiverData) {
                 io.to(receiverData.socketId).emit("video_upload", videoData);
-                io.to(receiverData.socketId).emit("chat message", {
-                    sender: sender,
-                    receiver: receiver,
-                    text: `🎬 Video: ${req.file.originalname}`,
-                    time: videoData.time,
-                    isFile: true,
-                    file_data: videoDataObject,
-                    video_data: videoDataObject
-                });
             }
             
             // Send back to sender
             const senderData = onlineUsers.get(sender);
             if (senderData) {
                 io.to(senderData.socketId).emit("video_upload", videoData);
-                io.to(senderData.socketId).emit("chat message", {
-                    sender: sender,
-                    receiver: receiver,
-                    text: `🎬 Video: ${req.file.originalname}`,
-                    time: videoData.time,
-                    isFile: true,
-                    file_data: videoDataObject,
-                    video_data: videoDataObject
-                });
             }
             
+            console.log(`✅ Private video saved and sent`);
+            
         } else {
-            // Save as group message
+            console.log(`📢 Saving group video in room ${roomId}`);
+            
             savedMessage = await dbHelpers.saveMessage({
                 room_id: roomId,
                 sender: sender,
-                text: `🎬 Video: ${req.file.originalname}`,
-                time: new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                }),
+                text: `🎬 Video: ${actualFileName}`,
+                time: timestamp,
                 isFile: true,
                 file_data: videoDataObject,
                 video_data: videoDataObject
             });
             
-            console.log(`✅ Group video message saved in room ${roomId} by ${sender}`);
-            
-            // Send via WebSocket to room
+            // WebSocket broadcast
             const videoData = {
                 ...videoDataObject,
                 sender: sender,
                 room_id: roomId,
-                time: new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                }),
+                time: timestamp,
                 isVideo: true,
                 isFile: true,
                 type: 'group'
             };
             
             io.to(roomId).emit("video_upload", videoData);
-            io.to(roomId).emit("chat message", {
-                room_id: roomId,
-                sender: sender,
-                text: `🎬 Video: ${req.file.originalname}`,
-                time: videoData.time,
-                isFile: true,
-                file_data: videoDataObject,
-                video_data: videoDataObject
-            });
+            
+            console.log(`✅ Group video saved and broadcast`);
         }
         
-        console.log(`✅ Video message saved successfully: ${req.file.originalname}`);
-        
+        // Success response
         res.json({
             success: true,
-            message: "Video uploaded and saved successfully",
-            file: {
-                fileId: fileId,
-                fileName: req.file.originalname,
-                fileSize: formatFileSize(req.file.size),
-                fileType: req.file.mimetype,
-                fileUrl: base64Video
-            }
+            message: "Video uploaded successfully",
+            file: videoDataObject
         });
         
     } catch (error) {
-        console.error('❌ Error uploading video:', error);
+        console.error('❌ Video upload error:', error);
         return res.status(500).json({ 
             success: false, 
             error: error.message || 'Failed to upload video' 
@@ -752,7 +751,7 @@ app.post("/upload-file", upload.single('file'), async (req, res) => {
         if (req.file.mimetype.startsWith('video/')) {
             return res.status(400).json({ 
                 success: false, 
-                error: "Please use /upload-video endpoint for videos" 
+                error: "Please use video upload for videos" 
             });
         }
         
@@ -1467,6 +1466,7 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // ΒΗΜΑ 2: Αλλαγή στο socket.on("chat message") για consistent data structure
   socket.on("chat message", async (data) => {
     try {
       if (!currentRoomId || !currentUsername || !currentSessionId) {
@@ -1486,11 +1486,82 @@ io.on("connection", async (socket) => {
         sender: currentUsername,
       };
 
+      // 🔥 ΒΕΛΤΙΩΣΗ: Αν είναι video, ναι μεν κρατάμε το video_data, αλλά και το file_data για συμβατότητα
+      if (data.video_data) {
+        messageData.isFile = true;
+        messageData.file_data = data.video_data; // 🔥 ΠΡΟΣΘΗΚΗ: Δημιουργία αντιγράφου για συμβατότητα
+        
+        console.log('🎬 Video message in socket:', {
+          fileName: data.video_data.fileName,
+          sender: currentUsername,
+          roomId: currentRoomId,
+          hasVideoData: !!data.video_data,
+          hasFileData: !!messageData.file_data
+        });
+      }
+
       await dbHelpers.saveMessage(messageData);
       
-      io.to(currentRoomId).emit("chat message", messageData);
+      // Εξασφάλιση ότι και τα δύο πεδία υπάρχουν για συμβατότητα
+      const messageToSend = {
+        ...messageData,
+        video_data: messageData.video_data || messageData.file_data,
+        file_data: messageData.file_data || messageData.video_data
+      };
+      
+      io.to(currentRoomId).emit("chat message", messageToSend);
 
       console.log(`💬 Message in ${currentRoomId} from ${currentUsername}`);
+
+      if (data.isFile || data.video_data) {
+        console.log(`📁 File sent in ${currentRoomId}: ${data.fileName || data.video_data?.fileName || 'Unknown file'}`);
+      }
+
+      const roomMembers = await dbHelpers.getRoomMembers(currentRoomId);
+      const messageId = `gm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      
+      for (const member of roomMembers) {
+        if (member.username !== currentUsername) {
+          await dbHelpers.addUnreadMessage(
+            member.username, 
+            currentUsername, 
+            'group', 
+            currentRoomId, 
+            {
+              text: data.text || (data.isFile ? `📁 File: ${data.fileName || data.video_data?.fileName || 'File'}` : "New message"),
+              message_id: messageId
+            }
+          );
+          
+          const memberData = onlineUsers.get(member.username);
+          if (memberData) {
+            if (memberData.currentRoom !== currentRoomId) {
+              io.to(memberData.socketId).emit("notification", {
+                type: data.isFile ? "file_upload" : "group_message",
+                sender: currentUsername,
+                roomId: currentRoomId,
+                roomName: (await dbHelpers.getRoomById(currentRoomId))?.name || "Room",
+                message: data.isFile ? 
+                  `📁 Sent a file: ${data.fileName || data.video_data?.fileName || 'File'}` : 
+                  (data.text.substring(0, 50) + (data.text.length > 50 ? "..." : "")),
+                timestamp: Date.now(),
+                action: {
+                  type: 'room_message',
+                  roomId: currentRoomId,
+                  sender: currentUsername
+                }
+              });
+            }
+            
+            io.to(memberData.socketId).emit("unread_update", {
+              type: 'group',
+              roomId: currentRoomId,
+              sender: currentUsername,
+              count: await dbHelpers.getUnreadCountForUser(member.username, currentUsername, 'group', currentRoomId)
+            });
+          }
+        }
+      }
 
     } catch (error) {
       console.error("❌ Error saving message:", getErrorMessage(error));
@@ -1519,10 +1590,33 @@ io.on("connection", async (socket) => {
       }
 
       await dbHelpers.savePrivateMessage({ sender, receiver, text, time });
+      
+      const messageId = `pm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      await dbHelpers.addUnreadMessage(receiver, sender, 'private', null, {
+        text,
+        message_id: messageId
+      });
 
       const receiverData = onlineUsers.get(receiver);
       if (receiverData) {
         io.to(receiverData.socketId).emit("private message", data);
+        
+        io.to(receiverData.socketId).emit("notification", {
+          type: "private_message",
+          sender: sender,
+          message: text.substring(0, 50) + (text.length > 50 ? "..." : ""),
+          timestamp: Date.now(),
+          action: {
+            type: 'private_message',
+            sender: sender
+          }
+        });
+        
+        io.to(receiverData.socketId).emit("unread_update", {
+          type: 'private',
+          sender: sender,
+          count: await dbHelpers.getUnreadCountForUser(receiver, sender, 'private')
+        });
       }
 
       socket.emit("private message", data);
@@ -1533,25 +1627,61 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // ΒΗΜΑ 3: Προσθήκη debug logs για video upload
   socket.on("video_upload", async (data) => {
     try {
-      console.log("🎬 Video upload via WebSocket:", data.fileName);
+      console.log("🎬 Video upload received via WebSocket:", JSON.stringify(data, null, 2));
       
+      // Δημιουργία του μηνύματος για το video
+      const videoMessage = {
+        ...data,
+        isFile: true,
+        video_data: data, // 🔥 Χρήση video_data
+        file_data: data   // 🔥 ΚΑΙ file_data για συμβατότητα
+      };
+      
+      // Εξετάστε αν το video αφορά το τρέχον chat του χρήστη
+      if (currentUsername) {
+        console.log("🎬 Current user:", currentUsername, "Current room:", currentRoomId);
+        
+        const shouldDisplay = (
+          (data.type === 'private' && 
+           ((data.sender === currentUsername && data.receiver) ||
+            (data.receiver === currentUsername && data.sender))) ||
+          (data.type === 'group' && data.room_id === currentRoomId)
+        );
+        
+        console.log("🎬 Should display video?", shouldDisplay, "Data type:", data.type);
+        
+        if (shouldDisplay && currentRoomId) {
+          console.log("✅ Displaying video in current chat:", data.fileName);
+          
+          // Αποστολή μόνο στο συγκεκριμένο socket
+          socket.emit("chat message", videoMessage);
+        }
+      }
+      
+      // Κανονική διανομή του video
       if (data.type === 'private') {
         const receiverData = onlineUsers.get(data.receiver);
         if (receiverData) {
           io.to(receiverData.socketId).emit("video_upload", data);
+          io.to(receiverData.socketId).emit("chat message", videoMessage);
         }
         
         const senderData = onlineUsers.get(data.sender);
         if (senderData) {
           io.to(senderData.socketId).emit("video_upload", data);
+          io.to(senderData.socketId).emit("chat message", videoMessage);
         }
       } else {
         io.to(data.room_id).emit("video_upload", data);
+        io.to(data.room_id).emit("chat message", videoMessage);
       }
+      
+      console.log("✅ Video distributed via WebSocket");
     } catch (error) {
-      console.error("❌ Error handling video upload:", error);
+      console.error("❌ Error handling video upload via WebSocket:", error);
     }
   });
 
@@ -1731,10 +1861,13 @@ async function startServer() {
       console.log(`📸 IMAGE STORAGE: BASE64 IN MONGODB`);
       console.log(`💾 MAX FILE SIZE: 100MB`);
       console.log(`📁 FILE UPLOAD SYSTEM: ENABLED`);
-      console.log(`🎬 VIDEO UPLOAD SYSTEM: ENABLED (Single endpoint: /upload-video)`);
+      console.log(`🎬 VIDEO UPLOAD SYSTEM: ENABLED`);
       console.log(`😀 EMOJI PICKER: ENABLED`);
       console.log(`🖼️ AVATAR SYSTEM: ENABLED`);
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
+      console.log(`🔧 FIXED: Video upload system`);
+      console.log(`🔧 FIXED: Consistent data structure for video messages`);
+      console.log(`🔧 ADDED: Debug logs for video upload`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
