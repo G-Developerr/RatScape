@@ -285,6 +285,9 @@ async function uploadVideo() {
         formData.append('roomId', currentRoom.id);
     }
     
+    let timeoutId;
+    let controller;
+    
     try {
         if (uploadProgress) uploadProgress.style.width = '10%';
         if (uploadStatus) {
@@ -297,59 +300,125 @@ async function uploadVideo() {
             sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
         }
         
-        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Χρησιμοποίησε ΜΟΝΟ το /upload-video-message
-        // 🔥 ΑΛΛΑΓΗ: Αύξηση timeout από 60s σε 180s
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 180000); // 180s = 3 λεπτά
+        // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Χρήση XMLHttpRequest για καλύτερο timeout handling
+        console.log('🎬 Starting XMLHttpRequest upload...');
         
-        const response = await fetch('/upload-video-message', {
-            method: 'POST',
-            headers: {
-                'X-Session-ID': currentUser.sessionId
-            },
-            body: formData,
-            signal: controller.signal
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            
+            // Εκκίνηση timeout
+            timeoutId = setTimeout(() => {
+                console.log('⏰ Upload timeout after 180 seconds');
+                xhr.abort();
+                reject(new Error('Upload timeout (180 seconds). Please try a smaller video file or check your connection.'));
+            }, 180000); // 180s = 3 λεπτά
+            
+            // Προσθήκη progress tracking
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    console.log(`📊 Upload progress: ${percent.toFixed(1)}%`);
+                    
+                    if (uploadProgress) {
+                        uploadProgress.style.width = `${percent}%`;
+                        uploadProgress.setAttribute('data-progress', `${percent.toFixed(1)}%`);
+                    }
+                    
+                    if (uploadStatus) {
+                        uploadStatus.textContent = `Uploading... ${percent.toFixed(1)}%`;
+                    }
+                    
+                    // Ενημέρωση του κουμπιού
+                    if (sendFileBtn && percent < 100) {
+                        sendFileBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${percent.toFixed(0)}%`;
+                    }
+                }
+            });
+            
+            xhr.onload = function() {
+                clearTimeout(timeoutId);
+                console.log('✅ Upload complete, status:', xhr.status);
+                
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        console.log('✅ Server response:', data);
+                        
+                        if (uploadProgress) uploadProgress.style.width = '100%';
+                        if (uploadStatus) {
+                            uploadStatus.textContent = 'Video uploaded successfully!';
+                            uploadStatus.style.color = 'var(--success)';
+                        }
+                        
+                        if (data.success) {
+                            showNotification('Video uploaded successfully!', 'success', 'Video Uploaded');
+                            
+                            // Κλείσιμο του preview μετά από 1.5 δευτερόλεπτα
+                            setTimeout(() => {
+                                cancelFileUpload();
+                            }, 1500);
+                            
+                            resolve(data);
+                        } else {
+                            const errorMsg = data.error || 'Upload failed on server';
+                            console.error('❌ Server error:', errorMsg);
+                            showNotification('Video upload failed: ' + errorMsg, 'error', 'Upload Error');
+                            reject(new Error(errorMsg));
+                        }
+                    } catch (parseError) {
+                        console.error('❌ JSON parse error:', parseError);
+                        showNotification('Video upload failed: Invalid server response', 'error', 'Upload Error');
+                        reject(new Error('Invalid server response'));
+                    }
+                } else {
+                    console.error('❌ HTTP error:', xhr.status, xhr.statusText);
+                    let errorMessage;
+                    
+                    if (xhr.status === 413) {
+                        errorMessage = 'Video file is too large (max 20MB)';
+                    } else if (xhr.status === 408) {
+                        errorMessage = 'Upload timeout. Please try a smaller video file.';
+                    } else if (xhr.status >= 500) {
+                        errorMessage = 'Server error. Please try again later.';
+                    } else {
+                        errorMessage = `Upload failed (${xhr.status})`;
+                    }
+                    
+                    showNotification('Video upload failed: ' + errorMessage, 'error', 'Upload Error');
+                    reject(new Error(errorMessage));
+                }
+            };
+            
+            xhr.onerror = function() {
+                clearTimeout(timeoutId);
+                console.error('❌ Network error during upload');
+                showNotification('Video upload failed: Network error. Please check your connection.', 'error', 'Network Error');
+                reject(new Error('Network error during upload'));
+            };
+            
+            xhr.onabort = function() {
+                clearTimeout(timeoutId);
+                console.log('⚠️ Upload aborted');
+                // Μην εμφανίσεις error αν ο χρήστης το ακύρωσε μόνος του
+                if (!fileUploadInProgress) return;
+                showNotification('Upload cancelled or timeout', 'warning', 'Upload Cancelled');
+                reject(new Error('Upload cancelled'));
+            };
+            
+            // Άνοιγμα και αποστολή του request
+            xhr.open('POST', '/upload-video-message');
+            xhr.setRequestHeader('X-Session-ID', currentUser.sessionId);
+            console.log('🎬 Sending request to server...');
+            xhr.send(formData);
         });
         
-        clearTimeout(timeoutId);
-        
-        if (uploadProgress) uploadProgress.style.width = '50%';
-        
-        // Έλεγχος αν ο server επέστρεψε error
-        if (!response.ok) {
-            let errorMessage;
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error || `Upload failed (${response.status})`;
-            } catch (jsonError) {
-                // Αν αποτύχει το JSON parsing, τότε είναι HTML response
-                errorMessage = `Server error ${response.status}. Please check if the video upload endpoint exists.`;
-            }
-            throw new Error(errorMessage);
-        }
-        
-        const data = await response.json();
-        
-        if (uploadProgress) uploadProgress.style.width = '100%';
-        if (uploadStatus) {
-            uploadStatus.textContent = 'Video uploaded successfully!';
-            uploadStatus.style.color = 'var(--success)';
-        }
-        
-        if (data.success) {
-            showNotification('Video uploaded successfully!', 'success', 'Video Uploaded');
-            
-            // Κλείσιμο του preview μετά από 1.5 δευτερόλεπτα
-            setTimeout(() => {
-                cancelFileUpload();
-            }, 1500);
-        } else {
-            throw new Error(data.error || 'Upload failed on server');
-        }
-        
     } catch (error) {
-        console.error('❌ Error uploading video:', error);
-        showNotification('Video upload failed: ' + error.message, 'error', 'Upload Error');
+        console.error('❌ Error in uploadVideo:', error);
+        
+        // Μην εμφανίσεις error αν είναι απλά cancellation
+        if (error.message !== 'Upload cancelled') {
+            showNotification('Video upload failed: ' + error.message, 'error', 'Upload Error');
+        }
         
         if (uploadStatus) {
             uploadStatus.textContent = 'Upload failed!';
@@ -360,7 +429,12 @@ async function uploadVideo() {
             uploadProgress.style.width = '0%';
             uploadProgress.setAttribute('data-progress', '0%');
         }
+        
+        throw error;
     } finally {
+        // Επαναφορά κατάστασης
+        if (timeoutId) clearTimeout(timeoutId);
+        
         fileUploadInProgress = false;
         
         if (sendFileBtn) {
@@ -368,7 +442,7 @@ async function uploadVideo() {
             sendFileBtn.innerHTML = originalBtnText;
         }
         
-        console.log('✅ Video upload completed');
+        console.log('✅ Video upload process completed');
     }
 }
 
@@ -634,7 +708,7 @@ async function uploadFile() {
         return uploadVideo();
     }
     
-    // Otherwise use normal file upload (FormData)
+    // Otherwise use normal file upload (XMLHttpRequest για καλύτερο tracking)
     isUploading = true;
     fileUploadInProgress = true;
     
@@ -659,56 +733,88 @@ async function uploadFile() {
         formData.append('receiver', currentRoom.name);
     }
     
+    let timeoutId;
+    
     try {
         if (uploadProgress) {
-            uploadProgress.style.width = '30%';
-            uploadProgress.setAttribute('data-progress', '30%');
+            uploadProgress.style.width = '10%';
+            uploadProgress.setAttribute('data-progress', '10%');
         }
         
         if (uploadStatus) {
-            uploadStatus.textContent = 'Uploading file...';
+            uploadStatus.textContent = 'Preparing upload...';
         }
         
         if (sendFileBtn) {
             sendFileBtn.disabled = true;
-            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+            sendFileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
         }
         
-        // 🔥 ΑΛΛΑΓΗ: Προσθήκη XMLHttpRequest για καλύτερο tracking προόδου
-        const xhr = new XMLHttpRequest();
-        
-        xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) {
-                const percent = (e.loaded / e.total) * 100;
-                console.log(`📊 Upload progress: ${percent.toFixed(1)}%`);
-                
-                if (uploadProgress) {
-                    uploadProgress.style.width = `${percent}%`;
-                    uploadProgress.setAttribute('data-progress', `${percent.toFixed(1)}%`);
-                }
-                
-                if (uploadStatus) {
-                    uploadStatus.textContent = `Uploading... ${percent.toFixed(1)}%`;
-                }
-            }
-        });
-        
-        // Χρήση Promise για το XHR
+        // Χρήση Promise με XMLHttpRequest για καλύτερο control
         const uploadPromise = new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            
+            // Timeout για 3 λεπτά
+            timeoutId = setTimeout(() => {
+                console.log('⏰ Upload timeout after 180 seconds');
+                xhr.abort();
+                reject(new Error('Upload timeout (180 seconds). Please try a smaller file or check your connection.'));
+            }, 180000);
+            
+            // Progress tracking
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    console.log(`📊 Upload progress: ${percent.toFixed(1)}%`);
+                    
+                    if (uploadProgress) {
+                        uploadProgress.style.width = `${percent}%`;
+                        uploadProgress.setAttribute('data-progress', `${percent.toFixed(1)}%`);
+                    }
+                    
+                    if (uploadStatus) {
+                        uploadStatus.textContent = `Uploading... ${percent.toFixed(1)}%`;
+                    }
+                    
+                    if (sendFileBtn && percent < 100) {
+                        sendFileBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${percent.toFixed(0)}%`;
+                    }
+                }
+            });
+            
             xhr.onload = function() {
+                clearTimeout(timeoutId);
+                
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    resolve(xhr.responseText);
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        resolve(data);
+                    } catch (error) {
+                        reject(new Error('Invalid server response'));
+                    }
                 } else {
-                    reject(new Error(`Upload failed: ${xhr.status}`));
+                    let errorMessage;
+                    if (xhr.status === 413) {
+                        errorMessage = 'File is too large (max 20MB)';
+                    } else if (xhr.status === 408) {
+                        errorMessage = 'Upload timeout';
+                    } else {
+                        errorMessage = `Upload failed (${xhr.status})`;
+                    }
+                    reject(new Error(errorMessage));
                 }
             };
             
             xhr.onerror = function() {
+                clearTimeout(timeoutId);
                 reject(new Error('Network error during upload'));
             };
             
-            xhr.ontimeout = function() {
-                reject(new Error('Upload timeout'));
+            xhr.onabort = function() {
+                clearTimeout(timeoutId);
+                // Μην απορρίψεις error αν ο χρήστης το ακύρωσε
+                if (!fileUploadInProgress) return;
+                reject(new Error('Upload cancelled'));
             };
             
             xhr.open('POST', '/upload-file');
@@ -716,13 +822,7 @@ async function uploadFile() {
             xhr.send(formData);
         });
         
-        // 🔥 ΑΛΛΑΓΗ: Αύξηση timeout από 60s σε 180s
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Upload timeout (180s)')), 180000);
-        });
-        
-        const responseText = await Promise.race([uploadPromise, timeoutPromise]);
-        const data = JSON.parse(responseText);
+        const data = await uploadPromise;
         
         if (uploadProgress) {
             uploadProgress.style.width = '100%';
@@ -732,6 +832,10 @@ async function uploadFile() {
         if (uploadStatus) {
             uploadStatus.textContent = 'Upload successful!';
             uploadStatus.style.color = 'var(--success)';
+        }
+        
+        if (sendFileBtn) {
+            sendFileBtn.innerHTML = '<i class="fas fa-check"></i> Success!';
         }
         
         if (data.success) {
@@ -746,7 +850,11 @@ async function uploadFile() {
         
     } catch (error) {
         console.error('Error uploading file:', error);
-        showNotification('Upload failed: ' + error.message, 'error', 'Upload Error');
+        
+        // Μην εμφανίσεις error αν είναι cancellation
+        if (error.message !== 'Upload cancelled') {
+            showNotification('Upload failed: ' + error.message, 'error', 'Upload Error');
+        }
         
         if (uploadStatus) {
             uploadStatus.textContent = 'Upload failed!';
@@ -758,6 +866,8 @@ async function uploadFile() {
             uploadProgress.setAttribute('data-progress', '0%');
         }
     } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+        
         isUploading = false;
         fileUploadInProgress = false;
         
@@ -766,7 +876,7 @@ async function uploadFile() {
             sendFileBtn.innerHTML = originalBtnText;
         }
         
-        console.log('✅ File upload completed');
+        console.log('✅ File upload process completed');
     }
 }
 
@@ -3144,7 +3254,7 @@ async function loadUserProfile() {
         }
     } catch (error) {
         console.error("Error loading profile:", error);
-        showNotification("Could not load profile information", "error", "Profile Error");
+        showNotification("Could not load profile information", 'error', 'Profile Error');
     }
 }
 
