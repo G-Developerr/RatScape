@@ -1,19 +1,14 @@
-// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR VIDEO UPLOAD
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR PROFILE PICS & LEAVE ROOM
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const path = require("path");
-const fs = require("fs");
 const { dbHelpers, initializeDatabase } = require("./database.js");
 const multer = require('multer');
 
 const app = express();
 const server = createServer(app);
-
-// Increase payload size limits for file uploads
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // FIXED: WebSocket config for Render
 const io = new Server(server, {
@@ -27,144 +22,33 @@ const io = new Server(server, {
 
 // Middleware
 app.use(cors({
-  origin: ["https://ratscape.onrender.com", "http://localhost:3000", "http://localhost:10000"],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'X-Session-ID', 'Authorization']
+  origin: ["https://ratscape.onrender.com", "http://localhost:3000"],
+  credentials: true
 }));
 app.use(express.json());
 
-// Χειριστείτε OPTIONS requests για CORS
-app.options('*', cors());
+// ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: Αφαίρεση του sharp και επεξεργασίας εικόνων στον δίσκο
+const storage = multer.memoryStorage(); // Αποθήκευση αρχείων στη μνήμη αντί για δίσκο
 
-// 🔥 FIX: Σωστός έλεγχος και δημιουργία directories
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
-const VIDEO_UPLOAD_DIR = path.join(UPLOAD_DIR, 'videos');
-
-function ensureUploadDirectories() {
-    try {
-        // Δημιουργία κύριου upload directory αν δεν υπάρχει
-        if (!fs.existsSync(UPLOAD_DIR)) {
-            fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-            console.log('✅ Created uploads directory:', UPLOAD_DIR);
-        } else {
-            console.log('✅ Uploads directory already exists');
-        }
-
-        // Έλεγχος για το videos directory
-        if (fs.existsSync(VIDEO_UPLOAD_DIR)) {
-            // Αν υπάρχει, έλεγξε αν είναι directory ή αρχείο
-            const stats = fs.statSync(VIDEO_UPLOAD_DIR);
-            if (stats.isFile()) {
-                console.log(`⚠️ Found a file named 'videos' instead of directory. Removing it...`);
-                fs.unlinkSync(VIDEO_UPLOAD_DIR);
-                fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
-                console.log('✅ Created videos directory after removing file');
-            } else {
-                console.log('✅ Videos directory already exists');
-            }
-        } else {
-            // Δημιουργία directory αν δεν υπάρχει
-            fs.mkdirSync(VIDEO_UPLOAD_DIR, { recursive: true });
-            console.log('✅ Created videos directory:', VIDEO_UPLOAD_DIR);
-        }
-        
-        // Δημιουργία και άλλων απαραίτητων directories
-        const thumbnailsDir = path.join(UPLOAD_DIR, 'thumbnails');
-        if (!fs.existsSync(thumbnailsDir)) {
-            fs.mkdirSync(thumbnailsDir, { recursive: true });
-            console.log('✅ Created thumbnails directory');
-        }
-        
-    } catch (error) {
-        console.error('❌ Error creating upload directories:', error);
-    }
-}
-
-// Καλέστε τη συνάρτηση κατά την εκκίνηση
-ensureUploadDirectories();
-
-// 🔥 ΚΡΙΤΙΚΟ FIX: Multer configuration ΓΙΑ VIDEO (SIMPLIFIED)
-const videoUpload = multer({ 
-    storage: multer.memoryStorage(),
-    limits: { 
-        fileSize: 50 * 1024 * 1024, // 50MB
-    },
-    fileFilter: function (req, file, cb) {
-        // Μόνο video files
-        if (!file.mimetype.startsWith('video/')) {
-            return cb(new Error('Only video files are allowed'));
-        }
-        
-        const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 
-                              'video/quicktime', 'video/x-msvideo'];
-        
-        if (allowedTypes.includes(file.mimetype)) {
-            cb(null, true);
-        } else {
-            cb(new Error('Unsupported video format'));
-        }
-    }
-});
-
-// 🔥 ΕΝΗΜΕΡΩΣΗ: Enhanced multer configuration για files
-const storage = multer.memoryStorage();
 const upload = multer({ 
     storage: storage,
     limits: { 
-      fileSize: 100 * 1024 * 1024, // Αύξηση σε 100MB για βίντεο
+      fileSize: 10 * 1024 * 1024, // Αύξηση σε 10MB για φωτογραφίες
     },
     fileFilter: function (req, file, cb) {
-        try {
-            const filetypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|txt|mp4|webm|ogg|mov|avi|mpeg|mkv|wmv|flv/;
-            const mimetype = filetypes.test(file.mimetype);
-            const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-            
-            if (mimetype && extname) {
-                return cb(null, true);
-            }
-            cb(new Error('Only image, video, PDF, Word and text files are allowed'));
-        } catch (error) {
-            cb(error);
+        const filetypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|txt/;
+        const mimetype = filetypes.test(file.mimetype);
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+        
+        if (mimetype && extname) {
+            return cb(null, true);
         }
+        cb(new Error('Only image, PDF, Word and text files are allowed'));
     }
 });
-
-// Προσθέστε middleware για να κάνετε catch multer errors
-app.use((error, req, res, next) => {
-    if (error instanceof multer.MulterError) {
-        if (error.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({
-                success: false,
-                error: 'File too large. Maximum size is 100MB'
-            });
-        }
-        return res.status(400).json({
-            success: false,
-            error: error.message
-        });
-    } else if (error) {
-        return res.status(400).json({
-            success: false,
-            error: error.message
-        });
-    }
-    next();
-});
-
-// 🔥 ΝΕΟ: Store video chunks temporarily
-const videoChunks = new Map();
 
 // Serve static files correctly for Render
 app.use(express.static(path.join(__dirname)));
-
-// 🔥 ΝΕΟ: Serve uploaded files (if directory exists)
-if (fs.existsSync(UPLOAD_DIR)) {
-    app.use('/uploads', express.static(UPLOAD_DIR));
-    console.log('✅ Serving static files from /uploads');
-} else {
-    console.log('⚠️ Uploads directory not found, skipping /uploads route');
-}
 
 // Routes
 app.get("/", (req, res) => {
@@ -175,159 +59,195 @@ app.get("/test", (req, res) => {
   res.sendFile(path.join(__dirname, "test.html"));
 });
 
-// 🔥 ΚΡΙΤΙΚΟ FIX: Server-side video upload
-// ΚΥΡΙΟ ENDPOINT: Upload video message (SIMPLIFIED)
-app.post("/upload-video-message", validateSession, videoUpload.single('video'), async (req, res) => {
-    console.log('🎬 Video upload request received');
+// Memory sessions as fallback
+const userSessions = new Map();
+const onlineUsers = new Map();
+const roomSockets = new Map();
+
+// Enhanced session middleware using database
+async function validateSession(req, res, next) {
+  const sessionId = req.headers["x-session-id"];
+  const username = req.params.username || req.body.username;
+
+  if (!sessionId) {
+    return res.status(401).json({ success: false, error: "Session required" });
+  }
+
+  try {
+    // Try database first, then memory fallback
+    let session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     
+    if (!session) {
+      return res.status(401).json({ success: false, error: "Invalid session" });
+    }
+
+    // Check session expiration (7 days)
+    const oneWeek = 7 * 24 * 60 * 60 * 1000;
+    const sessionTime = new Date(session.last_accessed || session.createdAt).getTime();
+    
+    if (Date.now() - sessionTime > oneWeek) {
+      await dbHelpers.deleteSession(sessionId);
+      userSessions.delete(sessionId);
+      return res.status(401).json({ success: false, error: "Session expired" });
+    }
+
+    // If username is provided, verify it matches session
+    if (username && session.username !== username) {
+      return res.status(401).json({ success: false, error: "Session mismatch" });
+    }
+
+    next();
+  } catch (error) {
+    console.error("Session validation error:", error);
+    return res.status(500).json({ success: false, error: "Session error" });
+  }
+}
+
+function getErrorMessage(error) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
+// ===== ΝΕΟ ENDPOINT: UPLOAD FILE =====
+app.post("/upload-file", upload.single('file'), async (req, res) => {
     try {
-        // Validation
         if (!req.file) {
-            console.log('❌ No video file in request');
-            return res.status(400).json({ 
-                success: false, 
-                error: "No video uploaded" 
-            });
+            return res.status(400).json({ success: false, error: "No file uploaded" });
         }
         
-        const { sender, receiver, roomId, type, fileName, fileSize, fileType } = req.body;
+        const { roomId, sender, type, receiver } = req.body;
         const sessionId = req.headers["x-session-id"];
         
-        console.log('📊 Upload info:', {
-            sender,
-            type,
-            fileName: req.file.originalname,
-            size: formatFileSize(req.file.size),
-            mimetype: req.file.mimetype
+        if (!sender || !type) {
+            return res.status(400).json({ success: false, error: "Missing required fields" });
+        }
+        
+        console.log("📁 File upload request:", {
+            originalName: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+            sender: sender,
+            type: type,
+            roomId: roomId || 'private'
         });
         
-        // Session validation
-        if (!sessionId || !sender) {
-            console.log('❌ Missing session or sender');
-            return res.status(401).json({ 
-                success: false, 
-                error: "Authentication required" 
-            });
+        // Validate session
+        let session;
+        if (sessionId) {
+            session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
         }
         
-        const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
         if (!session || session.username !== sender) {
-            console.log('❌ Invalid session');
-            return res.status(401).json({ 
-                success: false, 
-                error: "Invalid session" 
+            return res.status(400).json({ success: false, error: "Invalid session" });
+        }
+        
+        // Μετατροπή αρχείου σε Base64
+        const fileBuffer = req.file.buffer;
+        const base64File = `data:${req.file.mimetype};base64,${fileBuffer.toString('base64')}`;
+        
+        // Δημιουργία μοναδικού ID για το αρχείο
+        const fileId = `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        
+        // Αποθήκευση στο database χρησιμοποιώντας τα dbHelpers
+        let savedFile = null;
+        if (type === 'private') {
+            savedFile = await dbHelpers.savePrivateMessage({
+                sender: sender,
+                receiver: receiver,
+                text: `📁 File: ${req.file.originalname}`,
+                time: new Date().toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                }),
+                isFile: true,
+                file_data: {
+                    fileId: fileId,
+                    fileName: req.file.originalname,
+                    fileType: req.file.mimetype,
+                    fileSize: formatFileSize(req.file.size),
+                    fileUrl: base64File
+                }
+            });
+        } else {
+            savedFile = await dbHelpers.saveMessage({
+                room_id: roomId,
+                sender: sender,
+                text: `📁 File: ${req.file.originalname}`,
+                time: new Date().toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                }),
+                isFile: true,
+                file_data: {
+                    fileId: fileId,
+                    fileName: req.file.originalname,
+                    fileType: req.file.mimetype,
+                    fileSize: formatFileSize(req.file.size),
+                    fileUrl: base64File
+                }
             });
         }
         
-        console.log('✅ Session validated');
-        
-        // 🔥 ΚΡΙΤΙΚΟ: Δημιουργία video data object
-        const fileId = `video_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        const actualFileName = fileName || req.file.originalname;
-        const actualFileSize = fileSize || req.file.size;
-        const actualFileType = fileType || req.file.mimetype;
-        
-        // Convert to Base64
-        const base64Video = `data:${actualFileType};base64,${req.file.buffer.toString('base64')}`;
-        
-        console.log(`📦 Video converted to Base64: ${formatFileSize(actualFileSize)}`);
-        
-        const videoDataObject = {
+        // Ενημέρωση WebSocket για το νέο αρχείο
+        const fileData = {
             fileId: fileId,
-            fileName: actualFileName,
-            fileType: actualFileType,
-            fileSize: formatFileSize(actualFileSize),
-            fileUrl: base64Video
+            fileName: req.file.originalname,
+            fileType: req.file.mimetype,
+            fileSize: formatFileSize(req.file.size),
+            fileUrl: base64File,
+            sender: sender,
+            time: new Date().toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+            }),
+            isFile: true
         };
         
-        const timestamp = new Date().toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-        });
-        
-        // 🔥 ΚΡΙΤΙΚΟ: Save to database
-        let savedMessage;
-        
         if (type === 'private') {
-            console.log(`💬 Saving private video: ${sender} → ${receiver}`);
+            fileData.receiver = receiver;
+            fileData.type = 'private';
             
-            savedMessage = await dbHelpers.savePrivateMessage({
-                sender: sender,
-                receiver: receiver,
-                text: `🎬 Video: ${actualFileName}`,
-                time: timestamp,
-                isFile: true,
-                file_data: videoDataObject,
-                video_data: videoDataObject
-            });
-            
-            // WebSocket broadcast
-            const videoData = {
-                ...videoDataObject,
-                sender: sender,
-                receiver: receiver,
-                time: timestamp,
-                isVideo: true,
-                isFile: true,
-                type: 'private'
-            };
-            
-            // Send to receiver
+            // Στέλνουμε μέσω WebSocket
             const receiverData = onlineUsers.get(receiver);
             if (receiverData) {
-                io.to(receiverData.socketId).emit("video_upload", videoData);
+                io.to(receiverData.socketId).emit("file_upload", fileData);
             }
             
-            // Send back to sender
+            // Στέλνουμε και στον αποστολέα
             const senderData = onlineUsers.get(sender);
             if (senderData) {
-                io.to(senderData.socketId).emit("video_upload", videoData);
+                io.to(senderData.socketId).emit("file_upload", fileData);
             }
-            
-            console.log(`✅ Private video saved and sent`);
-            
         } else {
-            console.log(`📢 Saving group video in room ${roomId}`);
+            fileData.room_id = roomId;
+            fileData.type = 'group';
             
-            savedMessage = await dbHelpers.saveMessage({
-                room_id: roomId,
-                sender: sender,
-                text: `🎬 Video: ${actualFileName}`,
-                time: timestamp,
-                isFile: true,
-                file_data: videoDataObject,
-                video_data: videoDataObject
-            });
-            
-            // WebSocket broadcast
-            const videoData = {
-                ...videoDataObject,
-                sender: sender,
-                room_id: roomId,
-                time: timestamp,
-                isVideo: true,
-                isFile: true,
-                type: 'group'
-            };
-            
-            io.to(roomId).emit("video_upload", videoData);
-            
-            console.log(`✅ Group video saved and broadcast`);
+            // Στέλνουμε σε όλους στο room
+            io.to(roomId).emit("file_upload", fileData);
         }
         
-        // Success response
+        console.log(`✅ File uploaded successfully: ${req.file.originalname}`);
+        
         res.json({
             success: true,
-            message: "Video uploaded successfully",
-            file: videoDataObject
+            fileUrl: base64File,
+            fileName: req.file.originalname,
+            fileSize: formatFileSize(req.file.size),
+            fileType: req.file.mimetype,
+            fileId: fileId,
+            message: "File uploaded successfully"
         });
         
     } catch (error) {
-        console.error('❌ Video upload error:', error);
-        return res.status(500).json({ 
+        console.error("❌ Error uploading file:", error);
+        res.status(500).json({ 
             success: false, 
-            error: error.message || 'Failed to upload video' 
+            error: error.message || "Failed to upload file" 
         });
     }
 });
@@ -352,6 +272,7 @@ app.get("/get-profile-picture/:username", async (req, res) => {
       return res.status(404).json({ success: false, error: "User not found" });
     }
     
+    // Επιστροφή μόνο του Base64 string αν υπάρχει
     res.json({ 
       success: true, 
       profile_picture: user.profile_picture || null 
@@ -368,11 +289,16 @@ app.get("/offline-notifications/:username", validateSession, async (req, res) =>
   try {
     const { username } = req.params;
     
+    // Φόρτωση unread messages
     const unreads = await dbHelpers.getUnreadMessages(username);
+    
+    // Φόρτωση pending friend requests
     const pendingRequests = await dbHelpers.getPendingRequests(username);
     
+    // Δημιουργία notifications array
     const notifications = [];
     
+    // Προσθήκη unread private messages
     const privateUnreads = unreads.filter(u => u.type === 'private');
     for (const unread of privateUnreads) {
       notifications.push({
@@ -389,6 +315,7 @@ app.get("/offline-notifications/:username", validateSession, async (req, res) =>
       });
     }
     
+    // Προσθήκη unread group messages
     const groupUnreads = unreads.filter(u => u.type === 'group');
     for (const unread of groupUnreads) {
       const room = await dbHelpers.getRoomById(unread.room_id);
@@ -409,6 +336,7 @@ app.get("/offline-notifications/:username", validateSession, async (req, res) =>
       });
     }
     
+    // Προσθήκη pending friend requests
     for (const request of pendingRequests) {
       notifications.push({
         id: `request_${request._id}`,
@@ -422,8 +350,10 @@ app.get("/offline-notifications/:username", validateSession, async (req, res) =>
       });
     }
     
+    // Ταξινόμηση κατά timestamp (νέα πρώτα)
     notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     
+    // Συνολικό count
     const totalUnread = unreads.reduce((sum, u) => sum + u.count, 0);
     
     res.json({
@@ -481,6 +411,8 @@ app.get("/unread-summary/:username", validateSession, async (req, res) => {
 });
 
 // ===== ΝΕΑ ENDPOINTS: PROFILE SYSTEM =====
+
+// User profile endpoint
 app.get("/user-profile/:username", validateSession, async (req, res) => {
     try {
         const { username } = req.params;
@@ -490,8 +422,11 @@ app.get("/user-profile/:username", validateSession, async (req, res) => {
             return res.status(404).json({ success: false, error: "User not found" });
         }
         
+        // Get user statistics
         const friends = await dbHelpers.getFriends(username);
         const rooms = await dbHelpers.getUserRooms(username);
+        
+        // Get messages count (simplified)
         const messages = await dbHelpers.getUserStats(username);
         
         const profile = {
@@ -521,6 +456,8 @@ app.get("/user-profile/:username", validateSession, async (req, res) => {
 });
 
 // ===== ΝΕΑ ENDPOINTS: USER INFO SYSTEM =====
+
+// User info endpoint (για άλλους χρήστες) - FIXED VERSION
 app.get("/user-info/:targetUsername", async (req, res) => {
   try {
     const { targetUsername } = req.params;
@@ -528,25 +465,30 @@ app.get("/user-info/:targetUsername", async (req, res) => {
 
     console.log("🔍 User info request for:", targetUsername, "session:", sessionId);
 
+    // Check session
     if (!sessionId) {
       return res.status(401).json({ success: false, error: "Session required" });
     }
 
+    // Get session from database or memory
     const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     if (!session) {
       return res.status(401).json({ success: false, error: "Invalid session" });
     }
 
+    // Get the user making the request
     const requestingUser = await dbHelpers.findUserByUsername(session.username);
     if (!requestingUser) {
       return res.status(401).json({ success: false, error: "Requesting user not found" });
     }
 
+    // Get the target user
     const targetUser = await dbHelpers.findUserByUsername(targetUsername);
     if (!targetUser) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
 
+    // Create user info response
     const userInfo = {
       username: targetUser.username,
       status: targetUser.status || "Offline",
@@ -579,6 +521,7 @@ app.get("/check-friendship/:username/:friendUsername", async (req, res) => {
       return res.status(401).json({ success: false, error: "Session required" });
     }
 
+    // Validate session
     const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     if (!session || session.username !== username) {
       return res.status(401).json({ success: false, error: "Invalid session" });
@@ -613,6 +556,7 @@ app.post("/update-profile", validateSession, async (req, res) => {
     try {
         const { username, updates } = req.body;
         
+        // Check if new username is taken
         if (updates.username) {
             const existingUser = await dbHelpers.findUserByUsername(updates.username);
             if (existingUser && existingUser.username !== username) {
@@ -620,6 +564,7 @@ app.post("/update-profile", validateSession, async (req, res) => {
             }
         }
         
+        // Check if new email is taken
         if (updates.email) {
             const existingEmail = await dbHelpers.findUserByEmail(updates.email);
             if (existingEmail && existingEmail.username !== username) {
@@ -627,6 +572,7 @@ app.post("/update-profile", validateSession, async (req, res) => {
             }
         }
         
+        // Update user in database
         const updated = await dbHelpers.updateUser(username, updates);
         
         if (updated) {
@@ -658,10 +604,12 @@ app.post("/change-password", validateSession, async (req, res) => {
             return res.status(404).json({ success: false, error: "User not found" });
         }
         
+        // Check current password
         if (user.password !== currentPassword) {
             return res.status(401).json({ success: false, error: "Current password is incorrect" });
         }
         
+        // Update password
         const updated = await dbHelpers.updateUserPassword(username, newPassword);
         
         if (updated) {
@@ -679,7 +627,7 @@ app.post("/change-password", validateSession, async (req, res) => {
     }
 });
 
-// 🔥 ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: Upload profile picture endpoint με Base64
+// 🔥 ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: Upload profile picture endpoint με Base64 - FIXED
 app.post("/upload-profile-picture", validateSession, upload.single('profile_picture'), async (req, res) => {
     try {
         if (!req.file) {
@@ -694,8 +642,10 @@ app.post("/upload-profile-picture", validateSession, upload.single('profile_pict
         
         console.log("📸 Processing uploaded image for user:", username, "File size:", req.file.size, "bytes");
         
+        // Μετατροπή εικόνας σε Base64
         const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
         
+        // Αποθήκευση Base64 string στο database
         await dbHelpers.updateUser(username, { profile_picture: base64Image });
         
         console.log("✅ Profile picture saved as Base64 for user:", username);
@@ -715,197 +665,79 @@ app.post("/upload-profile-picture", validateSession, upload.single('profile_pict
     }
 });
 
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: Upload file endpoint
-app.post("/upload-file", upload.single('file'), async (req, res) => {
+// 🔥 ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: Updated registration endpoint με Base64 avatar - FIXED
+app.post("/register", upload.single('avatar'), async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ success: false, error: "No file uploaded" });
+        const { email, username, password } = req.body;
+
+        console.log("🔍 Registration attempt:", { email, username });
+
+        if (!email || !username || !password) {
+            return res.status(400).json({ success: false, error: "All fields are required" });
         }
-        
-        const { roomId, sender, type, receiver } = req.body;
-        const sessionId = req.headers["x-session-id"];
-        
-        if (!sender || !type) {
-            return res.status(400).json({ success: false, error: "Missing required fields" });
+
+        if (password.length < 3) {
+            return res.status(400).json({ success: false, error: "Password must be at least 3 characters" });
         }
-        
-        console.log("📁 File upload request:", {
-            originalName: req.file.originalname,
-            size: req.file.size,
-            mimetype: req.file.mimetype,
-            sender: sender,
-            type: type,
-            roomId: roomId || 'private'
-        });
-        
-        let session;
-        if (sessionId) {
-            session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
-        }
-        
-        if (!session || session.username !== sender) {
-            return res.status(400).json({ success: false, error: "Invalid session" });
-        }
-        
-        // Αν είναι video, χρησιμοποίησε το video endpoint
-        if (req.file.mimetype.startsWith('video/')) {
-            return res.status(400).json({ 
-                success: false, 
-                error: "Please use video upload for videos" 
+
+        let existingEmail, existingUsername;
+        try {
+            existingEmail = await dbHelpers.findUserByEmail(email);
+            existingUsername = await dbHelpers.findUserByUsername(username);
+        } catch (dbError) {
+            console.error("❌ Database error during user check:", dbError);
+            return res.status(500).json({
+                success: false,
+                error: "Database error during registration",
             });
         }
-        
-        const fileBuffer = req.file.buffer;
-        const base64File = `data:${req.file.mimetype};base64,${fileBuffer.toString('base64')}`;
-        
-        const fileId = `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        
-        let savedFile = null;
-        if (type === 'private') {
-            savedFile = await dbHelpers.savePrivateMessage({
-                sender: sender,
-                receiver: receiver,
-                text: `📁 File: ${req.file.originalname}`,
-                time: new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                }),
-                isFile: true,
-                file_data: {
-                    fileId: fileId,
-                    fileName: req.file.originalname,
-                    fileType: req.file.mimetype,
-                    fileSize: formatFileSize(req.file.size),
-                    fileUrl: base64File
-                }
-            });
-        } else {
-            savedFile = await dbHelpers.saveMessage({
-                room_id: roomId,
-                sender: sender,
-                text: `📁 File: ${req.file.originalname}`,
-                time: new Date().toLocaleTimeString("en-US", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                }),
-                isFile: true,
-                file_data: {
-                    fileId: fileId,
-                    fileName: req.file.originalname,
-                    fileType: req.file.mimetype,
-                    fileSize: formatFileSize(req.file.size),
-                    fileUrl: base64File
-                }
-            });
+
+        if (existingEmail) {
+            return res.status(400).json({ success: false, error: "Email already registered" });
         }
-        
-        const fileData = {
-            fileId: fileId,
-            fileName: req.file.originalname,
-            fileType: req.file.mimetype,
-            fileSize: formatFileSize(req.file.size),
-            fileUrl: base64File,
-            sender: sender,
-            time: new Date().toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: false,
-            }),
-            isFile: true
-        };
-        
-        if (type === 'private') {
-            fileData.receiver = receiver;
-            fileData.type = 'private';
+
+        if (existingUsername) {
+            return res.status(400).json({ success: false, error: "Username already taken" });
+        }
+
+        try {
+            let profilePicture = null;
             
-            const receiverData = onlineUsers.get(receiver);
-            if (receiverData) {
-                io.to(receiverData.socketId).emit("file_upload", fileData);
+            // Επεξεργασία avatar αν παρέχεται
+            if (req.file) {
+                console.log("📸 Processing avatar for registration:", req.file.filename);
+                
+                // Μετατροπή σε Base64
+                profilePicture = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+                console.log("✅ Avatar converted to Base64, length:", profilePicture.length);
             }
-            
-            const senderData = onlineUsers.get(sender);
-            if (senderData) {
-                io.to(senderData.socketId).emit("file_upload", fileData);
-            }
-        } else {
-            fileData.room_id = roomId;
-            fileData.type = 'group';
-            
-            io.to(roomId).emit("file_upload", fileData);
+
+            // Create user with profile picture
+            await dbHelpers.createUser(email, username, password, profilePicture);
+            console.log("✅ User created successfully:", username);
+
+            res.json({
+                success: true,
+                message: "Account created successfully! You can now login.",
+                profile_picture: profilePicture
+            });
+        } catch (createError) {
+            console.error("❌ Error creating user in database:", createError);
+            return res.status(500).json({
+                success: false,
+                error: "Failed to create user account. Please try again.",
+            });
         }
-        
-        console.log(`✅ File uploaded successfully: ${req.file.originalname}`);
-        
-        res.json({
-            success: true,
-            fileUrl: base64File,
-            fileName: req.file.originalname,
-            fileSize: formatFileSize(req.file.size),
-            fileType: req.file.mimetype,
-            fileId: fileId,
-            message: "File uploaded successfully"
-        });
-        
     } catch (error) {
-        console.error("❌ Error uploading file:", error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message || "Failed to upload file" 
+        console.error("❌ Unexpected error during registration:", error);
+        res.status(500).json({
+            success: false,
+            error: "Internal server error during registration",
         });
     }
 });
 
-// ===== ΥΠΑΡΧΟΝΤΑ ENDPOINTS =====
-
-// Memory sessions as fallback
-const userSessions = new Map();
-const onlineUsers = new Map();
-const roomSockets = new Map();
-
-// Enhanced session middleware using database
-async function validateSession(req, res, next) {
-  const sessionId = req.headers["x-session-id"];
-  const username = req.params.username || req.body.username;
-
-  if (!sessionId) {
-    return res.status(401).json({ success: false, error: "Session required" });
-  }
-
-  try {
-    let session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
-    
-    if (!session) {
-      return res.status(401).json({ success: false, error: "Invalid session" });
-    }
-
-    const oneWeek = 7 * 24 * 60 * 60 * 1000;
-    const sessionTime = new Date(session.last_accessed || session.createdAt).getTime();
-    
-    if (Date.now() - sessionTime > oneWeek) {
-      await dbHelpers.deleteSession(sessionId);
-      userSessions.delete(sessionId);
-      return res.status(401).json({ success: false, error: "Session expired" });
-    }
-
-    if (username && session.username !== username) {
-      return res.status(401).json({ success: false, error: "Session mismatch" });
-    }
-
-    next();
-  } catch (error) {
-    console.error("Session validation error:", error);
-    return res.status(500).json({ success: false, error: "Session error" });
-  }
-}
-
-function getErrorMessage(error) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
-}
+// ===== ΥΠΑΡΧΟΝΤΑ ENDPOINTS (ΜΕΝΟΥΝ ΑΚΛΑΔΑ) =====
 
 // Authentication routes
 app.post("/login", async (req, res) => {
@@ -940,12 +772,14 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ success: false, error: "Invalid email or password" });
     }
 
+    // Create session - SAVE TO DATABASE
     const sessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
     const sessionData = {
       username: user.username,
       createdAt: Date.now(),
     };
 
+    // Save to both database and memory (fallback)
     await dbHelpers.saveSession(sessionId, sessionData);
     userSessions.set(sessionId, sessionData);
 
@@ -986,6 +820,7 @@ app.get("/verify-session/:username", async (req, res) => {
       return res.status(401).json({ success: false, error: "Session ID required" });
     }
 
+    // Check both database and memory
     const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
     const user = await dbHelpers.findUserByUsername(username);
 
@@ -1001,6 +836,7 @@ app.get("/verify-session/:username", async (req, res) => {
       });
     } else {
       console.log("❌ Invalid session for:", username);
+      // Clean up invalid session
       await dbHelpers.deleteSession(sessionId);
       userSessions.delete(sessionId);
       res.status(401).json({ success: false, error: "Invalid session" });
@@ -1033,7 +869,7 @@ app.post("/logout", async (req, res) => {
   }
 });
 
-// ===== ΝΕΟ ENDPOINT: LEAVE ROOM =====
+// ===== ΝΕΟ ENDPOINT: LEAVE ROOM - ENHANCED =====
 app.post("/leave-room", validateSession, async (req, res) => {
   try {
     const { roomId, username } = req.body;
@@ -1042,17 +878,21 @@ app.post("/leave-room", validateSession, async (req, res) => {
       return res.status(400).json({ success: false, error: "Room ID and username required" });
     }
 
+    // Έλεγχος αν ο χρήστης είναι πράγματι στο room
     const isMember = await dbHelpers.isUserInRoom(roomId, username);
     if (!isMember) {
       return res.status(400).json({ success: false, error: "You are not a member of this room" });
     }
 
+    // Αφαίρεση χρήστη από το δωμάτιο
     await dbHelpers.removeUserFromRoom(roomId, username);
     
     console.log(`✅ ${username} left room ${roomId}`);
     
+    // Ενημέρωση WebSocket για τους υπόλοιπους χρήστες στο room
     const roomMembers = await dbHelpers.getRoomMembers(roomId);
     
+    // Αποστολή ενημέρωσης σε όλους στο room
     io.to(roomId).emit("room members", roomMembers);
     io.to(roomId).emit("user_left", { username, roomId });
 
@@ -1090,7 +930,7 @@ app.post("/create-room", validateSession, async (req, res) => {
   }
 });
 
-// JOIN ROOM ENDPOINT
+// 🔥 FIXED: JOIN ROOM ENDPOINT - ΜΗΝ ΕΠΙΣΤΡΕΦΕΙ 404 ΓΙΑ ΛΑΘΟΣ ΚΩΔΙΚΟ
 app.post("/join-room", validateSession, async (req, res) => {
   try {
     const { inviteCode, username } = req.body;
@@ -1101,6 +941,7 @@ app.post("/join-room", validateSession, async (req, res) => {
 
     const room = await dbHelpers.getRoomByInviteCode(inviteCode);
     if (!room) {
+      // 🔥 ΚΡΙΤΙΚΟ: Επιστροφή 200 με success: false αντί για 404
       return res.status(200).json({ 
         success: false, 
         error: "Invalid invite code" 
@@ -1117,6 +958,7 @@ app.post("/join-room", validateSession, async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error joining room:", error);
+    // 🔥 ΣΗΜΑΝΤΙΚΟ: Για server errors, επιστροφή 500
     res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
@@ -1132,7 +974,9 @@ app.get("/user-rooms/:username", validateSession, async (req, res) => {
   }
 });
 
-// 🔥 ΝΕΟ ENDPOINT: CLEAR ROOM MESSAGES
+// Προσθήκη στο server.js - ΜΕΤΑ τα άλλα endpoints
+
+// ===== 🔥 ΝΕΟ ENDPOINT: CLEAR ROOM MESSAGES =====
 app.post("/clear-room-messages", validateSession, async (req, res) => {
     try {
         const { roomId, username, isPrivate, friendUsername } = req.body;
@@ -1144,6 +988,7 @@ app.post("/clear-room-messages", validateSession, async (req, res) => {
         console.log(`🗑️ Clear messages request:`, { roomId, username, isPrivate, friendUsername });
         
         if (isPrivate) {
+            // Διαγραφή private messages μεταξύ δύο χρηστών
             if (!friendUsername) {
                 return res.status(400).json({ success: false, error: "Friend username required for private chat" });
             }
@@ -1157,6 +1002,7 @@ app.post("/clear-room-messages", validateSession, async (req, res) => {
             
             console.log(`✅ Deleted ${result.deletedCount} private messages between ${username} and ${friendUsername}`);
             
+            // Ενημέρωση και των δύο χρηστών μέσω WebSocket
             io.emit("messages_cleared", { 
                 type: 'private',
                 user1: username, 
@@ -1170,10 +1016,12 @@ app.post("/clear-room-messages", validateSession, async (req, res) => {
             });
             
         } else {
+            // Διαγραφή group room messages
             if (!roomId) {
                 return res.status(400).json({ success: false, error: "Room ID required" });
             }
             
+            // Έλεγχος αν ο χρήστης είναι μέλος του room
             const isMember = await dbHelpers.isUserInRoom(roomId, username);
             if (!isMember) {
                 return res.status(403).json({ success: false, error: "You are not a member of this room" });
@@ -1183,6 +1031,7 @@ app.post("/clear-room-messages", validateSession, async (req, res) => {
             
             console.log(`✅ Deleted ${result.deletedCount} messages from room ${roomId}`);
             
+            // Ενημέρωση όλων στο room μέσω WebSocket
             io.to(roomId).emit("messages_cleared", { 
                 type: 'group',
                 roomId: roomId 
@@ -1204,7 +1053,8 @@ app.post("/clear-room-messages", validateSession, async (req, res) => {
     }
 });
 
-// Friend routes
+
+// Friend routes with session validation
 app.post("/send-friend-request", validateSession, async (req, res) => {
   try {
     const { fromUser, toUser } = req.body;
@@ -1219,6 +1069,7 @@ app.post("/send-friend-request", validateSession, async (req, res) => {
 
     const targetUser = await dbHelpers.findUserByUsername(toUser);
     if (!targetUser) {
+      // 🔥 Επιστροφή 200 με success: false αντί για 404
       return res.status(200).json({ success: false, error: "User not found" });
     }
 
@@ -1333,7 +1184,7 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
   }
 });
 
-// ===== SOCKET.IO CONNECTION =====
+// ===== SOCKET.IO CONNECTION WITH ENHANCED UNREAD SYSTEM =====
 
 io.on("connection", async (socket) => {
   console.log("🔗 User connected:", socket.id);
@@ -1363,6 +1214,7 @@ io.on("connection", async (socket) => {
       await dbHelpers.saveUser({ username, status: "Online" });
       console.log("✅ User authenticated:", username);
       
+      // Στέλνουμε unread summary μόλις συνδεθεί ο χρήστης
       const unreadSummary = await dbHelpers.getUnreadSummary(username);
       socket.emit("unread_summary", unreadSummary);
       
@@ -1423,6 +1275,7 @@ io.on("connection", async (socket) => {
       const userJoinedAt = members.find((m) => m.username === username)?.joined_at;
       const messages = await dbHelpers.getRoomMessages(roomId, userJoinedAt);
 
+      // 🔥 Mark group messages as read όταν μπαίνεις στο room
       await dbHelpers.markAsRead(username, null, 'group', roomId);
       socket.emit("unread_cleared", { type: 'group', roomId: roomId });
 
@@ -1440,6 +1293,7 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // 🔥 ΝΕΟ EVENT: Leave room through WebSocket
   socket.on("leave_room", async (data) => {
     try {
       const { roomId, username } = data;
@@ -1451,10 +1305,13 @@ io.on("connection", async (socket) => {
       
       console.log(`🚪 User ${username} leaving room ${roomId}`);
       
+      // Αφαίρεση χρήστη από το room
       await dbHelpers.removeUserFromRoom(roomId, username);
       
+      // Ενημέρωση του χρήστη
       socket.emit("leave_room_success", { roomId });
       
+      // Ενημέρωση των υπόλοιπων χρηστών στο room
       const members = await dbHelpers.getRoomMembers(roomId);
       socket.to(roomId).emit("room members", members);
       socket.to(roomId).emit("user_left", { username, roomId });
@@ -1466,7 +1323,6 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // ΒΗΜΑ 2: Αλλαγή στο socket.on("chat message") για consistent data structure
   socket.on("chat message", async (data) => {
     try {
       if (!currentRoomId || !currentUsername || !currentSessionId) {
@@ -1486,37 +1342,17 @@ io.on("connection", async (socket) => {
         sender: currentUsername,
       };
 
-      // 🔥 ΒΕΛΤΙΩΣΗ: Αν είναι video, ναι μεν κρατάμε το video_data, αλλά και το file_data για συμβατότητα
-      if (data.video_data) {
-        messageData.isFile = true;
-        messageData.file_data = data.video_data; // 🔥 ΠΡΟΣΘΗΚΗ: Δημιουργία αντιγράφου για συμβατότητα
-        
-        console.log('🎬 Video message in socket:', {
-          fileName: data.video_data.fileName,
-          sender: currentUsername,
-          roomId: currentRoomId,
-          hasVideoData: !!data.video_data,
-          hasFileData: !!messageData.file_data
-        });
-      }
-
       await dbHelpers.saveMessage(messageData);
-      
-      // Εξασφάλιση ότι και τα δύο πεδία υπάρχουν για συμβατότητα
-      const messageToSend = {
-        ...messageData,
-        video_data: messageData.video_data || messageData.file_data,
-        file_data: messageData.file_data || messageData.video_data
-      };
-      
-      io.to(currentRoomId).emit("chat message", messageToSend);
+      io.to(currentRoomId).emit("chat message", messageData);
 
       console.log(`💬 Message in ${currentRoomId} from ${currentUsername}`);
 
-      if (data.isFile || data.video_data) {
-        console.log(`📁 File sent in ${currentRoomId}: ${data.fileName || data.video_data?.fileName || 'Unknown file'}`);
+      // 🔥 ΕΝΗΜΕΡΩΣΗ: Προσθήκη support για αρχεία
+      if (data.isFile) {
+        console.log(`📁 File sent in ${currentRoomId}: ${data.fileName || 'Unknown file'}`);
       }
 
+      // 🔥 UNREAD SYSTEM: Προσθήκη unread για όλους εκτός από τον αποστολέα
       const roomMembers = await dbHelpers.getRoomMembers(currentRoomId);
       const messageId = `gm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
@@ -1528,13 +1364,14 @@ io.on("connection", async (socket) => {
             'group', 
             currentRoomId, 
             {
-              text: data.text || (data.isFile ? `📁 File: ${data.fileName || data.video_data?.fileName || 'File'}` : "New message"),
+              text: data.text || (data.isFile ? `📁 File: ${data.fileName}` : "New message"),
               message_id: messageId
             }
           );
           
           const memberData = onlineUsers.get(member.username);
           if (memberData) {
+            // Στέλνουμε real-time notification μόνο αν δεν είναι στο ίδιο room
             if (memberData.currentRoom !== currentRoomId) {
               io.to(memberData.socketId).emit("notification", {
                 type: data.isFile ? "file_upload" : "group_message",
@@ -1542,7 +1379,7 @@ io.on("connection", async (socket) => {
                 roomId: currentRoomId,
                 roomName: (await dbHelpers.getRoomById(currentRoomId))?.name || "Room",
                 message: data.isFile ? 
-                  `📁 Sent a file: ${data.fileName || data.video_data?.fileName || 'File'}` : 
+                  `📁 Sent a file: ${data.fileName}` : 
                   (data.text.substring(0, 50) + (data.text.length > 50 ? "..." : "")),
                 timestamp: Date.now(),
                 action: {
@@ -1553,6 +1390,7 @@ io.on("connection", async (socket) => {
               });
             }
             
+            // Στέλνουμε unread update
             io.to(memberData.socketId).emit("unread_update", {
               type: 'group',
               roomId: currentRoomId,
@@ -1591,6 +1429,7 @@ io.on("connection", async (socket) => {
 
       await dbHelpers.savePrivateMessage({ sender, receiver, text, time });
       
+      // 🔥 UNREAD SYSTEM: Προσθήκη unread για τον receiver
       const messageId = `pm_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       await dbHelpers.addUnreadMessage(receiver, sender, 'private', null, {
         text,
@@ -1601,6 +1440,7 @@ io.on("connection", async (socket) => {
       if (receiverData) {
         io.to(receiverData.socketId).emit("private message", data);
         
+        // Στέλνουμε notification
         io.to(receiverData.socketId).emit("notification", {
           type: "private_message",
           sender: sender,
@@ -1612,6 +1452,7 @@ io.on("connection", async (socket) => {
           }
         });
         
+        // Στέλνουμε unread update
         io.to(receiverData.socketId).emit("unread_update", {
           type: 'private',
           sender: sender,
@@ -1627,74 +1468,31 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // ΒΗΜΑ 3: Προσθήκη debug logs για video upload
-  socket.on("video_upload", async (data) => {
-    try {
-      console.log("🎬 Video upload received via WebSocket:", JSON.stringify(data, null, 2));
-      
-      // Δημιουργία του μηνύματος για το video
-      const videoMessage = {
-        ...data,
-        isFile: true,
-        video_data: data, // 🔥 Χρήση video_data
-        file_data: data   // 🔥 ΚΑΙ file_data για συμβατότητα
-      };
-      
-      // Εξετάστε αν το video αφορά το τρέχον chat του χρήστη
-      if (currentUsername) {
-        console.log("🎬 Current user:", currentUsername, "Current room:", currentRoomId);
-        
-        const shouldDisplay = (
-          (data.type === 'private' && 
-           ((data.sender === currentUsername && data.receiver) ||
-            (data.receiver === currentUsername && data.sender))) ||
-          (data.type === 'group' && data.room_id === currentRoomId)
-        );
-        
-        console.log("🎬 Should display video?", shouldDisplay, "Data type:", data.type);
-        
-        if (shouldDisplay && currentRoomId) {
-          console.log("✅ Displaying video in current chat:", data.fileName);
-          
-          // Αποστολή μόνο στο συγκεκριμένο socket
-          socket.emit("chat message", videoMessage);
-        }
-      }
-      
-      // Κανονική διανομή του video
-      if (data.type === 'private') {
-        const receiverData = onlineUsers.get(data.receiver);
-        if (receiverData) {
-          io.to(receiverData.socketId).emit("video_upload", data);
-          io.to(receiverData.socketId).emit("chat message", videoMessage);
-        }
-        
-        const senderData = onlineUsers.get(data.sender);
-        if (senderData) {
-          io.to(senderData.socketId).emit("video_upload", data);
-          io.to(senderData.socketId).emit("chat message", videoMessage);
-        }
-      } else {
-        io.to(data.room_id).emit("video_upload", data);
-        io.to(data.room_id).emit("chat message", videoMessage);
-      }
-      
-      console.log("✅ Video distributed via WebSocket");
-    } catch (error) {
-      console.error("❌ Error handling video upload via WebSocket:", error);
-    }
-  });
-
+  // 🔥 ΝΕΟ EVENT: File upload από WebSocket
   socket.on("file_upload", async (data) => {
     try {
+      if (!currentSessionId) {
+        socket.emit("session_expired");
+        return;
+      }
+
+      const session = await dbHelpers.getSession(currentSessionId) || userSessions.get(sessionId);
+      if (!session || session.username !== data.sender) {
+        socket.emit("session_expired");
+        return;
+      }
+
       console.log("📁 File upload via WebSocket:", data);
-      
+
+      // Εδώ μπορείς να αποθηκεύσεις το αρχείο στο database και να το προωθήσεις
       if (data.type === 'private') {
+        // Προώθηση private file
         const receiverData = onlineUsers.get(data.receiver);
         if (receiverData) {
           io.to(receiverData.socketId).emit("file_upload", data);
         }
       } else {
+        // Προώθηση group file
         io.to(data.room_id).emit("file_upload", data);
       }
     } catch (error) {
@@ -1702,6 +1500,7 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // 🔥 ΝΕΟ EVENT: Mark messages as read
   socket.on("mark_as_read", async (data) => {
     try {
       const { type, sender, roomId } = data;
@@ -1710,6 +1509,7 @@ io.on("connection", async (socket) => {
       
       await dbHelpers.markAsRead(currentUsername, sender, type, roomId);
       
+      // Ενημέρωση client - μόνο στον συγκεκριμένο χρήστη
       socket.emit("unread_cleared", { type, sender, roomId });
       
     } catch (error) {
@@ -1717,6 +1517,7 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // 🔥 ΝΕΟ EVENT: Get unread summary
   socket.on("get_unread_summary", async () => {
     try {
       if (!currentUsername) return;
@@ -1752,11 +1553,18 @@ io.on("connection", async (socket) => {
   socket.on("disconnect", async () => {
     console.log("🔌 User disconnected:", socket.id);
 
+    // 🔥 ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: ΔΕΝ ΑΦΑΙΡΟΥΜΕ ΤΟΝ ΧΡΗΣΤΗ ΑΠΟ ΤΟ ROOM ΌΤΑΝ ΑΠΟΣΥΝΔΕΕΤΑΙ!
+    // ΜΟΝΟ αν είναι WebSocket disconnect - ΟΧΙ manual leave
+    // ΔΕΝ αφαιρούμε τον χρήστη από το room όταν αποσυνδέεται
+    // Αφήνουμε τον χρήστη στο room για να μπορεί να επανέλθει
+    
     if (currentUsername && currentRoomId) {
       console.log(`📡 ${currentUsername} disconnected from room ${currentRoomId} (still a member)`);
       
+      // Ενημέρωση ότι ο χρήστης αποσυνδέθηκε (αλλά παραμένει στο room)
       try {
         const members = await dbHelpers.getRoomMembers(currentRoomId);
+        // Απλά ενημερώνουμε τη λίστα χωρίς να αφαιρούμε κανέναν
         io.to(currentRoomId).emit("room members", members);
         io.to(currentRoomId).emit("user_disconnected", { 
           username: currentUsername, 
@@ -1791,7 +1599,7 @@ io.on("connection", async (socket) => {
   });
 });
 
-// Clean up expired sessions
+// Clean up expired sessions periodically
 setInterval(async () => {
   try {
     await dbHelpers.cleanupExpiredSessions();
@@ -1809,43 +1617,10 @@ setInterval(async () => {
   }
 }, 60 * 60 * 1000);
 
-// Clean up old video chunks
-setInterval(() => {
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    const videoIds = Array.from(videoChunks.keys());
-    
-    videoIds.forEach(videoId => {
-        const timestamp = parseInt(videoId.split('_')[1]);
-        if (timestamp && timestamp < oneHourAgo) {
-            videoChunks.delete(videoId);
-            console.log(`🧹 Cleaned up old video chunks: ${videoId}`);
-        }
-    });
-}, 30 * 60 * 1000);
-
-// Clean up old video files
-setInterval(async () => {
-    try {
-        const sevenDaysAgo = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
-        const files = await fs.promises.readdir(VIDEO_UPLOAD_DIR);
-        
-        for (const file of files) {
-            const filePath = path.join(VIDEO_UPLOAD_DIR, file);
-            const stats = await fs.promises.stat(filePath);
-            
-            if (stats.mtime < sevenDaysAgo) {
-                await fs.promises.unlink(filePath);
-                console.log(`🧹 Cleaned up old video file: ${file}`);
-            }
-        }
-    } catch (error) {
-        console.error("Error cleaning up video files:", error);
-    }
-}, 24 * 60 * 60 * 1000);
-
 // 🔥 FIXED: Start server ONLY after database connection
 async function startServer() {
   try {
+    // Wait for database to connect
     await initializeDatabase();
     
     const PORT = process.env.PORT || 3000;
@@ -1856,18 +1631,15 @@ async function startServer() {
       console.log(`📬 UNREAD MESSAGES SYSTEM: ENABLED`);
       console.log(`👤 PROFILE SYSTEM: ENABLED`);
       console.log(`👤 USER INFO SYSTEM: ENABLED`);
-      console.log(`🔔 NOTIFICATION SYSTEM: ENABLED`);
+      console.log(`🔔 NOTIFICATION TIMEOUT: 5 SECONDS`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
       console.log(`📸 IMAGE STORAGE: BASE64 IN MONGODB`);
-      console.log(`💾 MAX FILE SIZE: 100MB`);
+      console.log(`💾 MAX FILE SIZE: 10MB`);
       console.log(`📁 FILE UPLOAD SYSTEM: ENABLED`);
-      console.log(`🎬 VIDEO UPLOAD SYSTEM: ENABLED`);
       console.log(`😀 EMOJI PICKER: ENABLED`);
-      console.log(`🖼️ AVATAR SYSTEM: ENABLED`);
+      console.log(`🖼️ AVATAR SYSTEM: ENABLED (PERMANENT STORAGE)`);
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
-      console.log(`🔧 FIXED: Video upload system`);
-      console.log(`🔧 FIXED: Consistent data structure for video messages`);
-      console.log(`🔧 ADDED: Debug logs for video upload`);
+      console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
