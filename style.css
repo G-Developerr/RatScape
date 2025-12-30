@@ -31,8 +31,10 @@
 
 /* ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΕΛΑΦΡΥ OVERLAY ΓΙΑ ΝΑ ΧΑΜΗΛΩΣΟΥΜΕ ΤΗΝ ΦΩΤΕΙΝΟΤΗΤΑ ΤΟΥ BACKGROUND */
 
+/* ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΕΛΑΦΡΥ OVERLAY ΓΙΑ ΝΑ ΧΑΜΗΛΩΣΟΥΜΕ ΤΗΝ ΦΩΤΕΙΝΟΤΗΤΑ ΤΟΥ BACKGROUND */
 body {
-    background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('backgroundCars.jpg') center/cover fixed ;
+    background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                url('backgroundCars.jpg') center/cover fixed !important;
     /* Προσθέτουμε μαύρο overlay με 70% αδιαφάνεια για να χαμηλώσουμε τη φωτεινότητα */
     color: var(--text);
     min-height: 100vh;
@@ -41,20 +43,28 @@ body {
     -moz-text-size-adjust: 100%;
     text-size-adjust: 100%;
     overflow-x: hidden;
+    transition: background 1.5s ease-in-out !important;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: background;
 }
 
 
 /* ΠΡΟΣΘΗΚΗ: ΑΝΙΜΑΣΙΑ ΓΙΑ ΕΝΑΛΛΑΓΗ BACKGROUND */
-
+/* ΠΡΟΣΘΗΚΗ: ΑΝΙΜΑΣΙΑ ΓΙΑ ΕΝΑΛΛΑΓΗ BACKGROUND ΚΑΘΕ 10 ΔΕΥΤΕΡΟΛΕΠΤΑ */
 @keyframes backgroundChange {
     0%, 45% {
-        background-image: url('backgroundCars.jpg');
+        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                    url('backgroundCars.jpg') center/cover fixed !important;
     }
     50%, 95% {
-        background-image: url('motorcycle-background.jpg');
+        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                    url('motorcycle-background.jpg') center/cover fixed !important;
     }
     100% {
-        background-image: url('backgroundCars.jpg');
+        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                    url('backgroundCars.jpg') center/cover fixed !important;
     }
 }
 
@@ -3901,6 +3911,7 @@ body.changing-bg {
         /* Καλύτερη απόδοση σε mobile */
     }
 }
+
 
 
 
