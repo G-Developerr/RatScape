@@ -1,6 +1,83 @@
 // client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER
 const socket = io();
 
+// ===== BACKGROUND SLIDESHOW SYSTEM =====
+
+let backgrounds = [
+    'backgroundCars.jpg',
+    'motorcycle-background.jpg'
+];
+let currentBackgroundIndex = 0;
+let backgroundSlideInterval = null;
+
+// 🔥 ΣΥΝΑΡΤΗΣΗ: Εναλλαγή background ανά 10 δευτερόλεπτα
+function startBackgroundSlideshow() {
+    // Σταματάμε τυχόν υπάρχον interval
+    if (backgroundSlideInterval) {
+        clearInterval(backgroundSlideInterval);
+    }
+    
+    // Ξεκινάμε νέο interval για ανά 10 δευτερόλεπτα
+    backgroundSlideInterval = setInterval(() => {
+        // Εναλλαγή του index
+        currentBackgroundIndex = (currentBackgroundIndex + 1) % backgrounds.length;
+        
+        // Ενημέρωση του background του body
+        updateBodyBackground();
+        
+        console.log('🖼️ Background changed to:', backgrounds[currentBackgroundIndex]);
+    }, 10000); // 10 δευτερόλεπτα = 10000ms
+    
+    console.log('🎬 Background slideshow started (every 10 seconds)');
+}
+
+// 🔥 ΣΥΝΑΡΤΗΣΗ: Ενημέρωση του background του body
+function updateBodyBackground() {
+    const body = document.body;
+    const currentBg = backgrounds[currentBackgroundIndex];
+    
+    // Προσθήκη smooth transition με CSS class
+    body.classList.add('changing-bg');
+    
+    setTimeout(() => {
+        // Ενημέρωση του background με το overlay
+        body.style.background = `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('${currentBg}') center/cover fixed`;
+        
+        // Αφαίρεση της transition class μετά το change
+        setTimeout(() => {
+            body.classList.remove('changing-bg');
+        }, 1000);
+    }, 50);
+}
+
+// 🔥 ΣΥΝΑΡΤΗΣΗ: Διακοπή του slideshow
+function stopBackgroundSlideshow() {
+    if (backgroundSlideInterval) {
+        clearInterval(backgroundSlideInterval);
+        backgroundSlideInterval = null;
+        console.log('⏹️ Background slideshow stopped');
+    }
+}
+
+// 🔥 ΣΥΝΑΡΤΗΣΗ: Χειροκίνητη εναλλαγή background (για debugging)
+function switchBackground() {
+    currentBackgroundIndex = (currentBackgroundIndex + 1) % backgrounds.length;
+    updateBodyBackground();
+    
+    console.log('🖼️ Manual background switch to:', backgrounds[currentBackgroundIndex]);
+    
+    // Επανεκκίνηση του slideshow
+    if (backgroundSlideInterval) {
+        clearInterval(backgroundSlideInterval);
+        backgroundSlideInterval = setInterval(switchBackground, 10000);
+    }
+}
+
+// 🔥 ΣΥΝΑΡΤΗΣΗ: Προβολή του τρέχοντος background
+function getCurrentBackground() {
+    return backgrounds[currentBackgroundIndex];
+}
+
 // Current user state
 let currentUser = {
     username: null,
@@ -3828,6 +3905,32 @@ document.addEventListener("DOMContentLoaded", async () => {
             transform: scale(1.1);
         }
         
+        /* Background slideshow transition */
+        body.changing-bg {
+            transition: background-image 1s ease-in-out !important;
+        }
+        
+        /* Debug button styling */
+        #debug-bg-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            padding: 10px 15px;
+            background: var(--accent-red);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: bold;
+            display: none;
+        }
+        
+        #debug-bg-btn:hover {
+            background: #990000;
+            transform: scale(1.05);
+        }
+        
         /* Social media footer */
         .social-media-footer {
             margin-top: 40px;
@@ -4090,6 +4193,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         console.log("ℹ️ No saved user, staying on current page");
     }
+
+    // 🔥 ΕΚΚΙΝΗΣΗ BACKGROUND SLIDESHOW
+    // Περιμένουμε να φορτώσει η σελίδα πλήρως
+    setTimeout(() => {
+        startBackgroundSlideshow();
+        console.log('🖼️ Current background:', getCurrentBackground());
+        
+        // 🔥 Debug button για manual background switch
+        const debugBtn = document.createElement('button');
+        debugBtn.id = 'debug-bg-btn';
+        debugBtn.textContent = '🖼️ Switch BG';
+        debugBtn.title = 'Manual background switch (debug)';
+        document.body.appendChild(debugBtn);
+        
+        debugBtn.addEventListener('click', switchBackground);
+    }, 2000);
 
     console.log("✅ Ready to chat!");
 });
