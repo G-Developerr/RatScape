@@ -41,7 +41,6 @@ body {
     -moz-text-size-adjust: 100%;
     text-size-adjust: 100%;
     overflow-x: hidden;
-    animation-timing-function: ease-in-out;
 }
 
 
@@ -3902,5 +3901,6 @@ body.changing-bg {
         /* Καλύτερη απόδοση σε mobile */
     }
 }
+
 
 
