@@ -41,7 +41,6 @@ body {
     -moz-text-size-adjust: 100%;
     text-size-adjust: 100%;
     overflow-x: hidden;
-    animation: backgroundChange 20s infinite alternate;
     animation-timing-function: ease-in-out;
 }
 
@@ -49,16 +48,14 @@ body {
 /* ΠΡΟΣΘΗΚΗ: ΑΝΙΜΑΣΙΑ ΓΙΑ ΕΝΑΛΛΑΓΗ BACKGROUND */
 
 @keyframes backgroundChange {
-    0%,
-    45% {
-        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('backgroundCars.jpg') center/cover fixed !important;
+    0%, 45% {
+        background-image: url('backgroundCars.jpg');
     }
-    50%,
-    95% {
-        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('motorcycle-background.jpg') center/cover fixed !important;
+    50%, 95% {
+        background-image: url('motorcycle-background.jpg');
     }
     100% {
-        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('backgroundCars.jpg') center/cover fixed !important;
+        background-image: url('backgroundCars.jpg');
     }
 }
 
@@ -3905,4 +3902,5 @@ body.changing-bg {
         /* Καλύτερη απόδοση σε mobile */
     }
 }
+
 
