@@ -3902,6 +3902,62 @@ body.changing-bg {
     /* Hidden by default */
 }
 
+/* ========================================
+   COMPLETE BACKGROUND SLIDESHOW STYLING
+   ======================================== */
+
+/* MAIN BODY TRANSITION */
+body {
+    transition: background 1.5s ease-in-out !important;
+    background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                url('backgroundCars.jpg') center/cover fixed !important;
+}
+
+/* FADE EFFECT CLASS */
+body.changing-bg {
+    transition: background 1.5s ease-in-out !important;
+}
+
+/* PRELOADING TECHNIQUE */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('motorcycle-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    z-index: -2;
+    opacity: 0;
+    transition: opacity 1.5s ease-in-out;
+}
+
+/* When changing, show the preloaded image */
+body.changing-bg::before {
+    opacity: 1;
+}
+
+/* MOBILE OPTIMIZATION */
+@media (max-width: 768px) {
+    body, body::before {
+        background-attachment: scroll !important;
+        transition: background 1s ease-in-out !important;
+    }
+}
+
+/* SMOOTH ANIMATIONS */
+@keyframes fadeInBackground {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Apply animation to body */
+body {
+    animation: fadeInBackground 0.5s ease-out;
+}
 
 /* Βελτιστοποίηση για mobile */
 
@@ -3911,6 +3967,7 @@ body.changing-bg {
         /* Καλύτερη απόδοση σε mobile */
     }
 }
+
 
 
 
