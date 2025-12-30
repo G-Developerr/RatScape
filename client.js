@@ -36,19 +36,17 @@ function updateBodyBackground() {
     const body = document.body;
     const currentBg = backgrounds[currentBackgroundIndex];
     
-    // Προσθήκη smooth transition με CSS class
-    body.classList.add('changing-bg');
+    // Χρησιμοποιήστε το ίδιο format με το CSS
+    body.style.background = `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('${currentBg}') center/cover fixed`;
     
-    setTimeout(() => {
-        // Ενημέρωση του background με το overlay
-        body.style.background = `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('${currentBg}') center/cover fixed`;
-        
-        // Αφαίρεση της transition class μετά το change
-        setTimeout(() => {
-            body.classList.remove('changing-bg');
-        }, 1000);
-    }, 50);
+    console.log('🖼️ Background changed to:', currentBg);
 }
+
+// 🔥 ΣΧΟΛΙΑΣΜΕΝΟ: Απενεργοποίηση JavaScript slideshow
+// setTimeout(() => {
+//     startBackgroundSlideshow();
+//     console.log('🖼️ Current background:', getCurrentBackground());
+// }, 2000);
 
 // 🔥 ΣΥΝΑΡΤΗΣΗ: Διακοπή του slideshow
 function stopBackgroundSlideshow() {
@@ -4194,21 +4192,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("ℹ️ No saved user, staying on current page");
     }
 
-    // 🔥 ΕΚΚΙΝΗΣΗ BACKGROUND SLIDESHOW
-    // Περιμένουμε να φορτώσει η σελίδα πλήρως
-    setTimeout(() => {
-        startBackgroundSlideshow();
-        console.log('🖼️ Current background:', getCurrentBackground());
-        
-        // 🔥 Debug button για manual background switch
-        const debugBtn = document.createElement('button');
-        debugBtn.id = 'debug-bg-btn';
-        debugBtn.textContent = '🖼️ Switch BG';
-        debugBtn.title = 'Manual background switch (debug)';
-        document.body.appendChild(debugBtn);
-        
-        debugBtn.addEventListener('click', switchBackground);
-    }, 2000);
+    // 🔥 ΣΧΟΛΙΑΣΜΕΝΟ: Απενεργοποίηση JavaScript slideshow
+    // setTimeout(() => {
+    //     startBackgroundSlideshow();
+    //     console.log('🖼️ Current background:', getCurrentBackground());
+    // }, 2000);
 
     console.log("✅ Ready to chat!");
 });
@@ -4219,4 +4207,3 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
-
