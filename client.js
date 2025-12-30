@@ -1,4 +1,4 @@
-// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER
+// client.js - RatScape Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER
 const socket = io();
 
 // Current user state
@@ -45,6 +45,157 @@ let currentViewedUser = null;
 
 // ===== AVATAR SYSTEM =====
 let userAvatars = {}; // Cache για τα avatars των χρηστών
+
+// ===== BACKGROUND SLIDESHOW SYSTEM =====
+let currentBgIndex = 0;
+let bgChangeInterval;
+const BACKGROUND_CHANGE_INTERVAL = 15000; // 15 δευτερόλεπτα
+
+const backgrounds = [
+    'backgroundCars.jpg',
+    'motorcycle-background.jpg'
+    // Μπορείτε να προσθέσετε και άλλα αρχεία εδώ
+];
+
+// 🔥 ΕΝΕΡΓΟΠΟΙΗΣΗ BACKGROUND SLIDESHOW
+function initBackgroundSlideshow() {
+    // Ελέγχουμε αν είμαστε στην αρχική σελίδα
+    if (document.getElementById('home-page').classList.contains('active')) {
+        startBackgroundSlideshow();
+    }
+}
+
+// 🔥 ΕΝΑΡΞΗ SLIDESHOW
+function startBackgroundSlideshow() {
+    // Καθαρισμός προηγούμενου interval
+    if (bgChangeInterval) {
+        clearInterval(bgChangeInterval);
+    }
+    
+    // Αρχικοποίηση slideshow
+    bgChangeInterval = setInterval(changeBackground, BACKGROUND_CHANGE_INTERVAL);
+    
+    console.log('🎨 Background slideshow started');
+}
+
+// 🔥 ΑΛΛΑΓΗ BACKGROUND
+function changeBackground() {
+    // Αύξηση index
+    currentBgIndex = (currentBgIndex + 1) % backgrounds.length;
+    
+    // Εφαρμογή smooth transition
+    document.body.classList.add('changing-bg');
+    
+    // Αλλαγή background μετά από μικρή καθυστέρηση
+    setTimeout(() => {
+        const nextBg = backgrounds[currentBgIndex];
+        document.body.style.background = `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                                        url('${nextBg}') center/cover fixed !important`;
+        
+        console.log(`🔄 Changed background to: ${nextBg}`);
+        
+        // Αφαίρεση transition class μετά το completion
+        setTimeout(() => {
+            document.body.classList.remove('changing-bg');
+        }, 1000);
+    }, 100);
+}
+
+// 🔥 ΣΤΑΜΑΤΗΜΑ SLIDESHOW
+function stopBackgroundSlideshow() {
+    if (bgChangeInterval) {
+        clearInterval(bgChangeInterval);
+        bgChangeInterval = null;
+        console.log('⏸️ Background slideshow stopped');
+    }
+}
+
+// 🔥 ΔΙΑΧΕΙΡΙΣΗ ΣΕ ΑΛΛΑΓΗ ΣΕΛΙΔΩΝ
+function handlePageChangeForSlideshow(newPageId) {
+    if (newPageId === 'home-page') {
+        // Έναρξη slideshow μόνο στην αρχική
+        setTimeout(startBackgroundSlideshow, 500);
+    } else {
+        // Σταμάτημα slideshow σε άλλες σελίδες
+        stopBackgroundSlideshow();
+        
+        // Επαναφορά στο default background
+        document.body.style.background = `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                                        url('backgroundCars.jpg') center/cover fixed !important`;
+    }
+}
+
+// 🔥 ΑΝΑΝΕΩΣΗ ΤΗΣ ΣΥΝΑΡΤΗΣΗΣ showPage
+const originalShowPage = showPage;
+showPage = function(pageId) {
+    // Κλήση της αρχικής συνάρτησης
+    originalShowPage(pageId);
+    
+    // Διαχείριση slideshow
+    handlePageChangeForSlideshow(pageId);
+};
+
+// 🔥 ΑΝΑΝΕΩΣΗ CSS ΓΙΑ SMOOTH TRANSITIONS
+function addSlideshowCSS() {
+    const style = document.createElement('style');
+    style.textContent = `
+        body.changing-bg {
+            transition: background-image 1.5s ease-in-out !important;
+        }
+        
+        /* Debug button για testing */
+        .debug-bg-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 9999;
+            background: var(--accent-red);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .debug-bg-btn:hover {
+            background: #990000;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// 🔥 DEBUG BUTTON ΓΙΑ TESTING (προαιρετικό)
+function addDebugButton() {
+    const debugBtn = document.createElement('button');
+    debugBtn.id = 'debug-bg-btn';
+    debugBtn.textContent = '🔁 Change BG';
+    debugBtn.className = 'debug-bg-btn';
+    debugBtn.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 9999;
+        background: var(--accent-red);
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-weight: bold;
+        display: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    `;
+    
+    debugBtn.addEventListener('click', changeBackground);
+    document.body.appendChild(debugBtn);
+    
+    // Εμφάνιση μόνο σε development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        debugBtn.style.display = 'block';
+    }
+}
 
 // ===== CHAT STATE PERSISTENCE =====
 
@@ -501,7 +652,7 @@ function initializeUploadAndEmojiListeners() {
     initEmojiPickerSystem();
     initEmojiPickerContent();
     
-    // 🔥 Send file button - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
+    // 🔥 Send file button - ΜΟΝΟ ΜΙΑ ΦΟΡΕΣ
     const sendFileBtn = document.getElementById('send-file-btn');
     if (sendFileBtn) {
         // Αφαίρεση όλων των προηγούμενων listeners
@@ -3566,6 +3717,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Create notification container first
     createNotificationContainer();
+    
+    // 🔥 ΠΡΟΣΘΗΚΗ: Αρχικοποίηση background slideshow
+    addSlideshowCSS();
+    addDebugButton(); // Προαιρετικό
+    initBackgroundSlideshow();
+    
     initializeEventListeners();
 
     // Initialize mobile responsive features
