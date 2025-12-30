@@ -4219,3 +4219,4 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
