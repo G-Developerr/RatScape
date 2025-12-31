@@ -1,4 +1,4 @@
-// client.js - RatScape Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER
+// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER
 const socket = io();
 
 // Current user state
@@ -45,150 +45,6 @@ let currentViewedUser = null;
 
 // ===== AVATAR SYSTEM =====
 let userAvatars = {}; // Cache για τα avatars των χρηστών
-
-// ===== BACKGROUND SLIDESHOW SYSTEM =====
-let currentBgIndex = 0;
-let bgChangeInterval;
-const BACKGROUND_CHANGE_INTERVAL = 15000; // 15 δευτερόλεπτα
-
-const backgrounds = [
-    'backgroundCars.jpg',
-    'motorcycle-background.jpg'
-    // Μπορείτε να προσθέσετε και άλλα αρχεία εδώ
-];
-
-// ===== BACKGROUND SLIDESHOW SYSTEM - ΒΕΛΤΙΩΜΕΝΗ =====
-// 🔥 ΕΝΕΡΓΟΠΟΙΗΣΗ
-function initBackgroundSlideshow() {
-    console.log('🎨 Initializing background slideshow...');
-    
-    // Προ-φόρτωση εικόνων για καλύτερη απόδοση
-    preloadBackgroundImages();
-    
-    // Έλεγχος αν είμαστε στην αρχική σελίδα
-    if (document.getElementById('home-page').classList.contains('active')) {
-        setTimeout(startBackgroundSlideshow, 1000);
-    }
-}
-
-// 🔥 ΠΡΟ-ΦΟΡΤΩΣΗ ΕΙΚΟΝΩΝ
-function preloadBackgroundImages() {
-    backgrounds.forEach(bg => {
-        const img = new Image();
-        img.src = bg;
-        console.log(`📥 Preloading: ${bg}`);
-    });
-}
-
-// 🔥 ΕΝΑΡΞΗ SLIDESHOW
-function startBackgroundSlideshow() {
-    if (bgChangeInterval) {
-        clearInterval(bgChangeInterval);
-    }
-    
-    console.log('🎬 Starting background slideshow');
-    bgChangeInterval = setInterval(changeBackground, BACKGROUND_CHANGE_INTERVAL);
-    
-    // Αλλαγή αμέσως για debugging
-    setTimeout(changeBackground, 500);
-}
-
-// 🔥 ΑΛΛΑΓΗ BACKGROUND - ΒΕΛΤΙΩΜΕΝΗ ΜΕ FADE
-function changeBackground() {
-    currentBgIndex = (currentBgIndex + 1) % backgrounds.length;
-    const nextBg = backgrounds[currentBgIndex];
-    
-    console.log(`🔄 Changing to: ${nextBg} (Index: ${currentBgIndex})`);
-    
-    // Προσθήκη fade class
-    document.body.classList.add('changing-bg');
-    
-    // Αλλαγή background μετά από μικρή καθυστέρηση
-    setTimeout(() => {
-        document.body.style.background = `
-            linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
-            url('${nextBg}') center/cover fixed !important
-        `;
-        
-        // Αφαίρεση class μετά το transition
-        setTimeout(() => {
-            document.body.classList.remove('changing-bg');
-        }, 1500);
-    }, 100);
-}
-
-// 🔥 ΣΤΑΜΑΤΗΜΑ SLIDESHOW
-function stopBackgroundSlideshow() {
-    if (bgChangeInterval) {
-        clearInterval(bgChangeInterval);
-        bgChangeInterval = null;
-        console.log('⏸️ Slideshow stopped');
-    }
-}
-
-// 🔥 ΔΙΑΧΕΙΡΙΣΗ ΣΕΛΙΔΩΝ
-function handlePageChangeForSlideshow(newPageId) {
-    console.log(`📄 Page changed to: ${newPageId}`);
-    
-    if (newPageId === 'home-page') {
-        // Έναρξη με καθυστέρηση για smooth transition
-        setTimeout(() => {
-            startBackgroundSlideshow();
-        }, 500);
-    } else {
-        // Σταμάτημα και επαναφορά στο default
-        stopBackgroundSlideshow();
-        
-        setTimeout(() => {
-            document.body.style.background = `
-                linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
-                url('backgroundCars.jpg') center/cover fixed !important
-            `;
-        }, 100);
-    }
-}
-
-// 🔥 ΑΝΑΝΕΩΣΗ ΤΗΣ showPage
-const originalShowPage = showPage;
-showPage = function(pageId) {
-    originalShowPage(pageId);
-    handlePageChangeForSlideshow(pageId);
-};
-
-// 🔥 CSS για slideshow
-function addSlideshowCSS() {
-    const style = document.createElement('style');
-    style.textContent = `
-        /* Background slideshow transitions */
-        body.changing-bg {
-            transition: background 1.5s ease-in-out !important;
-        }
-        
-        /* Debug info */
-        .debug-bg-info {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            z-index: 9999;
-            display: none;
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-// 🔥 DEBUG FUNCTION (προαιρετικό)
-function addDebugInfo() {
-    const debugDiv = document.createElement('div');
-    debugDiv.className = 'debug-bg-info';
-    debugDiv.id = 'debug-bg-info';
-    debugDiv.innerHTML = 'Background: loading...';
-    document.body.appendChild(debugDiv);
-}
 
 // ===== CHAT STATE PERSISTENCE =====
 
@@ -645,7 +501,7 @@ function initializeUploadAndEmojiListeners() {
     initEmojiPickerSystem();
     initEmojiPickerContent();
     
-    // 🔥 Send file button - ΜΟΝΟ ΜΙΑ ΦΟΡΕΣ
+    // 🔥 Send file button - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
     const sendFileBtn = document.getElementById('send-file-btn');
     if (sendFileBtn) {
         // Αφαίρεση όλων των προηγούμενων listeners
@@ -3066,7 +2922,7 @@ socket.on("connect", () => {
     }
 });
 
-socket.on("load messages", (messages) {
+socket.on("load messages", (messages) => {
     console.log("💬 Received messages:", messages.length);
     const messagesContainer = document.getElementById("messages-container");
     messagesContainer.innerHTML = "";
@@ -3710,11 +3566,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Create notification container first
     createNotificationContainer();
-    
-    // 🔥 ΠΡΟΣΘΗΚΗ: Αρχικοποίηση background slideshow
-    addSlideshowCSS();
-    initBackgroundSlideshow();  // <- ΑΥΤΟ ΕΝΕΡΓΟΠΟΙΕΙ ΤΟ SLIDESHOW
-    
     initializeEventListeners();
 
     // Initialize mobile responsive features
@@ -3975,32 +3826,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         .emoji-item:hover {
             background: rgba(139, 0, 0, 0.2);
             transform: scale(1.1);
-        }
-        
-        /* Background slideshow transition */
-        body.changing-bg {
-            transition: background-image 1s ease-in-out !important;
-        }
-        
-        /* Debug button styling */
-        #debug-bg-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 9999;
-            padding: 10px 15px;
-            background: var(--accent-red);
-            color: white;
-            border: none;
-            border-radius: var(--radius);
-            cursor: pointer;
-            font-weight: bold;
-            display: none;
-        }
-        
-        #debug-bg-btn:hover {
-            background: #990000;
-            transform: scale(1.05);
         }
         
         /* Social media footer */
