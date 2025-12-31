@@ -31,7 +31,6 @@
 /* ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: ΕΛΑΦΡΥ OVERLAY ΓΙΑ ΝΑ ΧΑΜΗΛΩΣΟΥΜΕ ΤΗΝ ΦΩΤΕΙΝΟΤΗΤΑ ΤΟΥ BACKGROUND */
 body {
     background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('backgroundCars.jpg') center/cover fixed !important;
-    /* Προσθέτουμε μαύρο overlay με 70% αδιαφάνεια για να χαμηλώσουμε τη φωτεινότητα */
     color: var(--text);
     min-height: 100vh;
     touch-action: pan-y;
@@ -39,6 +38,20 @@ body {
     -moz-text-size-adjust: 100%;
     text-size-adjust: 100%;
     overflow-x: hidden;
+    animation: backgroundSwitch 20s infinite;
+}
+
+/* 🔥 ΝΕΟ: Animation για εναλλαγή background */
+@keyframes backgroundSwitch {
+    0%, 45% {
+        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('backgroundCars.jpg') center/cover fixed;
+    }
+    50%, 95% {
+        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('motorcycle-background.jpg') center/cover fixed;
+    }
+    100% {
+        background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('backgroundCars.jpg') center/cover fixed;
+    }
 }
 
 /* ========================================
@@ -1844,7 +1857,7 @@ body {
     bottom: 30px;
     right: 30px;
     z-index: 9999;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%;
     color: white;
     border: none;
     padding: 16px 24px;
@@ -2956,6 +2969,7 @@ body.pwa-mode .pwa-floating-install-button {
         height: 100%;
         position: relative;
         min-width: 0;
+        overflow: hidden;
     }
     
     #messages-container {
@@ -3846,4 +3860,31 @@ body.pwa-mode .pwa-floating-install-button {
     gap: 10px;
     margin-top: 20px;
     justify-content: center;
+}
+
+/* 🔥 ΒΕΛΤΙΩΣΗ: Smooth fade transition μεταξύ των backgrounds */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('motorcycle-background.jpg') center/cover fixed;
+    z-index: -1;
+    opacity: 0;
+    animation: fadeInOut 20s infinite;
+    pointer-events: none;
+}
+
+@keyframes fadeInOut {
+    0%, 45% {
+        opacity: 0;
+    }
+    50%, 95% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
 }
