@@ -4093,24 +4093,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("✅ Ready to chat!");
 });
-// 🔥 ΕΝΑΛΛΑΓΗ BACKGROUND ΑΝΑ 10 ΔΕΥΤΕΡΟΛΕΠΤΑ
-let currentBackground = 'cars';
-const backgrounds = {
-    cars: "linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('backgroundCars.jpg') center/cover fixed",
-    motorcycles: "linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('motorcycle-background.jpg') center/cover fixed"
-};
-
-function switchBackground() {
-    currentBackground = currentBackground === 'cars' ? 'motorcycles' : 'cars';
-    document.body.style.background = backgrounds[currentBackground];
-    console.log('🔄 Background switched to:', currentBackground);
-}
-
-// Εναλλαγή κάθε 10 δευτερόλεπτα
-setInterval(switchBackground, 10000);
-
-console.log('✅ Background switcher initialized');
-
 
 // Αποθήκευση κατάστασης πριν το refresh
 window.addEventListener('beforeunload', function() {
@@ -4118,4 +4100,3 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
-
