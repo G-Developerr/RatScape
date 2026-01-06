@@ -46,6 +46,14 @@ let currentViewedUser = null;
 // ===== AVATAR SYSTEM =====
 let userAvatars = {}; // Cache για τα avatars των χρηστών
 
+// ===== MEETUP DASHBOARD SYSTEM =====
+let meetupDashboard = {
+    isOpen: false,
+    currentTab: 'upcoming',
+    meetups: [],
+    selectedMeetup: null
+};
+
 // ===== CHAT STATE PERSISTENCE =====
 
 function saveChatState() {
@@ -3559,6 +3567,849 @@ function updateMobileUI() {
     }
 }
 
+// ===== MEETUP DASHBOARD SYSTEM =====
+
+// Αρχικοποίηση meetup dashboard
+function initMeetupDashboard() {
+    const meetupToggleBtn = document.getElementById('meetup-toggle-btn');
+    if (meetupToggleBtn) {
+        meetupToggleBtn.addEventListener('click', toggleMeetupDashboard);
+    }
+    
+    const createMeetupBtn = document.getElementById('create-meetup-btn');
+    if (createMeetupBtn) {
+        createMeetupBtn.addEventListener('click', showCreateMeetupModal);
+    }
+    
+    // Αρχικοποίηση tabs
+    const meetupTabs = document.querySelectorAll('.meetup-tab');
+    meetupTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabName = this.dataset.tab;
+            switchMeetupTab(tabName);
+        });
+    });
+    
+    // Αρχικοποίηση modal event listeners
+    const meetupModals = ['meetup-modal', 'meetup-details-modal', 'edit-meetup-modal'];
+    meetupModals.forEach(modalId => {
+        const closeBtn = document.getElementById(`close-${modalId}`);
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => hideAllModals());
+        }
+    });
+    
+    // Meetup form submission
+    const createMeetupForm = document.getElementById('create-meetup-form');
+    if (createMeetupForm) {
+        createMeetupForm.addEventListener('submit', handleCreateMeetup);
+    }
+    
+    const editMeetupForm = document.getElementById('edit-meetup-form');
+    if (editMeetupForm) {
+        editMeetupForm.addEventListener('submit', handleEditMeetup);
+    }
+}
+
+// Εναλλαγή κατάστασης dashboard
+function toggleMeetupDashboard() {
+    const dashboard = document.getElementById('meetup-dashboard');
+    const toggleBtn = document.getElementById('meetup-toggle-btn');
+    
+    if (!dashboard || !toggleBtn) return;
+    
+    meetupDashboard.isOpen = !meetupDashboard.isOpen;
+    
+    if (meetupDashboard.isOpen) {
+        dashboard.classList.add('active');
+        toggleBtn.classList.add('active');
+        toggleBtn.innerHTML = '<i class="fas fa-calendar-times"></i> Hide Meetups';
+        loadRoomMeetups();
+    } else {
+        dashboard.classList.remove('active');
+        toggleBtn.classList.remove('active');
+        toggleBtn.innerHTML = '<i class="fas fa-calendar-alt"></i> Show Meetups';
+    }
+}
+
+// Φόρτωση meetups του room
+async function loadRoomMeetups() {
+    if (!currentRoom.id) return;
+    
+    try {
+        const response = await fetch(`/room-meetups/${currentRoom.id}?upcoming=${meetupDashboard.currentTab === 'upcoming'}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                meetupDashboard.meetups = data.meetups;
+                displayMeetups();
+            }
+        }
+    } catch (error) {
+        console.error("Error loading room meetups:", error);
+    }
+}
+
+// Εμφάνιση meetups
+function displayMeetups() {
+    const meetupList = document.getElementById('meetup-list');
+    if (!meetupList) return;
+    
+    if (meetupDashboard.meetups.length === 0) {
+        meetupList.innerHTML = `
+            <div class="no-meetups">
+                <i class="fas fa-calendar-plus"></i>
+                <p>No meetups found</p>
+                <p>Create the first meetup for this room!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    meetupList.innerHTML = '';
+    
+    meetupDashboard.meetups.forEach(meetup => {
+        const meetupCard = document.createElement('div');
+        meetupCard.className = 'meetup-card';
+        meetupCard.dataset.meetupId = meetup.meetup_id;
+        
+        const date = new Date(meetup.date);
+        const formattedDate = date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        const attendeesCount = meetup.attendees.length;
+        const goingCount = meetup.attendees.filter(a => a.status === 'going').length;
+        
+        // Βρες το status του τρέχοντος χρήστη
+        const userAttendance = meetup.attendees.find(a => a.username === currentUser.username);
+        const userStatus = userAttendance ? userAttendance.status : null;
+        
+        meetupCard.innerHTML = `
+            <div class="meetup-card-header">
+                <h4>${meetup.title}</h4>
+                <span class="meetup-date">${formattedDate} | ${meetup.time}</span>
+            </div>
+            <div class="meetup-details">
+                <div class="meetup-detail-row">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>${meetup.location}</span>
+                </div>
+                ${meetup.description ? `
+                    <div class="meetup-detail-row">
+                        <i class="fas fa-info-circle"></i>
+                        <span>${meetup.description.substring(0, 50)}${meetup.description.length > 50 ? '...' : ''}</span>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="meetup-attendees">
+                <div class="attendees-count">
+                    <i class="fas fa-users"></i>
+                    <span class="count-number">${goingCount}${meetup.max_attendees > 0 ? `/${meetup.max_attendees}` : ''} going</span>
+                    <span>(${attendeesCount} total)</span>
+                </div>
+                <div class="meetup-actions">
+                    ${userStatus ? `
+                        <button class="meetup-action-btn ${userStatus}" data-action="change-status" data-meetup="${meetup.meetup_id}">
+                            ${userStatus === 'going' ? '✓ Going' : userStatus === 'maybe' ? '? Maybe' : '✗ Not Going'}
+                        </button>
+                    ` : `
+                        <button class="meetup-action-btn" data-action="join" data-meetup="${meetup.meetup_id}">
+                            <i class="fas fa-user-plus"></i> Join
+                        </button>
+                    `}
+                    <button class="meetup-action-btn" data-action="details" data-meetup="${meetup.meetup_id}">
+                        <i class="fas fa-info-circle"></i> Details
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        meetupList.appendChild(meetupCard);
+        
+        // Προσθήκη event listeners
+        const joinBtn = meetupCard.querySelector('[data-action="join"]');
+        if (joinBtn) {
+            joinBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleJoinMeetup(meetup.meetup_id);
+            });
+        }
+        
+        const changeStatusBtn = meetupCard.querySelector('[data-action="change-status"]');
+        if (changeStatusBtn) {
+            changeStatusBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showStatusChangeModal(meetup.meetup_id, userStatus);
+            });
+        }
+        
+        const detailsBtn = meetupCard.querySelector('[data-action="details"]');
+        if (detailsBtn) {
+            detailsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showMeetupDetails(meetup.meetup_id);
+            });
+        }
+        
+        // Click στο card για details
+        meetupCard.addEventListener('click', () => {
+            showMeetupDetails(meetup.meetup_id);
+        });
+    });
+}
+
+// Εναλλαγή tab
+function switchMeetupTab(tabName) {
+    meetupDashboard.currentTab = tabName;
+    
+    // Ενημέρωση UI
+    document.querySelectorAll('.meetup-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.tab === tabName) {
+            tab.classList.add('active');
+        }
+    });
+    
+    // Φόρτωση meetups
+    loadRoomMeetups();
+}
+
+// Δείξε modal για δημιουργία meetup
+function showCreateMeetupModal() {
+    // Set default date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const formattedDate = tomorrow.toISOString().split('T')[0];
+    
+    // Set default time to 18:00
+    document.getElementById('meetup-title').value = '';
+    document.getElementById('meetup-description').value = '';
+    document.getElementById('meetup-location').value = '';
+    document.getElementById('meetup-date').value = formattedDate;
+    document.getElementById('meetup-time').value = '18:00';
+    document.getElementById('meetup-max-attendees').value = '0';
+    
+    showModal('meetup-modal');
+}
+
+// Δημιουργία νέου meetup
+async function handleCreateMeetup(e) {
+    e.preventDefault();
+    
+    const title = document.getElementById('meetup-title').value;
+    const description = document.getElementById('meetup-description').value;
+    const location = document.getElementById('meetup-location').value;
+    const date = document.getElementById('meetup-date').value;
+    const time = document.getElementById('meetup-time').value;
+    const maxAttendees = parseInt(document.getElementById('meetup-max-attendees').value) || 0;
+    
+    if (!title || !location || !date || !time) {
+        showNotification('Please fill all required fields!', 'error', 'Missing Info');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/create-meetup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-ID': currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                roomId: currentRoom.id,
+                title,
+                description,
+                location,
+                date,
+                time,
+                maxAttendees,
+                createdBy: currentUser.username
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showNotification('Meetup created successfully!', 'success', 'Meetup Created');
+                hideAllModals();
+                loadRoomMeetups();
+                
+                // Ενημέρωση όλων στο room μέσω WebSocket
+                socket.emit('meetup_created', {
+                    roomId: currentRoom.id,
+                    meetup: data.meetup
+                });
+            }
+        } else {
+            const data = await response.json();
+            showNotification(data.error || 'Failed to create meetup', 'error', 'Error');
+        }
+    } catch (error) {
+        console.error('Error creating meetup:', error);
+        showNotification('Failed to create meetup', 'error', 'Connection Error');
+    }
+}
+
+// Εμφάνιση λεπτομερειών meetup
+async function showMeetupDetails(meetupId) {
+    try {
+        const response = await fetch(`/meetup/${meetupId}`, {
+            headers: {
+                'X-Session-ID': currentUser.sessionId,
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                meetupDashboard.selectedMeetup = data.meetup;
+                updateMeetupDetailsModal(data.meetup);
+                showModal('meetup-details-modal');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading meetup details:', error);
+    }
+}
+
+// Ενημέρωση modal λεπτομερειών meetup
+function updateMeetupDetailsModal(meetup) {
+    if (!meetup) return;
+    
+    const modal = document.getElementById('meetup-details-modal');
+    if (!modal) return;
+    
+    const date = new Date(meetup.date);
+    const formattedDate = date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    const isCreator = meetup.created_by === currentUser.username;
+    
+    // Ενημέρωση header
+    const title = modal.querySelector('#meetup-details-title');
+    if (title) title.textContent = meetup.title;
+    
+    // Ενημέρωση meta info
+    const metaContainer = modal.querySelector('.meetup-details-meta');
+    if (metaContainer) {
+        metaContainer.innerHTML = `
+            <div class="meta-item">
+                <i class="fas fa-user"></i>
+                <span>Created by ${meetup.created_by}</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-calendar"></i>
+                <span>${formattedDate}</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-clock"></i>
+                <span>${meetup.time}</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>${meetup.location}</span>
+            </div>
+            ${meetup.max_attendees > 0 ? `
+                <div class="meta-item">
+                    <i class="fas fa-users"></i>
+                    <span>Max: ${meetup.max_attendees}</span>
+                </div>
+            ` : ''}
+        `;
+    }
+    
+    // Ενημέρωση description
+    const description = modal.querySelector('#meetup-details-description');
+    if (description) {
+        if (meetup.description) {
+            description.innerHTML = `<p>${meetup.description}</p>`;
+            description.style.display = 'block';
+        } else {
+            description.style.display = 'none';
+        }
+    }
+    
+    // Ενημέρωση attendees
+    const attendeesList = modal.querySelector('.attendees-list');
+    if (attendeesList) {
+        attendeesList.innerHTML = '';
+        
+        if (meetup.attendees && meetup.attendees.length > 0) {
+            meetup.attendees.forEach(attendee => {
+                const attendeeItem = document.createElement('div');
+                attendeeItem.className = 'attendee-item';
+                
+                attendeeItem.innerHTML = `
+                    <div class="attendee-info">
+                        <div class="attendee-avatar">${attendee.username.substring(0, 2).toUpperCase()}</div>
+                        <span class="attendee-name">${attendee.username}</span>
+                    </div>
+                    <span class="attendee-status ${attendee.status}">
+                        ${attendee.status === 'going' ? 'Going' : attendee.status === 'maybe' ? 'Maybe' : 'Not Going'}
+                    </span>
+                `;
+                
+                attendeesList.appendChild(attendeeItem);
+            });
+        } else {
+            attendeesList.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 20px;">No attendees yet</div>';
+        }
+    }
+    
+    // Ενημέρωση σχολίων
+    const commentsList = modal.querySelector('.comments-list');
+    if (commentsList) {
+        commentsList.innerHTML = '';
+        
+        if (meetup.comments && meetup.comments.length > 0) {
+            meetup.comments.forEach(comment => {
+                const commentItem = document.createElement('div');
+                commentItem.className = 'comment-item';
+                
+                const commentTime = new Date(comment.created_at).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                commentItem.innerHTML = `
+                    <div class="comment-avatar">${comment.username.substring(0, 2).toUpperCase()}</div>
+                    <div class="comment-content">
+                        <div class="comment-header">
+                            <span class="comment-author">${comment.username}</span>
+                            <span class="comment-time">${commentTime}</span>
+                        </div>
+                        <div class="comment-text">${comment.text}</div>
+                    </div>
+                `;
+                
+                commentsList.appendChild(commentItem);
+            });
+        } else {
+            commentsList.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 20px;">No comments yet</div>';
+        }
+    }
+    
+    // Ενημέρωση actions
+    const actionsContainer = modal.querySelector('.meetup-details-actions');
+    if (actionsContainer) {
+        actionsContainer.innerHTML = '';
+        
+        // Βρες το status του τρέχοντος χρήστη
+        const userAttendance = meetup.attendees.find(a => a.username === currentUser.username);
+        const userStatus = userAttendance ? userAttendance.status : null;
+        
+        if (userStatus) {
+            const changeStatusBtn = document.createElement('button');
+            changeStatusBtn.className = 'btn btn-primary';
+            changeStatusBtn.innerHTML = `<i class="fas fa-user-edit"></i> Change Status`;
+            changeStatusBtn.onclick = () => showStatusChangeModal(meetup.meetup_id, userStatus);
+            actionsContainer.appendChild(changeStatusBtn);
+        } else {
+            const joinBtn = document.createElement('button');
+            joinBtn.className = 'btn btn-primary';
+            joinBtn.innerHTML = `<i class="fas fa-user-plus"></i> Join Meetup`;
+            joinBtn.onclick = () => handleJoinMeetup(meetup.meetup_id);
+            actionsContainer.appendChild(joinBtn);
+        }
+        
+        if (isCreator) {
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn-secondary';
+            editBtn.innerHTML = `<i class="fas fa-edit"></i> Edit`;
+            editBtn.onclick = () => showEditMeetupModal(meetup);
+            actionsContainer.appendChild(editBtn);
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-danger';
+            deleteBtn.innerHTML = `<i class="fas fa-trash"></i> Delete`;
+            deleteBtn.onclick = () => handleDeleteMeetup(meetup.meetup_id);
+            actionsContainer.appendChild(deleteBtn);
+        }
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'btn btn-secondary';
+        closeBtn.innerHTML = `<i class="fas fa-times"></i> Close`;
+        closeBtn.onclick = hideAllModals;
+        actionsContainer.appendChild(closeBtn);
+    }
+    
+    // Setup comment form
+    const commentForm = modal.querySelector('.comment-form');
+    if (commentForm) {
+        commentForm.onsubmit = (e) => {
+            e.preventDefault();
+            const input = commentForm.querySelector('input');
+            const text = input.value.trim();
+            
+            if (text) {
+                handleAddMeetupComment(meetup.meetup_id, text);
+                input.value = '';
+            }
+        };
+    }
+}
+
+// Συμμετοχή σε meetup
+async function handleJoinMeetup(meetupId) {
+    try {
+        const response = await fetch('/join-meetup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-ID': currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                meetupId,
+                username: currentUser.username,
+                status: 'going'
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showNotification('Joined meetup successfully!', 'success', 'Meetup Joined');
+                loadRoomMeetups();
+                
+                // Ενημέρωση details modal αν είναι ανοιχτό
+                if (meetupDashboard.selectedMeetup && meetupDashboard.selectedMeetup.meetup_id === meetupId) {
+                    showMeetupDetails(meetupId);
+                }
+            }
+        } else {
+            const data = await response.json();
+            showNotification(data.error || 'Failed to join meetup', 'error', 'Error');
+        }
+    } catch (error) {
+        console.error('Error joining meetup:', error);
+        showNotification('Failed to join meetup', 'error', 'Connection Error');
+    }
+}
+
+// Αλλαγή status σε meetup
+async function handleChangeMeetupStatus(meetupId, status) {
+    try {
+        const response = await fetch('/join-meetup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-ID': currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                meetupId,
+                username: currentUser.username,
+                status
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showNotification(`Status changed to ${status}`, 'success', 'Status Updated');
+                loadRoomMeetups();
+                
+                if (meetupDashboard.selectedMeetup && meetupDashboard.selectedMeetup.meetup_id === meetupId) {
+                    showMeetupDetails(meetupId);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error changing meetup status:', error);
+    }
+}
+
+// Διαγραφή meetup
+async function handleDeleteMeetup(meetupId) {
+    showConfirmationModal(
+        'Are you sure you want to delete this meetup? This action cannot be undone!',
+        'Delete Meetup',
+        async () => {
+            try {
+                const response = await fetch(`/delete-meetup/${meetupId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': currentUser.sessionId,
+                    },
+                    body: JSON.stringify({
+                        roomId: currentRoom.id
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        showNotification('Meetup deleted successfully!', 'success', 'Meetup Deleted');
+                        hideAllModals();
+                        loadRoomMeetups();
+                    }
+                }
+            } catch (error) {
+                console.error('Error deleting meetup:', error);
+                showNotification('Failed to delete meetup', 'error', 'Connection Error');
+            }
+        }
+    );
+}
+
+// Προσθήκη σχολίου σε meetup
+async function handleAddMeetupComment(meetupId, text) {
+    try {
+        const response = await fetch('/add-meetup-comment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-ID': currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                meetupId,
+                username: currentUser.username,
+                text
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                // Ενημέρωση UI
+                if (meetupDashboard.selectedMeetup && meetupDashboard.selectedMeetup.meetup_id === meetupId) {
+                    showMeetupDetails(meetupId);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error adding meetup comment:', error);
+    }
+}
+
+// Δείξε modal για αλλαγή status
+function showStatusChangeModal(meetupId, currentStatus) {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Change Attendance Status</h3>
+                <button class="close-modal-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <div class="form-container active">
+                <div class="form-group" style="text-align: center; padding: 20px 0;">
+                    <p style="font-size: 1rem; color: var(--text); margin-bottom: 20px;">
+                        Select your attendance status for this meetup:
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button class="btn ${currentStatus === 'going' ? 'btn-primary' : 'btn-secondary'}" 
+                                onclick="handleChangeMeetupStatus('${meetupId}', 'going'); this.closest('.modal').remove()">
+                            <i class="fas fa-check-circle"></i> Going
+                        </button>
+                        <button class="btn ${currentStatus === 'maybe' ? 'btn-primary' : 'btn-secondary'}" 
+                                onclick="handleChangeMeetupStatus('${meetupId}', 'maybe'); this.closest('.modal').remove()">
+                            <i class="fas fa-question-circle"></i> Maybe
+                        </button>
+                        <button class="btn ${currentStatus === 'not_going' ? 'btn-primary' : 'btn-secondary'}" 
+                                onclick="handleChangeMeetupStatus('${meetupId}', 'not_going'); this.closest('.modal').remove()">
+                            <i class="fas fa-times-circle"></i> Not Going
+                        </button>
+                        <button class="btn btn-danger" 
+                                onclick="handleLeaveMeetup('${meetupId}'); this.closest('.modal').remove()">
+                            <i class="fas fa-sign-out-alt"></i> Leave Meetup
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// Αποχώρηση από meetup
+async function handleLeaveMeetup(meetupId) {
+    try {
+        const response = await fetch('/leave-meetup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-ID': currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                meetupId,
+                username: currentUser.username
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                showNotification('Left meetup successfully', 'info', 'Meetup Left');
+                loadRoomMeetups();
+                
+                if (meetupDashboard.selectedMeetup && meetupDashboard.selectedMeetup.meetup_id === meetupId) {
+                    hideAllModals();
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error leaving meetup:', error);
+    }
+}
+
+// Επεξεργασία meetup
+function showEditMeetupModal(meetup) {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    
+    const date = new Date(meetup.date);
+    const formattedDate = date.toISOString().split('T')[0];
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Edit Meetup</h3>
+                <button class="close-modal-btn" onclick="this.closest('.modal').remove()">×</button>
+            </div>
+            <form id="edit-meetup-form" class="meetup-form">
+                <div class="form-group">
+                    <label for="edit-meetup-title">Title *</label>
+                    <input type="text" id="edit-meetup-title" value="${meetup.title}" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-meetup-description">Description</label>
+                    <textarea id="edit-meetup-description" rows="3">${meetup.description || ''}</textarea>
+                </div>
+                <div class="meetup-form-row">
+                    <div class="form-group">
+                        <label for="edit-meetup-location">Location *</label>
+                        <input type="text" id="edit-meetup-location" value="${meetup.location}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-meetup-max-attendees">Max Attendees (0 = unlimited)</label>
+                        <input type="number" id="edit-meetup-max-attendees" value="${meetup.max_attendees}" min="0">
+                    </div>
+                </div>
+                <div class="meetup-form-row">
+                    <div class="form-group">
+                        <label for="edit-meetup-date">Date *</label>
+                        <input type="date" id="edit-meetup-date" value="${formattedDate}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-meetup-time">Time *</label>
+                        <input type="time" id="edit-meetup-time" value="${meetup.time}" required>
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Προσθήκη event listener για το form
+    const form = modal.querySelector('#edit-meetup-form');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const title = document.getElementById('edit-meetup-title').value;
+        const description = document.getElementById('edit-meetup-description').value;
+        const location = document.getElementById('edit-meetup-location').value;
+        const date = document.getElementById('edit-meetup-date').value;
+        const time = document.getElementById('edit-meetup-time').value;
+        const maxAttendees = parseInt(document.getElementById('edit-meetup-max-attendees').value) || 0;
+        
+        if (!title || !location || !date || !time) {
+            showNotification('Please fill all required fields!', 'error', 'Missing Info');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/update-meetup/${meetup.meetup_id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-ID': currentUser.sessionId,
+                },
+                body: JSON.stringify({
+                    title,
+                    description,
+                    location,
+                    date,
+                    time,
+                    max_attendees: maxAttendees
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    showNotification('Meetup updated successfully!', 'success', 'Meetup Updated');
+                    modal.remove();
+                    loadRoomMeetups();
+                    
+                    if (meetupDashboard.selectedMeetup && meetupDashboard.selectedMeetup.meetup_id === meetup.meetup_id) {
+                        showMeetupDetails(meetup.meetup_id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error updating meetup:', error);
+            showNotification('Failed to update meetup', 'error', 'Connection Error');
+        }
+    });
+}
+
+// 🔥 ΠΡΟΣΘΗΚΗ WebSocket event handlers για meetups
+socket.on("meetup_created", (data) => {
+    if (currentRoom.id === data.roomId) {
+        showNotification(`New meetup created: ${data.meetup.title}`, 'info', 'New Meetup');
+        loadRoomMeetups();
+    }
+});
+
+socket.on("meetup_updated", (data) => {
+    if (meetupDashboard.selectedMeetup && meetupDashboard.selectedMeetup.meetup_id === data.meetupId) {
+        showNotification('Meetup updated!', 'info', 'Meetup Updated');
+        showMeetupDetails(data.meetupId);
+    }
+    
+    if (currentRoom.id === data.meetup.room_id) {
+        loadRoomMeetups();
+    }
+});
+
+socket.on("meetup_deleted", (data) => {
+    showNotification('A meetup was deleted', 'info', 'Meetup Deleted');
+    loadRoomMeetups();
+    
+    if (meetupDashboard.selectedMeetup && meetupDashboard.selectedMeetup.meetup_id === data.meetupId) {
+        hideAllModals();
+    }
+});
+
+socket.on("meetup_comment_added", (data) => {
+    if (meetupDashboard.selectedMeetup && meetupDashboard.selectedMeetup.meetup_id === data.meetupId) {
+        showMeetupDetails(data.meetupId);
+    }
+});
+
 // ===== INITIALIZATION =====
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -4091,6 +4942,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("ℹ️ No saved user, staying on current page");
     }
 
+    // Αρχικοποίηση meetup dashboard
+    initMeetupDashboard();
+    
     console.log("✅ Ready to chat!");
 });
 
