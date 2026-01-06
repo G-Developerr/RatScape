@@ -1,4 +1,4 @@
-// database.js - RatScape MongoDB Database - ENHANCED VERSION WITH FILE STORAGE & MEETUP DASHBOARD
+// database.js - RatScape MongoDB Database - ENHANCED VERSION WITH FILE STORAGE
 const mongoose = require('mongoose');
 
 // 🔥 ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιεί το MONGODB_URI από το Render Environment
@@ -103,34 +103,6 @@ const fileSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now }
 });
 
-// 🔥 ΝΕΟ: MEETUP DASHBOARD SCHEMAS
-const meetupSchema = new mongoose.Schema({
-    meetup_id: { type: String, required: true, unique: true },
-    room_id: { type: String, required: true },
-    title: { type: String, required: true },
-    description: { type: String },
-    location: { type: String, required: true },
-    date: { type: Date, required: true },
-    time: { type: String, required: true },
-    created_by: { type: String, required: true },
-    created_at: { type: Date, default: Date.now },
-    attendees: [{ 
-        username: { type: String },
-        status: { type: String, enum: ['going', 'maybe', 'not_going'], default: 'going' },
-        joined_at: { type: Date, default: Date.now }
-    }],
-    max_attendees: { type: Number, default: 0 }, // 0 = unlimited
-    is_active: { type: Boolean, default: true }
-});
-
-const meetupCommentSchema = new mongoose.Schema({
-    comment_id: { type: String, required: true, unique: true },
-    meetup_id: { type: String, required: true },
-    username: { type: String, required: true },
-    text: { type: String, required: true },
-    created_at: { type: Date, default: Date.now }
-});
-
 // ===== MODELS =====
 const User = mongoose.model('User', userSchema);
 const Room = mongoose.model('Room', roomSchema);
@@ -141,8 +113,6 @@ const Friend = mongoose.model('Friend', friendSchema);
 const Session = mongoose.model('Session', sessionSchema);
 const UnreadMessage = mongoose.model('UnreadMessage', unreadMessageSchema);
 const File = mongoose.model('File', fileSchema); // 🔥 ΝΕΟ: File model
-const Meetup = mongoose.model('Meetup', meetupSchema); // 🔥 ΝΕΟ: Meetup model
-const MeetupComment = mongoose.model('MeetupComment', meetupCommentSchema); // 🔥 ΝΕΟ: MeetupComment model
 
 // ===== DATABASE HELPERS =====
 
@@ -675,165 +645,6 @@ const dbHelpers = {
     // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη μεθόδου για να επιστρέφει το File model
     getFileModel: function() {
         return File;
-    },
-
-    // 🔥 ΝΕΟ: MEETUP DASHBOARD METHODS
-    createMeetup: async function(meetupData) {
-        const meetupId = `meetup_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        
-        const meetup = new Meetup({
-            meetup_id: meetupId,
-            room_id: meetupData.roomId,
-            title: meetupData.title,
-            description: meetupData.description || '',
-            location: meetupData.location,
-            date: new Date(meetupData.date),
-            time: meetupData.time,
-            created_by: meetupData.createdBy,
-            max_attendees: meetupData.maxAttendees || 0,
-            attendees: [{
-                username: meetupData.createdBy,
-                status: 'going',
-                joined_at: new Date()
-            }]
-        });
-        
-        await meetup.save();
-        console.log(`✅ Meetup created: ${meetup.title} (${meetupId})`);
-        return meetup;
-    },
-
-    updateMeetup: async function(meetupId, updates) {
-        const meetup = await Meetup.findOne({ meetup_id: meetupId });
-        if (!meetup) return null;
-        
-        Object.keys(updates).forEach(key => {
-            if (updates[key] !== undefined && key !== 'meetup_id' && key !== 'created_by') {
-                if (key === 'date') {
-                    meetup[key] = new Date(updates[key]);
-                } else if (key === 'attendees') {
-                    // Ειδική διαχείριση για attendees
-                } else {
-                    meetup[key] = updates[key];
-                }
-            }
-        });
-        
-        await meetup.save();
-        return meetup;
-    },
-
-    deleteMeetup: async function(meetupId) {
-        const result = await Meetup.deleteOne({ meetup_id: meetupId });
-        if (result.deletedCount > 0) {
-            await MeetupComment.deleteMany({ meetup_id: meetupId });
-        }
-        return result.deletedCount > 0;
-    },
-
-    getMeetupById: async function(meetupId) {
-        const meetup = await Meetup.findOne({ meetup_id: meetupId });
-        if (!meetup) return null;
-        
-        // Βρες σχόλια
-        const comments = await MeetupComment.find({ meetup_id: meetupId })
-            .sort({ created_at: 1 });
-        
-        return {
-            ...meetup.toObject(),
-            comments: comments
-        };
-    },
-
-    getRoomMeetups: async function(roomId, onlyActive = true) {
-        const query = { room_id: roomId };
-        if (onlyActive) {
-            query.is_active = true;
-        }
-        
-        const meetups = await Meetup.find(query)
-            .sort({ date: 1, time: 1 });
-        
-        return meetups;
-    },
-
-    getUpcomingMeetups: async function(roomId) {
-        const now = new Date();
-        const meetups = await Meetup.find({
-            room_id: roomId,
-            is_active: true,
-            date: { $gte: now }
-        }).sort({ date: 1, time: 1 });
-        
-        return meetups;
-    },
-
-    joinMeetup: async function(meetupId, username, status = 'going') {
-        const meetup = await Meetup.findOne({ meetup_id: meetupId });
-        if (!meetup) return null;
-        
-        // Έλεγχος αν έχει φτάσει το όριο
-        if (meetup.max_attendees > 0 && meetup.attendees.length >= meetup.max_attendees) {
-            throw new Error('Meetup is full');
-        }
-        
-        // Έλεγχος αν ο χρήστης είναι ήδη εγγεγραμμένος
-        const existingIndex = meetup.attendees.findIndex(a => a.username === username);
-        if (existingIndex > -1) {
-            meetup.attendees[existingIndex].status = status;
-            meetup.attendees[existingIndex].joined_at = new Date();
-        } else {
-            meetup.attendees.push({
-                username,
-                status,
-                joined_at: new Date()
-            });
-        }
-        
-        await meetup.save();
-        return meetup;
-    },
-
-    leaveMeetup: async function(meetupId, username) {
-        const meetup = await Meetup.findOne({ meetup_id: meetupId });
-        if (!meetup) return null;
-        
-        meetup.attendees = meetup.attendees.filter(a => a.username !== username);
-        await meetup.save();
-        return meetup;
-    },
-
-    addMeetupComment: async function(commentData) {
-        const commentId = `comment_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        
-        const comment = new MeetupComment({
-            comment_id: commentId,
-            meetup_id: commentData.meetupId,
-            username: commentData.username,
-            text: commentData.text
-        });
-        
-        await comment.save();
-        return comment;
-    },
-
-    getMeetupComments: async function(meetupId) {
-        return await MeetupComment.find({ meetup_id: meetupId })
-            .sort({ created_at: 1 });
-    },
-
-    deleteMeetupComment: async function(commentId) {
-        const result = await MeetupComment.deleteOne({ comment_id: commentId });
-        return result.deletedCount > 0;
-    },
-
-    getUserMeetups: async function(username) {
-        const meetups = await Meetup.find({
-            'attendees.username': username,
-            is_active: true
-        }).sort({ date: 1, time: 1 });
-        
-        return meetups;
     }
 };
 
@@ -882,12 +693,10 @@ async function initializeDatabase() {
         // 🔥 ΝΕΟ: Create indexes για καλύτερη απόδοση
         await File.createIndexes();
         await UnreadMessage.createIndexes();
-        await Meetup.createIndexes();
         
         console.log('📈 Database indexes created successfully');
         console.log('💾 File storage system: ENABLED');
         console.log('📊 File schema: READY');
-        console.log('📅 Meetup Dashboard: READY');
 
         return mongoose.connection;
     } catch (error) {
@@ -908,7 +717,7 @@ async function initializeDatabase() {
     }
 }
 
-// 🔥 Εξαγωγή και των νέων models
+// 🔥 Εξαγωγή και των models για χρήση στο server.js
 module.exports = { 
     dbHelpers, 
     initializeDatabase,
@@ -920,7 +729,5 @@ module.exports = {
     Friend,
     Session,
     UnreadMessage,
-    File,
-    Meetup,        // 🔥 ΝΕΟ
-    MeetupComment  // 🔥 ΝΕΟ
+    File
 };
