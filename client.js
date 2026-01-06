@@ -1,4 +1,4 @@
-// client.js - RatScape Car Meet Platform with Enhanced Features
+// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER
 const socket = io();
 
 // Current user state
@@ -17,15 +17,10 @@ let currentRoom = {
     isPrivate: false,
 };
 
-// ===== EVENT DASHBOARD SYSTEM =====
-let currentEvent = null;
-let roomEvents = {};
-
 // ===== FILE UPLOAD SYSTEM =====
 let fileUploadInProgress = false;
 let selectedFile = null;
-let fileUploadListenersInitialized = false;
-let isUploading = false;
+let fileUploadListenersInitialized = false; // 🔥 ΝΕΟ: Flag για αρχικοποίηση listeners
 
 // ===== EMOJI PICKER SYSTEM =====
 const emojiCategories = {
@@ -49,7 +44,7 @@ let unreadMessages = {
 let currentViewedUser = null;
 
 // ===== AVATAR SYSTEM =====
-let userAvatars = {};
+let userAvatars = {}; // Cache για τα avatars των χρηστών
 
 // ===== CHAT STATE PERSISTENCE =====
 
@@ -72,7 +67,7 @@ function loadChatState() {
     if (savedState) {
         try {
             const state = JSON.parse(savedState);
-            const oneHour = 60 * 60 * 1000;
+            const oneHour = 60 * 60 * 1000; // 1 ώρα expiry
             if (Date.now() - state.timestamp < oneHour) {
                 return state;
             }
@@ -87,597 +82,9 @@ function clearChatState() {
     localStorage.removeItem('ratscape_chat_state');
 }
 
-// ===== EVENT DASHBOARD SYSTEM FUNCTIONS =====
+// ===== INITIALIZE FILE UPLOAD & EMOJI PICKER =====
 
-function initEventDashboard() {
-    console.log('🎪 Initializing event dashboard system');
-    
-    // Create event modal button
-    const createEventBtn = document.getElementById('create-event-btn');
-    if (createEventBtn) {
-        createEventBtn.addEventListener('click', showCreateEventModal);
-    }
-    
-    // Create events section in sidebar if it doesn't exist
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar && !document.getElementById('events-section')) {
-        const eventsSection = document.createElement('div');
-        eventsSection.className = 'room-events-section';
-        eventsSection.id = 'events-section';
-        eventsSection.innerHTML = `
-            <h3><i class="fas fa-calendar-alt"></i> MEET EVENTS</h3>
-            <div class="events-list" id="room-events-list">
-                <div class="no-events">
-                    <p>No events yet</p>
-                    <p>Create the first one!</p>
-                </div>
-            </div>
-            <button class="btn btn-primary btn-sm btn-block" id="create-event-btn">
-                <i class="fas fa-plus"></i> Create Event
-            </button>
-        `;
-        
-        const roomDetails = document.querySelector('.room-details');
-        if (roomDetails) {
-            roomDetails.after(eventsSection);
-        }
-        
-        document.getElementById('create-event-btn').addEventListener('click', showCreateEventModal);
-    }
-    
-    if (currentRoom.id && !currentRoom.isPrivate) {
-        loadRoomEvents(currentRoom.id);
-    }
-}
-
-function showCreateEventModal() {
-    if (!currentRoom.id) {
-        showNotification('You must be in a meet to create events', 'warning', 'No Meet');
-        return;
-    }
-    
-    if (currentRoom.isPrivate) {
-        showNotification('Events are not available for private chats', 'warning', 'Private Chat');
-        return;
-    }
-    
-    let modal = document.getElementById('create-event-modal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'create-event-modal';
-        modal.className = 'modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Create New Event</h3>
-                    <button class="close-modal-btn" id="close-create-event-modal">×</button>
-                </div>
-                <div class="form-container active">
-                    <div class="form-group">
-                        <label for="event-title">Event Title</label>
-                        <input type="text" id="event-title" placeholder="e.g., Friday Night Meet">
-                    </div>
-                    <div class="form-group">
-                        <label for="event-date">Date & Time</label>
-                        <input type="datetime-local" id="event-date">
-                    </div>
-                    <div class="form-group">
-                        <label for="event-location">Location</label>
-                        <input type="text" id="event-location" placeholder="e.g., Syntagma Square, Athens">
-                    </div>
-                    <div class="form-group">
-                        <label for="event-description">Description</label>
-                        <textarea id="event-description" placeholder="Describe your event..." rows="4"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="event-image">Event Image (Optional)</label>
-                        <input type="file" id="event-image" accept="image/*">
-                        <div class="image-preview" id="event-image-preview"></div>
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="event-private"> Private Event (Meet Members Only)
-                        </label>
-                    </div>
-                    <div class="modal-buttons">
-                        <button class="btn btn-primary" id="create-event-submit">
-                            <i class="fas fa-calendar-plus"></i> Create Event
-                        </button>
-                        <button class="btn btn-secondary" id="cancel-create-event">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-        document.getElementById('close-create-event-modal').addEventListener('click', hideAllModals);
-        document.getElementById('cancel-create-event').addEventListener('click', hideAllModals);
-        document.getElementById('create-event-submit').addEventListener('click', handleCreateEvent);
-        
-        document.getElementById('event-image').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const preview = document.getElementById('event-image-preview');
-                    preview.innerHTML = `
-                        <img src="${event.target.result}" alt="Preview" style="max-width: 200px; border-radius: 10px;">
-                    `;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-    
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const formattedDate = tomorrow.toISOString().slice(0, 16);
-    document.getElementById('event-date').value = formattedDate;
-    
-    document.getElementById('event-title').value = '';
-    document.getElementById('event-location').value = '';
-    document.getElementById('event-description').value = '';
-    document.getElementById('event-image').value = '';
-    document.getElementById('event-private').checked = false;
-    document.getElementById('event-image-preview').innerHTML = '';
-    
-    modal.classList.add('active');
-}
-
-async function handleCreateEvent() {
-    const title = document.getElementById('event-title').value.trim();
-    const date = document.getElementById('event-date').value;
-    const location = document.getElementById('event-location').value.trim();
-    const description = document.getElementById('event-description').value.trim();
-    const isPrivate = document.getElementById('event-private').checked;
-    
-    if (!title || !date || !location) {
-        showNotification('Please fill in all required fields', 'warning', 'Missing Info');
-        return;
-    }
-    
-    try {
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('date', date);
-        formData.append('location', location);
-        formData.append('description', description);
-        formData.append('isPrivate', isPrivate);
-        formData.append('roomId', currentRoom.id);
-        formData.append('creator', currentUser.username);
-        
-        const imageFile = document.getElementById('event-image').files[0];
-        if (imageFile) {
-            formData.append('image', imageFile);
-        }
-        
-        const response = await fetch('/create-event', {
-            method: 'POST',
-            headers: {
-                'X-Session-ID': currentUser.sessionId,
-            },
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('Event created successfully!', 'success', 'Event Created');
-            hideAllModals();
-            
-            socket.emit('new_event', {
-                roomId: currentRoom.id,
-                event: data.event
-            });
-            
-            if (!roomEvents[currentRoom.id]) {
-                roomEvents[currentRoom.id] = [];
-            }
-            roomEvents[currentRoom.id].push(data.event);
-            
-            updateEventsList(currentRoom.id);
-        } else {
-            showNotification(data.error || 'Failed to create event', 'error', 'Creation Failed');
-        }
-    } catch (error) {
-        console.error('Error creating event:', error);
-        showNotification('Failed to create event: ' + error.message, 'error', 'Error');
-    }
-}
-
-async function loadRoomEvents(roomId) {
-    try {
-        const response = await fetch(`/room-events/${roomId}`, {
-            headers: {
-                'X-Session-ID': currentUser.sessionId,
-            }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                roomEvents[roomId] = data.events;
-                updateEventsList(roomId);
-            }
-        }
-    } catch (error) {
-        console.error('Error loading room events:', error);
-    }
-}
-
-function updateEventsList(roomId) {
-    const eventsList = document.getElementById('room-events-list');
-    if (!eventsList) return;
-    
-    const events = roomEvents[roomId] || [];
-    
-    if (events.length === 0) {
-        eventsList.innerHTML = `
-            <div class="no-events">
-                <p>No events yet</p>
-                <p>Create the first one!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    events.sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    eventsList.innerHTML = events.map(event => `
-        <div class="event-item" data-event-id="${event.id}">
-            <div class="event-date">
-                <span class="event-day">${new Date(event.date).getDate()}</span>
-                <span class="event-month">${new Date(event.date).toLocaleString('en-US', { month: 'short' })}</span>
-            </div>
-            <div class="event-info">
-                <h4 class="event-title">${event.title}</h4>
-                <p class="event-location"><i class="fas fa-map-marker-alt"></i> ${event.location}</p>
-                <div class="event-stats">
-                    <span><i class="fas fa-users"></i> ${event.attendees || 0} attending</span>
-                </div>
-            </div>
-            <button class="btn-icon view-event-btn" data-event-id="${event.id}">
-                <i class="fas fa-arrow-right"></i>
-            </button>
-        </div>
-    `).join('');
-    
-    document.querySelectorAll('.view-event-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const eventId = this.dataset.eventId;
-            showEventDetails(eventId);
-        });
-    });
-}
-
-function showEventDetails(eventId) {
-    const event = findEventById(eventId);
-    if (!event) {
-        showNotification('Event not found', 'error', 'Error');
-        return;
-    }
-    
-    currentEvent = event;
-    
-    let eventPage = document.getElementById('event-page');
-    if (!eventPage) {
-        eventPage = document.createElement('div');
-        eventPage.id = 'event-page';
-        eventPage.className = 'page';
-        document.querySelector('.page-container').appendChild(eventPage);
-    }
-    
-    const eventDate = new Date(event.date);
-    const formattedDate = eventDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-    
-    eventPage.innerHTML = `
-        <div class="rooms-container">
-            <div class="rooms-header">
-                <button class="btn btn-secondary" id="back-from-event-btn">
-                    <i class="fas fa-arrow-left"></i> Back to Meet
-                </button>
-                <h2>Event Details</h2>
-                <div class="event-actions">
-                    <button class="btn btn-primary" id="join-event-btn">
-                        <i class="fas fa-check-circle"></i> I'm Attending
-                    </button>
-                    <button class="btn btn-secondary" id="share-event-btn">
-                        <i class="fas fa-share-alt"></i> Share
-                    </button>
-                </div>
-            </div>
-            
-            <div class="event-details-container">
-                <div class="event-header">
-                    <div class="event-image" id="event-detail-image" 
-                         style="background-image: url('${event.image || '/images/default-event.jpg'}')">
-                        <div class="event-header-overlay">
-                            <h1 class="event-title-large">${event.title}</h1>
-                            <div class="event-basic-info">
-                                <span class="event-date-large">
-                                    <i class="fas fa-calendar"></i> ${formattedDate}
-                                </span>
-                                <span class="event-location-large">
-                                    <i class="fas fa-map-marker-alt"></i> ${event.location}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="event-content">
-                    <div class="event-main">
-                        <div class="event-section">
-                            <h3><i class="fas fa-info-circle"></i> About this Event</h3>
-                            <div class="event-description">${event.description || 'No description provided.'}</div>
-                        </div>
-                        
-                        <div class="event-section">
-                            <h3><i class="fas fa-users"></i> Who's Attending (${event.attendees || 0})</h3>
-                            <div class="attendees-list" id="event-attendees-list">
-                            </div>
-                        </div>
-                        
-                        <div class="event-section">
-                            <h3><i class="fas fa-comments"></i> Event Chat</h3>
-                            <div class="event-chat-container">
-                                <div class="event-messages" id="event-messages-container">
-                                </div>
-                                <div class="event-chat-input">
-                                    <input type="text" id="event-message-input" placeholder="Chat about this event...">
-                                    <button class="btn btn-primary" id="send-event-message-btn">
-                                        <i class="fas fa-paper-plane"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="event-sidebar">
-                        <div class="event-card">
-                            <h4><i class="fas fa-chart-bar"></i> Event Stats</h4>
-                            <div class="event-stats-grid">
-                                <div class="event-stat">
-                                    <div class="stat-number">${event.attendees || 0}</div>
-                                    <div class="stat-label">Attending</div>
-                                </div>
-                                <div class="event-stat">
-                                    <div class="stat-number">${event.maybe || 0}</div>
-                                    <div class="stat-label">Maybe</div>
-                                </div>
-                                <div class="event-stat">
-                                    <div class="stat-number">${event.interested || 0}</div>
-                                    <div class="stat-label">Interested</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="event-card">
-                            <h4><i class="fas fa-user-tie"></i> Organized by</h4>
-                            <div class="organizer-info">
-                                <div class="organizer-avatar">
-                                    ${event.creator.charAt(0).toUpperCase()}
-                                </div>
-                                <div class="organizer-details">
-                                    <div class="organizer-name">${event.creator}</div>
-                                    <div class="organizer-role">Event Host</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="event-card">
-                            <h4><i class="fas fa-bolt"></i> Quick Actions</h4>
-                            <div class="quick-actions">
-                                <button class="btn btn-primary btn-block" id="add-to-calendar-btn">
-                                    <i class="fas fa-calendar-plus"></i> Add to Calendar
-                                </button>
-                                <button class="btn btn-secondary btn-block" id="get-directions-btn">
-                                    <i class="fas fa-directions"></i> Get Directions
-                                </button>
-                                <button class="btn btn-secondary btn-block" id="invite-friends-btn">
-                                    <i class="fas fa-user-plus"></i> Invite Friends
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('back-from-event-btn').addEventListener('click', () => {
-        showPage('chat-page');
-        currentEvent = null;
-    });
-    
-    document.getElementById('join-event-btn').addEventListener('click', joinEvent);
-    document.getElementById('share-event-btn').addEventListener('click', shareEvent);
-    document.getElementById('send-event-message-btn').addEventListener('click', sendEventMessage);
-    document.getElementById('add-to-calendar-btn').addEventListener('click', addToCalendar);
-    document.getElementById('get-directions-btn').addEventListener('click', getDirections);
-    document.getElementById('invite-friends-btn').addEventListener('click', inviteFriendsToEvent);
-    
-    loadEventAttendees(eventId);
-    
-    showPage('event-page');
-}
-
-function findEventById(eventId) {
-    if (!currentRoom.id) return null;
-    const events = roomEvents[currentRoom.id] || [];
-    return events.find(e => e.id === eventId);
-}
-
-async function joinEvent() {
-    if (!currentEvent) return;
-    
-    try {
-        const response = await fetch('/join-event', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Session-ID': currentUser.sessionId,
-            },
-            body: JSON.stringify({
-                eventId: currentEvent.id,
-                userId: currentUser.username,
-                roomId: currentRoom.id
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('You are now attending this event!', 'success', 'Joined Event');
-            currentEvent.attendees = (currentEvent.attendees || 0) + 1;
-            showEventDetails(currentEvent.id);
-        }
-    } catch (error) {
-        console.error('Error joining event:', error);
-        showNotification('Failed to join event', 'error', 'Error');
-    }
-}
-
-function shareEvent() {
-    if (!currentEvent) return;
-    
-    const eventUrl = `${window.location.origin}/event/${currentEvent.id}`;
-    const shareText = `Check out this event: ${currentEvent.title} on RatScape!`;
-    
-    if (navigator.share) {
-        navigator.share({
-            title: currentEvent.title,
-            text: shareText,
-            url: eventUrl
-        });
-    } else {
-        navigator.clipboard.writeText(eventUrl).then(() => {
-            showNotification('Event link copied to clipboard!', 'success', 'Link Copied');
-        });
-    }
-}
-
-function sendEventMessage() {
-    const input = document.getElementById('event-message-input');
-    const text = input.value.trim();
-    
-    if (!text || !currentEvent) return;
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'event-message';
-    messageDiv.innerHTML = `
-        <div class="event-message-sender">${currentUser.username}</div>
-        <div class="event-message-text">${text}</div>
-        <div class="event-message-time">${new Date().toLocaleTimeString()}</div>
-    `;
-    
-    document.getElementById('event-messages-container').appendChild(messageDiv);
-    input.value = '';
-    
-    const container = document.getElementById('event-messages-container');
-    container.scrollTop = container.scrollHeight;
-}
-
-function addToCalendar() {
-    if (!currentEvent) return;
-    
-    const eventDate = new Date(currentEvent.date);
-    const endDate = new Date(eventDate.getTime() + 2 * 60 * 60 * 1000);
-    
-    const icsContent = `
-BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//RatScape//Car Meet Platform//EN
-BEGIN:VEVENT
-UID:${currentEvent.id}@ratscape.com
-DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z
-DTSTART:${eventDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
-DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
-SUMMARY:${currentEvent.title}
-DESCRIPTION:${currentEvent.description}\\n\\nLocation: ${currentEvent.location}
-LOCATION:${currentEvent.location}
-END:VEVENT
-END:VCALENDAR
-    `.trim();
-    
-    const blob = new Blob([icsContent], { type: 'text/calendar' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentEvent.title.replace(/\s+/g, '_')}.ics`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    showNotification('Calendar event downloaded', 'success', 'Added to Calendar');
-}
-
-function getDirections() {
-    if (!currentEvent) return;
-    
-    const location = encodeURIComponent(currentEvent.location);
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${location}`;
-    window.open(mapsUrl, '_blank');
-}
-
-function inviteFriendsToEvent() {
-    if (!currentEvent) return;
-    
-    showNotification('Invite friends feature coming soon!', 'info', 'Coming Soon');
-}
-
-async function loadEventAttendees(eventId) {
-    try {
-        const response = await fetch(`/event-attendees/${eventId}`, {
-            headers: {
-                'X-Session-ID': currentUser.sessionId,
-            }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                const attendeesList = document.getElementById('event-attendees-list');
-                if (attendeesList) {
-                    attendeesList.innerHTML = data.attendees.map(user => `
-                        <div class="attendee-item" data-username="${user.username}">
-                            <div class="attendee-avatar">
-                                ${user.username.charAt(0).toUpperCase()}
-                            </div>
-                            <div class="attendee-name">${user.username}</div>
-                            <div class="attendee-status">${user.status || 'Member'}</div>
-                        </div>
-                    `).join('');
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Error loading attendees:', error);
-        const attendeesList = document.getElementById('event-attendees-list');
-        if (attendeesList) {
-            attendeesList.innerHTML = '<p class="no-attendees">Unable to load attendees</p>';
-        }
-    }
-}
-
-function initEventsForRoom(roomId) {
-    console.log(`🎪 Initializing events for room ${roomId}`);
-    loadRoomEvents(roomId);
-    setTimeout(() => {
-        initEventDashboard();
-    }, 500);
-}
-
-// ===== FILE UPLOAD SYSTEM FUNCTIONS =====
-
+// 🔥 ΑΡΧΙΚΟΠΟΙΗΣΗ FILE UPLOAD SYSTEM - FIXED: ΜΟΝΟ ΜΙΑ ΦΟΡΑ
 function initFileUploadSystem() {
     if (fileUploadListenersInitialized) {
         console.log('📁 File upload system already initialized');
@@ -690,18 +97,21 @@ function initFileUploadSystem() {
     if (fileInput && fileUploadBtn) {
         console.log('📁 Initializing file upload system');
         
+        // Αφαίρεση όλων των προηγούμενων listeners
         const cleanFileInput = fileInput.cloneNode(true);
         fileInput.parentNode.replaceChild(cleanFileInput, fileInput);
         
         const cleanFileUploadBtn = fileUploadBtn.cloneNode(true);
         fileUploadBtn.parentNode.replaceChild(cleanFileUploadBtn, fileUploadBtn);
         
+        // ΜΟΝΟ ΕΝΑ listener για το file upload button
         cleanFileUploadBtn.addEventListener('click', function(e) {
             e.preventDefault();
             console.log('📁 File upload button clicked');
             cleanFileInput.click();
         });
         
+        // ΜΟΝΟ ΕΝΑ listener για το file input change
         cleanFileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             console.log('📁 File selected:', file ? file.name : 'none');
@@ -715,7 +125,25 @@ function initFileUploadSystem() {
     }
 }
 
+// 🔥 ΑΡΧΙΚΟΠΟΙΗΣΗ EMOJI PICKER
+function initEmojiPickerSystem() {
+    const emojiBtn = document.querySelector('.emoji-picker-btn');
+    
+    if (emojiBtn) {
+        // Αφαίρεση προηγούμενων listeners
+        const newEmojiBtn = emojiBtn.cloneNode(true);
+        emojiBtn.parentNode.replaceChild(newEmojiBtn, emojiBtn);
+        
+        newEmojiBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            showEmojiPicker();
+        });
+    }
+}
+
+// 🔥 HANDLE FILE SELECTION
 function handleFileSelection(file) {
+    // Έλεγχος τύπου αρχείου
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     
     if (!allowedTypes.includes(file.type)) {
@@ -723,6 +151,7 @@ function handleFileSelection(file) {
         return;
     }
     
+    // Έλεγχος μεγέθους (10MB)
     if (file.size > 10 * 1024 * 1024) {
         showNotification('Το αρχείο είναι πολύ μεγάλο! Μέγιστο μέγεθος: 10MB', 'error', 'Μεγάλο Αρχείο');
         return;
@@ -732,6 +161,7 @@ function handleFileSelection(file) {
     showFilePreview(file);
 }
 
+// 🔥 SHOW FILE PREVIEW
 function showFilePreview(file) {
     const filePreview = document.getElementById('file-preview');
     const previewImage = document.getElementById('preview-image');
@@ -741,17 +171,21 @@ function showFilePreview(file) {
     
     if (!filePreview || !previewImage) return;
     
+    // Εμφάνιση preview
     const reader = new FileReader();
     reader.onload = function(e) {
+        // Αν είναι εικόνα, δείξε preview
         if (file.type.startsWith('image/')) {
             previewImage.src = e.target.result;
             previewImage.style.display = 'block';
         } else {
+            // Αν δεν είναι εικόνα, δείξε μόνο εικονίδιο
             previewImage.style.display = 'none';
         }
         
         filePreview.style.display = 'block';
         
+        // Πληροφορίες αρχείου
         if (fileName) {
             fileName.textContent = file.name.length > 25 ? file.name.substring(0, 25) + '...' : file.name;
         }
@@ -761,6 +195,7 @@ function showFilePreview(file) {
             fileSize.textContent = sizeInMB + ' MB';
         }
         
+        // Reset progress bar
         if (uploadProgress) {
             uploadProgress.style.width = '0%';
             uploadProgress.textContent = '0%';
@@ -769,6 +204,7 @@ function showFilePreview(file) {
     reader.readAsDataURL(file);
 }
 
+// 🔥 CANCEL FILE UPLOAD
 function cancelFileUpload() {
     const filePreview = document.getElementById('file-preview');
     const fileInput = document.getElementById('file-upload-input');
@@ -795,6 +231,9 @@ function cancelFileUpload() {
     selectedFile = null;
     fileUploadInProgress = false;
 }
+
+// 🔥 ΚΡΙΤΙΚΟ FIX: UPLOAD FILE TO SERVER - ΜΟΝΟ ΜΙΑ ΦΟΡΑ ΑΠΟΣΤΟΛΗ
+let isUploading = false;
 
 async function uploadFile() {
     if (isUploading) {
@@ -876,6 +315,10 @@ async function uploadFile() {
         }
         
         if (data.success) {
+            // 🔥 ΚΡΙΤΙΚΟ FIX: ΔΕΝ ΣΤΕΛΝΟΥΜΕ ΤΟ ΜΗΝΥΜΑ ΑΠΟ ΕΔΩ!
+            // Το server θα στείλει το μήνυμα μέσω WebSocket
+            // Απλά δείχνουμε notification
+            
             showNotification('Το αρχείο στάλθηκε επιτυχώς!', 'success', 'Αποστολή Αρχείου');
             
             setTimeout(() => {
@@ -909,22 +352,7 @@ async function uploadFile() {
     }
 }
 
-// ===== EMOJI PICKER FUNCTIONS =====
-
-function initEmojiPickerSystem() {
-    const emojiBtn = document.querySelector('.emoji-picker-btn');
-    
-    if (emojiBtn) {
-        const newEmojiBtn = emojiBtn.cloneNode(true);
-        emojiBtn.parentNode.replaceChild(newEmojiBtn, emojiBtn);
-        
-        newEmojiBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            showEmojiPicker();
-        });
-    }
-}
-
+// 🔥 SHOW EMOJI PICKER
 function showEmojiPicker() {
     const emojiPicker = document.getElementById('emoji-picker-modal');
     if (emojiPicker) {
@@ -933,6 +361,7 @@ function showEmojiPicker() {
     }
 }
 
+// 🔥 HIDE EMOJI PICKER
 function hideEmojiPicker() {
     const emojiPicker = document.getElementById('emoji-picker-modal');
     if (emojiPicker) {
@@ -941,12 +370,14 @@ function hideEmojiPicker() {
     }
 }
 
+// 🔥 INITIALIZE EMOJI PICKER CONTENT
 function initEmojiPickerContent() {
     const emojiCategoriesContainer = document.getElementById('emoji-categories');
     const emojiGrid = document.getElementById('emoji-grid');
     
     if (!emojiCategoriesContainer || !emojiGrid) return;
     
+    // Δημιουργία κατηγοριών
     Object.keys(emojiCategories).forEach((category, index) => {
         const button = document.createElement('button');
         button.className = `emoji-category-btn ${index === 0 ? 'active' : ''}`;
@@ -955,23 +386,29 @@ function initEmojiPickerContent() {
         button.title = getCategoryName(category);
         
         button.addEventListener('click', function() {
+            // Αφαίρεση active class από όλα
             document.querySelectorAll('.emoji-category-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
+            // Προσθήκη active class στο επιλεγμένο
             this.classList.add('active');
+            // Φόρτωση emoji της κατηγορίας
             loadEmojiCategory(category);
         });
         
         emojiCategoriesContainer.appendChild(button);
     });
     
+    // Φόρτωση πρώτης κατηγορίας
     loadEmojiCategory(Object.keys(emojiCategories)[0]);
     
+    // Close button
     const closeBtn = document.getElementById('close-emoji-picker');
     if (closeBtn) {
         closeBtn.addEventListener('click', hideEmojiPicker);
     }
     
+    // Κλείσιμο με click έξω
     const emojiPickerModal = document.getElementById('emoji-picker-modal');
     if (emojiPickerModal) {
         emojiPickerModal.addEventListener('click', function(e) {
@@ -982,6 +419,7 @@ function initEmojiPickerContent() {
     }
 }
 
+// 🔥 LOAD EMOJI CATEGORY
 function loadEmojiCategory(category) {
     const emojiGrid = document.getElementById('emoji-grid');
     if (!emojiGrid) return;
@@ -1003,6 +441,7 @@ function loadEmojiCategory(category) {
     });
 }
 
+// 🔥 INSERT EMOJI INTO MESSAGE INPUT
 function insertEmoji(emoji) {
     const messageInput = document.getElementById('message-input');
     if (!messageInput) return;
@@ -1016,8 +455,10 @@ function insertEmoji(emoji) {
     messageInput.focus();
     messageInput.selectionStart = messageInput.selectionEnd = start + emoji.length;
     
+    // Trigger input event για αυτόματη αλλαγή ύψους
     messageInput.dispatchEvent(new Event('input'));
     
+    // Κλείσιμο emoji picker μόνο σε mobile
     if (window.innerWidth <= 768) {
         setTimeout(() => {
             hideEmojiPicker();
@@ -1025,6 +466,7 @@ function insertEmoji(emoji) {
     }
 }
 
+// 🔥 GET CATEGORY NAME
 function getCategoryName(category) {
     const names = {
         smileys: 'Smileys & People',
@@ -1038,6 +480,7 @@ function getCategoryName(category) {
     return names[category] || category;
 }
 
+// 🔥 FORMAT FILE SIZE
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -1046,9 +489,11 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+// 🔥 FIX: INITIALIZE EVENT LISTENERS - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
 function initializeUploadAndEmojiListeners() {
     console.log('🔄 Initializing upload and emoji listeners');
     
+    // 🔥 ΑΡΧΙΚΟΠΟΙΗΣΗ ΜΟΝΟ ΑΝ ΔΕΝ ΕΧΕΙ ΓΙΝΕΙ ΗΔΗ
     if (!fileUploadListenersInitialized) {
         initFileUploadSystem();
     }
@@ -1056,16 +501,20 @@ function initializeUploadAndEmojiListeners() {
     initEmojiPickerSystem();
     initEmojiPickerContent();
     
+    // 🔥 Send file button - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
     const sendFileBtn = document.getElementById('send-file-btn');
     if (sendFileBtn) {
+        // Αφαίρεση όλων των προηγούμενων listeners
         const newSendFileBtn = sendFileBtn.cloneNode(true);
         sendFileBtn.parentNode.replaceChild(newSendFileBtn, sendFileBtn);
         
+        // Προσθήκη ΜΟΝΟ ΕΝΟΣ listener
         newSendFileBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             console.log('📤 Send file button clicked');
             
+            // Έλεγχος αν τρέχει ήδη upload
             if (!isUploading && !fileUploadInProgress) {
                 uploadFile();
             } else {
@@ -1074,6 +523,7 @@ function initializeUploadAndEmojiListeners() {
         });
     }
     
+    // Cancel upload button
     const cancelUploadBtn = document.getElementById('cancel-upload-btn');
     if (cancelUploadBtn) {
         const newCancelBtn = cancelUploadBtn.cloneNode(true);
@@ -1087,7 +537,7 @@ function initializeUploadAndEmojiListeners() {
     }
 }
 
-// ===== NOTIFICATION SYSTEM =====
+// ===== BEAUTIFUL NOTIFICATION SYSTEM WITH CLICKABLE =====
 
 function showNotification(message, type = "info", title = null, action = null, unreadCount = 1) {
     const container = document.getElementById("notification-container");
@@ -1102,6 +552,7 @@ function showNotification(message, type = "info", title = null, action = null, u
         notification.dataset.action = JSON.stringify(action);
     }
 
+    // Set icon based on type
     let icon, notificationTitle;
     switch (type) {
         case "success":
@@ -1125,6 +576,7 @@ function showNotification(message, type = "info", title = null, action = null, u
             notificationTitle = title || "Info";
     }
 
+    // Προσθήκη unread count στο message αν υπάρχει
     let displayMessage = message;
     if (unreadCount > 1) {
         displayMessage = `(${unreadCount}) ${message}`;
@@ -1139,6 +591,7 @@ function showNotification(message, type = "info", title = null, action = null, u
         <button class="notification-close">×</button>
     `;
 
+    // Προσθήκη unread count badge αν είναι > 1
     if (unreadCount > 1) {
         const countBadge = document.createElement('div');
         countBadge.className = 'notification-count-badge';
@@ -1148,6 +601,7 @@ function showNotification(message, type = "info", title = null, action = null, u
 
     document.getElementById("notification-container").appendChild(notification);
 
+    // CLICK HANDLER για notifications με action
     if (action) {
         notification.style.cursor = 'pointer';
         notification.classList.add('clickable');
@@ -1157,6 +611,7 @@ function showNotification(message, type = "info", title = null, action = null, u
                 handleNotificationAction(action);
                 hideNotification(notification);
                 
+                // Auto-clear unread όταν πατάς το notification
                 if (action.type === 'private_message') {
                     clearUnread('private', action.sender);
                 } else if (action.type === 'room_message') {
@@ -1165,6 +620,7 @@ function showNotification(message, type = "info", title = null, action = null, u
             }
         });
         
+        // Hover effect
         notification.addEventListener('mouseenter', function() {
             this.style.transform = 'translateX(-5px)';
             this.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.8)';
@@ -1176,15 +632,18 @@ function showNotification(message, type = "info", title = null, action = null, u
         });
     }
 
+    // Animate in
     setTimeout(() => {
         notification.classList.add("active");
     }, 10);
 
+    // Add close event
     notification.querySelector(".notification-close").addEventListener("click", (e) => {
         e.stopPropagation();
         hideNotification(notification);
     });
 
+    // Auto hide after 8 seconds για notifications με action
     if (action) {
         setTimeout(() => {
             if (notification.parentElement) {
@@ -1220,56 +679,10 @@ function createNotificationContainer() {
     document.body.appendChild(container);
 }
 
-function handleNotificationAction(action) {
-    console.log("🔔 Handling notification action:", action);
-    
-    hideAllModals();
-    
-    switch (action.type) {
-        case 'private_message':
-            const friendUsername = action.sender;
-            if (friendUsername) {
-                clearUnread('private', friendUsername);
-                loadUserFriends();
-                showPage("friends-page");
-                
-                setTimeout(() => {
-                    highlightAndOpenFriendChat(friendUsername);
-                }, 800);
-            }
-            break;
-            
-        case 'room_message':
-            if (action.roomId) {
-                clearUnread('group', action.sender, action.roomId);
-                loadUserRooms();
-                showPage("rooms-page");
-                
-                setTimeout(() => {
-                    highlightAndEnterRoom(action.roomId);
-                }, 800);
-            }
-            break;
-            
-        case 'friend_request':
-            loadUserFriends();
-            showPage("friends-page");
-            
-            setTimeout(() => {
-                highlightPendingRequests();
-            }, 800);
-            break;
-            
-        case 'friend_request_accepted':
-            loadUserFriends();
-            showPage("friends-page");
-            break;
-    }
-}
-
-// ===== CONFIRMATION MODAL =====
+// ===== CONFIRMATION MODAL SYSTEM =====
 
 function showConfirmationModal(message, title = "Confirm", onConfirm = null, onCancel = null) {
+    // Δημιουργία modal container αν δεν υπάρχει
     let modal = document.getElementById("confirmation-modal");
     if (!modal) {
         modal = document.createElement("div");
@@ -1294,6 +707,7 @@ function showConfirmationModal(message, title = "Confirm", onConfirm = null, onC
         `;
         document.body.appendChild(modal);
         
+        // Προσθήκη event listeners
         document.getElementById("close-confirmation-modal").addEventListener("click", hideConfirmationModal);
         document.getElementById("confirm-no-btn").addEventListener("click", hideConfirmationModal);
         
@@ -1303,9 +717,11 @@ function showConfirmationModal(message, title = "Confirm", onConfirm = null, onC
         });
     }
     
+    // Ορισμός μηνύματος και τίτλου
     document.getElementById("confirmation-title").textContent = title;
     document.getElementById("confirmation-message").textContent = message;
     
+    // Εμφάνιση modal
     modal.classList.add("active");
 }
 
@@ -1316,14 +732,117 @@ function hideConfirmationModal() {
     }
 }
 
+// ===== AVATAR SYSTEM FUNCTIONS =====
+
+// 🔥 ΜΙΚΡΗ ΒΕΛΤΙΩΣΗ: Φόρτωση avatar για έναν χρήστη
+async function loadUserAvatar(username, element, isCurrentUser = false) {
+    if (!username) return;
+    
+    // Έλεγχος cache
+    if (userAvatars[username]) {
+        updateAvatarElement(element, userAvatars[username], username, isCurrentUser);
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/get-profile-picture/${username}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.profile_picture) {
+                // 🔥 ΕΔΩ ΑΛΛΑΓΗ: Αποθήκευση Base64 string απευθείας στο cache
+                userAvatars[username] = data.profile_picture;
+                updateAvatarElement(element, data.profile_picture, username, isCurrentUser);
+            } else {
+                // Χρήση initials αν δεν υπάρχει avatar
+                updateAvatarElement(element, null, username, isCurrentUser);
+            }
+        }
+    } catch (error) {
+        console.error("Error loading avatar:", error);
+        updateAvatarElement(element, null, username, isCurrentUser);
+    }
+}
+
+// Ενημέρωση ενός avatar element
+function updateAvatarElement(element, avatarUrl, username, isCurrentUser = false) {
+    if (!element) return;
+    
+    if (avatarUrl) {
+        // 🔥 ΕΔΩ ΑΛΛΑΓΗ: Χειρισμός Base64 string απευθείας
+        // Έλεγχος αν το element είναι div ή img
+        if (element.tagName === 'DIV') {
+            element.innerHTML = `<img src="${avatarUrl}" alt="${username}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+            element.style.background = 'none';
+        } else if (element.tagName === 'IMG') {
+            element.src = avatarUrl;
+            element.alt = username;
+            element.style.display = 'block';
+        }
+    } else {
+        // Χρήση initials
+        if (element.tagName === 'DIV') {
+            const initials = username ? username.substring(0, 2).toUpperCase() : '??';
+            const color = getAvatarColor(username);
+            element.innerHTML = initials;
+            element.style.background = color;
+            element.style.color = 'white';
+            element.style.display = 'flex';
+            element.style.alignItems = 'center';
+            element.style.justifyContent = 'center';
+            element.style.fontWeight = '600';
+            element.style.fontSize = '0.75rem';
+        }
+    }
+}
+
+// Φόρτωση του avatar του τρέχοντος χρήστη παντού
+async function loadCurrentUserAvatar() {
+    if (!currentUser.authenticated) return;
+    
+    // Sidebar avatar
+    const sidebarAvatar = document.getElementById("sidebar-avatar");
+    if (sidebarAvatar) {
+        await loadUserAvatar(currentUser.username, sidebarAvatar, true);
+    }
+    
+    // Profile page avatar
+    const profileImage = document.getElementById("profile-image");
+    if (profileImage) {
+        await loadUserAvatar(currentUser.username, profileImage, true);
+    }
+    
+    // User info modal avatar
+    const userInfoImage = document.getElementById("user-info-image");
+    if (userInfoImage) {
+        await loadUserAvatar(currentUser.username, userInfoImage, true);
+    }
+}
+
+// Φόρτωση avatars για όλα τα μέλη σε room
+async function loadMemberAvatars() {
+    const memberItems = document.querySelectorAll('.member-item');
+    
+    for (const item of memberItems) {
+        const username = item.dataset.username;
+        if (username) {
+            const avatarElement = item.querySelector('.member-avatar');
+            if (avatarElement) {
+                await loadUserAvatar(username, avatarElement, username === currentUser.username);
+            }
+        }
+    }
+}
+
 // ===== UNREAD SYSTEM FUNCTIONS =====
 
 let lastClearTime = 0;
-const CLEAR_DEBOUNCE_TIME = 1000;
+const CLEAR_DEBOUNCE_TIME = 1000; // 1 δευτερόλεπτο
 
+// Καθαρισμός unread messages - FIXED για console spam
 function clearUnread(type, sender, roomId = null) {
     const now = Date.now();
     
+    // Debounce για να αποφύγουμε πολλαπλά calls
     if (now - lastClearTime < CLEAR_DEBOUNCE_TIME) {
         return;
     }
@@ -1342,11 +861,13 @@ function clearUnread(type, sender, roomId = null) {
     
     updateUnreadBadges();
     
+    // Ενημέρωση server μόνο αν υπάρχουν όντως δεδομένα
     if (type || sender || roomId) {
         socket.emit('mark_as_read', { type, sender, roomId });
     }
 }
 
+// Προσθήκη unread message
 function addUnreadMessage(type, sender, roomId = null) {
     const key = roomId || sender;
     
@@ -1364,19 +885,26 @@ function addUnreadMessage(type, sender, roomId = null) {
     
     updateUnreadBadges();
     
+    // Ενημέρωση UI αν είμαστε στη σωστή σελίδα
     updateFriendsListBadges();
     updateRoomsListBadges();
 }
 
+// Ενημέρωση όλων των badges
 function updateUnreadBadges() {
+    // Υπολογισμός total
     const privateTotal = Object.values(unreadMessages.private).reduce((a, b) => a + b, 0);
     const groupsTotal = Object.values(unreadMessages.groups).reduce((a, b) => a + b, 0);
     unreadMessages.total = privateTotal + groupsTotal;
     
+    // Ενημέρωση title
     updateTitleBadge();
+    
+    // Ενημέρωση navigation buttons
     updateNavBadges();
 }
 
+// Ενημέρωση badge στο title
 function updateTitleBadge() {
     if (unreadMessages.total > 0) {
         document.title = `(${unreadMessages.total}) RatScape`;
@@ -1385,6 +913,7 @@ function updateTitleBadge() {
     }
 }
 
+// Ενημέρωση badges στο navigation
 function updateNavBadges() {
     const friendsBtn = document.getElementById('my-friends-btn');
     const roomsBtn = document.getElementById('my-rooms-btn');
@@ -1400,12 +929,15 @@ function updateNavBadges() {
     }
 }
 
+// Προσθήκη/ενημέρωση badge σε button
 function updateButtonBadge(button, count, type) {
+    // Αφαίρεση υπάρχοντος badge
     const existingBadge = button.querySelector('.nav-badge');
     if (existingBadge) {
         existingBadge.remove();
     }
     
+    // Προσθήκη νέου badge αν υπάρχουν unread
     if (count > 0) {
         const badge = document.createElement('span');
         badge.className = 'nav-badge';
@@ -1435,6 +967,7 @@ function updateButtonBadge(button, count, type) {
     }
 }
 
+// Ενημέρωση badges στη λίστα φίλων
 function updateFriendsListBadges() {
     const friendCards = document.querySelectorAll('.friend-card:not(.pending)');
     friendCards.forEach(card => {
@@ -1443,11 +976,13 @@ function updateFriendsListBadges() {
             const friendName = nameElement.textContent;
             const unreadCount = unreadMessages.private[friendName] || 0;
             
+            // Αφαίρεση υπάρχοντος badge
             const existingBadge = card.querySelector('.friend-badge');
             if (existingBadge) {
                 existingBadge.remove();
             }
             
+            // Προσθήκη νέου badge
             if (unreadCount > 0) {
                 const badge = document.createElement('span');
                 badge.className = 'friend-badge';
@@ -1479,6 +1014,7 @@ function updateFriendsListBadges() {
     });
 }
 
+// Ενημέρωση badges στη λίστα δωματίων
 function updateRoomsListBadges() {
     const roomCards = document.querySelectorAll('.room-card');
     roomCards.forEach(card => {
@@ -1487,11 +1023,13 @@ function updateRoomsListBadges() {
             const roomId = enterBtn.dataset.roomId;
             const unreadCount = unreadMessages.groups[roomId] || 0;
             
+            // Αφαίρεση υπάρχοντος badge
             const existingBadge = card.querySelector('.room-badge');
             if (existingBadge) {
                 existingBadge.remove();
             }
             
+            // Προσθήκη νέου badge
             if (unreadCount > 0) {
                 const badge = document.createElement('span');
                 badge.className = 'room-badge';
@@ -1523,50 +1061,7 @@ function updateRoomsListBadges() {
     });
 }
 
-function highlightAndOpenFriendChat(friendUsername) {
-    const friendCards = document.querySelectorAll('.friend-card:not(.pending)');
-    friendCards.forEach(card => {
-        const nameElement = card.querySelector('.friend-name');
-        if (nameElement && nameElement.textContent === friendUsername) {
-            card.style.animation = 'highlightPulse 2s ease-in-out';
-            card.style.border = '2px solid var(--accent-red)';
-            
-            const chatBtn = card.querySelector('.chat-friend-btn');
-            if (chatBtn) {
-                setTimeout(() => {
-                    chatBtn.click();
-                }, 1000);
-            }
-        }
-    });
-}
-
-function highlightAndEnterRoom(roomId) {
-    const roomCards = document.querySelectorAll('.room-card');
-    roomCards.forEach(card => {
-        const enterBtn = card.querySelector('.enter-room-btn');
-        if (enterBtn && enterBtn.dataset.roomId === roomId) {
-            card.style.animation = 'highlightPulse 2s ease-in-out';
-            card.style.border = '2px solid var(--accent-red)';
-            
-            setTimeout(() => {
-                enterBtn.click();
-            }, 1500);
-        }
-    });
-}
-
-function highlightPendingRequests() {
-    const pendingSection = document.querySelector('.pending-requests-list');
-    if (pendingSection) {
-        pendingSection.scrollIntoView({ behavior: 'smooth' });
-        pendingSection.style.animation = 'highlightPulse 2s ease-in-out';
-        pendingSection.style.border = '2px solid var(--accent-red)';
-        pendingSection.style.padding = '10px';
-        pendingSection.style.borderRadius = 'var(--radius)';
-    }
-}
-
+// Φόρτωση offline notifications όταν συνδέεται ο χρήστης
 async function loadOfflineNotifications() {
     if (!currentUser.authenticated) return;
     
@@ -1582,6 +1077,7 @@ async function loadOfflineNotifications() {
             if (data.success) {
                 console.log(`📬 Loaded ${data.total} offline notifications`);
                 
+                // Αρχικοποίηση unreadMessages από summary
                 if (data.summary) {
                     unreadMessages.private = data.summary.private || {};
                     unreadMessages.groups = data.summary.groups || {};
@@ -1589,6 +1085,7 @@ async function loadOfflineNotifications() {
                     updateUnreadBadges();
                 }
                 
+                // Εμφάνιση welcome notification
                 if (data.total > 0) {
                     setTimeout(() => {
                         showNotification(
@@ -1601,6 +1098,7 @@ async function loadOfflineNotifications() {
                     }, 1000);
                 }
                 
+                // Εμφάνιση λεπτομερών notifications
                 data.notifications.forEach((notification, index) => {
                     setTimeout(() => {
                         let type = "info";
@@ -1637,6 +1135,113 @@ async function loadOfflineNotifications() {
     }
 }
 
+// ===== HANDLE NOTIFICATION ACTIONS =====
+
+function handleNotificationAction(action) {
+    console.log("🔔 Handling notification action:", action);
+    
+    hideAllModals();
+    
+    switch (action.type) {
+        case 'private_message':
+            const friendUsername = action.sender;
+            if (friendUsername) {
+                // Clear unread για αυτόν τον φίλο
+                clearUnread('private', friendUsername);
+                
+                // Πήγαινε στη σελίδα φίλων
+                loadUserFriends();
+                showPage("friends-page");
+                
+                // Highlight και άνοιγμα chat
+                setTimeout(() => {
+                    highlightAndOpenFriendChat(friendUsername);
+                }, 800);
+            }
+            break;
+            
+        case 'room_message':
+            if (action.roomId) {
+                // Clear unread για αυτό το room
+                clearUnread('group', action.sender, action.roomId);
+                
+                // Πήγαινε στη σελίδα δωματίων
+                loadUserRooms();
+                showPage("rooms-page");
+                
+                // Highlight και είσοδος στο room
+                setTimeout(() => {
+                    highlightAndEnterRoom(action.roomId);
+                }, 800);
+            }
+            break;
+            
+        case 'friend_request':
+            // Πήγαινε στη σελίδα φίλων
+            loadUserFriends();
+            showPage("friends-page");
+            
+            // Highlight pending requests
+            setTimeout(() => {
+                highlightPendingRequests();
+            }, 800);
+            break;
+            
+        case 'friend_request_accepted':
+            // Πήγαινε στη σελίδα φίλων
+            loadUserFriends();
+            showPage("friends-page");
+            break;
+    }
+}
+
+// Βοηθητικές συναρτήσεις για highlight
+function highlightAndOpenFriendChat(friendUsername) {
+    const friendCards = document.querySelectorAll('.friend-card:not(.pending)');
+    friendCards.forEach(card => {
+        const nameElement = card.querySelector('.friend-name');
+        if (nameElement && nameElement.textContent === friendUsername) {
+            // Προσθήκη animation
+            card.style.animation = 'highlightPulse 2s ease-in-out';
+            card.style.border = '2px solid var(--accent-red)';
+            
+            // Κάνε click στο chat button
+            const chatBtn = card.querySelector('.chat-friend-btn');
+            if (chatBtn) {
+                setTimeout(() => {
+                    chatBtn.click();
+                }, 1000);
+            }
+        }
+    });
+}
+
+function highlightAndEnterRoom(roomId) {
+    const roomCards = document.querySelectorAll('.room-card');
+    roomCards.forEach(card => {
+        const enterBtn = card.querySelector('.enter-room-btn');
+        if (enterBtn && enterBtn.dataset.roomId === roomId) {
+            card.style.animation = 'highlightPulse 2s ease-in-out';
+            card.style.border = '2px solid var(--accent-red)';
+            
+            setTimeout(() => {
+                enterBtn.click();
+            }, 1500);
+        }
+    });
+}
+
+function highlightPendingRequests() {
+    const pendingSection = document.querySelector('.pending-requests-list');
+    if (pendingSection) {
+        pendingSection.scrollIntoView({ behavior: 'smooth' });
+        pendingSection.style.animation = 'highlightPulse 2s ease-in-out';
+        pendingSection.style.border = '2px solid var(--accent-red)';
+        pendingSection.style.padding = '10px';
+        pendingSection.style.borderRadius = 'var(--radius)';
+    }
+}
+
 // ===== UTILITY FUNCTIONS =====
 
 function showPage(pageId) {
@@ -1647,15 +1252,19 @@ function showPage(pageId) {
         saveCurrentPage(pageId);
     }
     
+    // 🔥 ΠΡΟΣΘΗΚΗ: Αποθήκευση της σελίδας για refresh
     if (typeof setCurrentPageId === 'function') {
         setCurrentPageId(pageId);
     }
     
+    // 🔥 Επίσης αποθήκευση στο localStorage
     localStorage.setItem('ratscape_last_page', pageId);
     
+    // 🔥 ΕΙΔΙΚΟ: Αν φεύγουμε από chat page, αποθηκεύουμε την κατάσταση
     if (pageId === 'chat-page') {
         saveChatState();
     } else if (pageId !== 'chat-page' && currentRoom.id) {
+        // Αν φεύγουμε από chat page προς άλλη σελίδα, κρατάμε την κατάσταση
         saveChatState();
     }
 }
@@ -1725,6 +1334,7 @@ function getLastPage() {
     return localStorage.getItem("ratroom_last_page") || "home-page";
 }
 
+// Βοηθητική συνάρτηση για avatar colors
 function getAvatarColor(username) {
     const colors = [
         "#8B0000", "#1A1A1A", "#228B22", "#FFA500", "#4285F4",
@@ -1761,8 +1371,10 @@ function updateUIForAuthState() {
         document.getElementById("display-my-username").textContent = currentUser.username;
         document.getElementById("sidebar-username").textContent = currentUser.username;
         
+        // Φόρτωση avatar του χρήστη
         loadCurrentUserAvatar();
         
+        // Φόρτωση offline notifications όταν συνδέεται
         setTimeout(() => {
             loadOfflineNotifications();
         }, 1000);
@@ -1783,12 +1395,14 @@ function addMessageToChat(message) {
 
     messageDiv.className = `message ${isOwn ? "own" : "other"}`;
     
+    // Ειδική επεξεργασία για αρχεία
     if (message.isFile || message.file_data) {
         const fileData = message.file_data || message;
         const fileExtension = fileData.fileName ? fileData.fileName.split('.').pop().toLowerCase() : '';
         const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExtension);
         
         if (isImage && fileData.fileUrl) {
+            // Εικόνα - εμφάνιση preview
             messageDiv.innerHTML = `
                 <div class="message-header">
                     <span class="message-sender">${message.sender}</span>
@@ -1807,6 +1421,7 @@ function addMessageToChat(message) {
                 </div>
             `;
         } else {
+            // Άλλο αρχείο - μόνο download link
             messageDiv.innerHTML = `
                 <div class="message-header">
                     <span class="message-sender">${message.sender}</span>
@@ -1826,6 +1441,7 @@ function addMessageToChat(message) {
             `;
         }
     } else {
+        // Κανονικό μήνυμα κειμένου
         messageDiv.innerHTML = `
             <div class="message-header">
                 <span class="message-sender">${message.sender}</span>
@@ -1839,6 +1455,7 @@ function addMessageToChat(message) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
+// Συνάρτηση για προβολή εικόνας σε πλήρη οθόνη
 function openImagePreview(imageUrl) {
     const modal = document.createElement('div');
     modal.className = 'image-preview-modal active';
@@ -1868,92 +1485,6 @@ function closeImagePreview() {
     }
 }
 
-async function loadUserAvatar(username, element, isCurrentUser = false) {
-    if (!username) return;
-    
-    if (userAvatars[username]) {
-        updateAvatarElement(element, userAvatars[username], username, isCurrentUser);
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/get-profile-picture/${username}`);
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.profile_picture) {
-                userAvatars[username] = data.profile_picture;
-                updateAvatarElement(element, data.profile_picture, username, isCurrentUser);
-            } else {
-                updateAvatarElement(element, null, username, isCurrentUser);
-            }
-        }
-    } catch (error) {
-        console.error("Error loading avatar:", error);
-        updateAvatarElement(element, null, username, isCurrentUser);
-    }
-}
-
-function updateAvatarElement(element, avatarUrl, username, isCurrentUser = false) {
-    if (!element) return;
-    
-    if (avatarUrl) {
-        if (element.tagName === 'DIV') {
-            element.innerHTML = `<img src="${avatarUrl}" alt="${username}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-            element.style.background = 'none';
-        } else if (element.tagName === 'IMG') {
-            element.src = avatarUrl;
-            element.alt = username;
-            element.style.display = 'block';
-        }
-    } else {
-        if (element.tagName === 'DIV') {
-            const initials = username ? username.substring(0, 2).toUpperCase() : '??';
-            const color = getAvatarColor(username);
-            element.innerHTML = initials;
-            element.style.background = color;
-            element.style.color = 'white';
-            element.style.display = 'flex';
-            element.style.alignItems = 'center';
-            element.style.justifyContent = 'center';
-            element.style.fontWeight = '600';
-            element.style.fontSize = '0.75rem';
-        }
-    }
-}
-
-async function loadCurrentUserAvatar() {
-    if (!currentUser.authenticated) return;
-    
-    const sidebarAvatar = document.getElementById("sidebar-avatar");
-    if (sidebarAvatar) {
-        await loadUserAvatar(currentUser.username, sidebarAvatar, true);
-    }
-    
-    const profileImage = document.getElementById("profile-image");
-    if (profileImage) {
-        await loadUserAvatar(currentUser.username, profileImage, true);
-    }
-    
-    const userInfoImage = document.getElementById("user-info-image");
-    if (userInfoImage) {
-        await loadUserAvatar(currentUser.username, userInfoImage, true);
-    }
-}
-
-async function loadMemberAvatars() {
-    const memberItems = document.querySelectorAll('.member-item');
-    
-    for (const item of memberItems) {
-        const username = item.dataset.username;
-        if (username) {
-            const avatarElement = item.querySelector('.member-avatar');
-            if (avatarElement) {
-                await loadUserAvatar(username, avatarElement, username === currentUser.username);
-            }
-        }
-    }
-}
-
 function updateRoomMembers(members) {
     const membersList = document.getElementById("room-members-list");
     membersList.innerHTML = "";
@@ -1963,6 +1494,7 @@ function updateRoomMembers(members) {
         memberDiv.className = "member-item";
         memberDiv.dataset.username = member.username;
         
+        // Αρχικά βάζουμε initials
         memberDiv.innerHTML = `
             <div class="member-avatar">${member.username.substring(0, 2).toUpperCase()}</div>
             <div class="member-info">
@@ -1971,6 +1503,7 @@ function updateRoomMembers(members) {
             </div>
         `;
         
+        // Προσθήκη click event για να ανοίγει το user info modal
         memberDiv.addEventListener("click", (e) => {
             e.stopPropagation();
             showUserInfo(member.username);
@@ -1978,35 +1511,11 @@ function updateRoomMembers(members) {
         
         membersList.appendChild(memberDiv);
         
+        // 🔥 Φόρτωση του πραγματικού avatar αν υπάρχει
         const avatarElement = memberDiv.querySelector('.member-avatar');
         if (avatarElement) {
             await loadUserAvatar(member.username, avatarElement, member.username === currentUser.username);
         }
-    });
-}
-
-function makeMemberItemsClickable() {
-    const memberItems = document.querySelectorAll(".member-item");
-    memberItems.forEach(item => {
-        item.style.cursor = "pointer";
-        
-        item.addEventListener("mouseenter", function() {
-            this.style.backgroundColor = "rgba(51, 51, 51, 0.5)";
-            this.style.transform = "translateX(5px)";
-        });
-        
-        item.addEventListener("mouseleave", function() {
-            this.style.backgroundColor = "";
-            this.style.transform = "";
-        });
-        
-        item.addEventListener("click", function(e) {
-            e.stopPropagation();
-            const username = this.dataset.username || this.querySelector(".member-name")?.textContent;
-            if (username) {
-                showUserInfo(username);
-            }
-        });
     });
 }
 
@@ -2042,8 +1551,8 @@ function displayUserRooms(rooms) {
     if (rooms.length === 0) {
         roomsList.innerHTML = `
             <div class="no-rooms">
-                <p>You haven't joined any meets yet.</p>
-                <p>Create a new meet or join with an invite code!</p>
+                <p>You haven't joined any rooms yet.</p>
+                <p>Create a new room or join with an invite code!</p>
             </div>
         `;
         return;
@@ -2059,18 +1568,21 @@ function displayUserRooms(rooms) {
             </div>
             <div class="room-card-footer">
                 <span class="room-created">Created ${new Date(room.created_at).toLocaleDateString()}</span>
-                <button class="btn btn-primary btn-sm enter-room-btn" data-room-id="${room.id}">Enter Meet</button>
+                <button class="btn btn-primary btn-sm enter-room-btn" data-room-id="${room.id}">Enter Room</button>
             </div>
         `;
 
         roomCard.querySelector(".enter-room-btn").addEventListener("click", () => {
             enterRoom(room.id, room.name, room.invite_code);
+            
+            // Clear unread όταν μπαίνεις στο room
             clearUnread('group', null, room.id);
         });
 
         roomsList.appendChild(roomCard);
     });
     
+    // Ενημέρωση badges μετά τη φόρτωση
     updateRoomsListBadges();
 }
 
@@ -2084,22 +1596,28 @@ function enterRoom(roomId, roomName, inviteCode) {
         isPrivate: false 
     };
 
+    // Update UI
     document.getElementById("room-name-sidebar").textContent = roomName;
     document.getElementById("room-name-header").textContent = roomName;
     
+    // 🔥 ΓΙΑ ΚΑΝΟΝΙΚΑ ROOMS - ΕΜΦΑΝΙΖΟΥΜΕ ΝΟΡΜΑΛ ΤΟ INVITE CODE
     document.getElementById("room-invite-code").textContent = inviteCode;
     
+    // Εμφάνιση του invite code section
     document.getElementById("invite-code-container").classList.remove("hide-for-private");
     
+    // Ενεργοποιούμε το copy button για κανονικά rooms
     document.getElementById("copy-invite-btn").style.display = "flex";
     document.getElementById("copy-invite-btn").disabled = false;
-    document.getElementById("copy-invite-btn").title = "Copy meet code";
+    document.getElementById("copy-invite-btn").title = "Copy invite code";
     document.getElementById("copy-invite-btn").style.opacity = "1";
     document.getElementById("copy-invite-btn").style.cursor = "pointer";
     document.getElementById("copy-invite-btn").style.pointerEvents = "auto";
 
+    // Clear messages
     document.getElementById("messages-container").innerHTML = "";
 
+    // Emit join room
     console.log("📡 Emitting join room event...");
     
     socket.emit("join room", {
@@ -2110,16 +1628,18 @@ function enterRoom(roomId, roomName, inviteCode) {
 
     showPage("chat-page");
     
+    // 🔥 ΣΗΜΑΝΤΙΚΟ: Αποθήκευση της κατάστασης
     saveChatState();
     
+    // 🔥 ΣΗΜΑΝΤΙΚΟ: Request room data αμέσως
+    // Κάνουμε τα requests μαζί για να αποφύγουμε race conditions
     socket.emit("get room info", { roomId: roomId });
     socket.emit("get room members", { roomId: roomId });
     
+    // 🔥 ΕΠΙΠΛΕΟΝ: Κάνουμε ένα δεύτερο request μετά από 500ms για να είμαστε σίγουροι
     setTimeout(() => {
         socket.emit("get room members", { roomId: roomId });
     }, 500);
-    
-    initEventsForRoom(roomId);
 }
 
 // ===== FRIENDS SYSTEM FUNCTIONS =====
@@ -2244,6 +1764,7 @@ function displayUserFriends(friends, pendingRequests) {
             </div>
         `;
 
+        // 🔥 Φόρτωση avatars για τους φίλους
         friendsSection.querySelectorAll(".friend-avatar").forEach(async (avatarElement, index) => {
             const friend = friends[index];
             if (friend) {
@@ -2255,6 +1776,8 @@ function displayUserFriends(friends, pendingRequests) {
             btn.addEventListener("click", (e) => {
                 const friendUsername = e.target.dataset.friend;
                 startPrivateChatWithFriend(friendUsername);
+                
+                // Clear unread όταν ανοίγεις chat
                 clearUnread('private', friendUsername);
             });
         });
@@ -2273,8 +1796,11 @@ function displayUserFriends(friends, pendingRequests) {
 
     friendsList.appendChild(friendsSection);
     
+    // Ενημέρωση badges μετά τη φόρτωση
     updateFriendsListBadges();
 }
+
+// ===== FRIENDS SYSTEM FUNCTIONS - FIXED =====
 
 async function handleAddFriend(friendUsername) {
     const trimmedUsername = friendUsername.trim();
@@ -2415,6 +1941,7 @@ async function handleRemoveFriend(friendUsername) {
 }
 
 function startPrivateChatWithFriend(friendUsername) {
+    // Δημιουργία μοναδικού κωδικού για το private chat ΧΩΡΙΣ invite code
     const privateChatId = `private_${currentUser.username}_${friendUsername}`;
     
     currentRoom = {
@@ -2427,12 +1954,16 @@ function startPrivateChatWithFriend(friendUsername) {
     document.getElementById("room-name-sidebar").textContent = friendUsername;
     document.getElementById("room-name-header").textContent = `Private Chat with ${friendUsername}`;
     
+    // 🔥 ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΚΥΡΙΟ ΦΙΞ - ΚΡΥΒΟΥΜΕ ΟΛΟΚΛΗΡΟ ΤΟ INVITE CODE SECTION
     document.getElementById("room-invite-code").textContent = "";
     document.getElementById("invite-code-container").classList.add("hide-for-private");
+    
+    // Απενεργοποιούμε εντελώς το copy button για private chats
     document.getElementById("copy-invite-btn").style.display = "none";
     
     document.getElementById("sidebar-username").textContent = currentUser.username;
     
+    // Φόρτωση του avatar του χρήστη
     const sidebarAvatar = document.getElementById("sidebar-avatar");
     if (sidebarAvatar) {
         loadUserAvatar(currentUser.username, sidebarAvatar, true);
@@ -2443,6 +1974,7 @@ function startPrivateChatWithFriend(friendUsername) {
     document.getElementById("room-status").textContent = "Private chat";
     document.getElementById("room-status").classList.add("private-chat");
 
+    // Make the private chat members clickable too
     document.getElementById("room-members-list").innerHTML = `
         <div class="member-item" data-username="${currentUser.username}">
             <div class="member-avatar"></div>
@@ -2464,8 +1996,10 @@ function startPrivateChatWithFriend(friendUsername) {
     loadPrivateMessages(friendUsername);
     showPage("chat-page");
     
+    // 🔥 Αποθήκευση της κατάστασης
     saveChatState();
     
+    // Φόρτωση avatars για τα μέλη
     setTimeout(() => {
         loadMemberAvatars();
         makeMemberItemsClickable();
@@ -2508,6 +2042,7 @@ async function showUserInfo(username) {
     currentViewedUser = username;
     
     try {
+        // Φόρτωση βασικών στοιχείων χρήστη
         const response = await fetch(`/user-info/${username}`, {
             headers: {
                 "X-Session-ID": currentUser.sessionId,
@@ -2528,6 +2063,7 @@ async function showUserInfo(username) {
             updateUserInfoModal(data.user);
             showModal("user-info-modal");
             
+            // Check friendship status
             await checkFriendshipStatus(username);
         } else {
             showNotification(data.error || "Could not load user information", "error", "Error");
@@ -2566,6 +2102,7 @@ async function checkFriendshipStatus(friendUsername) {
         }
     } catch (error) {
         console.error("Error checking friendship status:", error);
+        // Μην εμφανίσεις error, απλά μην δείξεις το κουμπί
         const addFriendBtn = document.getElementById("add-as-friend-btn");
         addFriendBtn.style.display = 'none';
     }
@@ -2588,15 +2125,19 @@ function updateUserInfoModal(user) {
         document.getElementById("user-info-joined").textContent = "Unknown";
     }
     
+    // Profile picture
     const userInfoImage = document.getElementById("user-info-image");
     if (user.profile_picture) {
+        // 🔥 ΕΔΩ ΑΛΛΑΓΗ: Χρήση Base64 string απευθείας
         userInfoImage.src = user.profile_picture;
         userInfoImage.style.display = 'block';
     } else {
+        // Default avatar αν δεν έχει εικόνα
         const initials = user.username.substring(0, 2).toUpperCase();
         const color = getAvatarColor(user.username);
         userInfoImage.style.display = 'none';
         
+        // Δημιουργία div για initials
         const avatarContainer = userInfoImage.parentElement;
         let initialsDiv = avatarContainer.querySelector('.initials-avatar');
         if (!initialsDiv) {
@@ -2629,12 +2170,39 @@ function updateUserInfoModal(user) {
         sendMessageBtn.classList.remove("btn-primary");
         sendMessageBtn.classList.add("btn-secondary");
     } else {
+        // Αρχικά κρύψε το κουμπί μέχρι να ελεγχθεί η φιλία
         addFriendBtn.style.display = 'none';
         sendMessageBtn.disabled = false;
         sendMessageBtn.innerHTML = '<i class="fas fa-comment"></i> Send Message';
         sendMessageBtn.classList.remove("btn-secondary");
         sendMessageBtn.classList.add("btn-primary");
     }
+}
+
+// Make member items clickable for user info
+function makeMemberItemsClickable() {
+    const memberItems = document.querySelectorAll(".member-item");
+    memberItems.forEach(item => {
+        item.style.cursor = "pointer";
+        
+        item.addEventListener("mouseenter", function() {
+            this.style.backgroundColor = "rgba(51, 51, 51, 0.5)";
+            this.style.transform = "translateX(5px)";
+        });
+        
+        item.addEventListener("mouseleave", function() {
+            this.style.backgroundColor = "";
+            this.style.transform = "";
+        });
+        
+        item.addEventListener("click", function(e) {
+            e.stopPropagation();
+            const username = this.dataset.username || this.querySelector(".member-name")?.textContent;
+            if (username) {
+                showUserInfo(username);
+            }
+        });
+    });
 }
 
 // ===== AUTHENTICATION FUNCTIONS =====
@@ -2730,13 +2298,15 @@ function handleLogout() {
     currentUser = { username: null, email: null, authenticated: false, sessionId: null };
     currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
     
+    // Clear local unread data
     unreadMessages = { private: {}, groups: {}, total: 0 };
     updateUnreadBadges();
     
+    // Clear avatar cache
     userAvatars = {};
     
     clearUserFromLocalStorage();
-    clearChatState();
+    clearChatState(); // 🔥 ΚΑΙΝΟΥΡΓΙΟ: Καθαρισμός chat state
     updateUIForAuthState();
     showPage("home-page");
     showNotification("Logged out successfully!", "info", "Goodbye!");
@@ -2754,7 +2324,7 @@ function handleSessionExpired() {
 
 async function handleCreateRoom(roomName) {
     if (!roomName.trim()) {
-        showNotification("Please enter a meet name!", "warning", "Missing Info");
+        showNotification("Please enter a room name!", "warning", "Missing Info");
         return;
     }
 
@@ -2775,18 +2345,18 @@ async function handleCreateRoom(roomName) {
         const data = await response.json();
 
         if (data.success) {
-            showNotification(`Meet created! Invite code: ${data.inviteCode}`, "success", "Meet Created");
+            showNotification(`Room created! Invite code: ${data.inviteCode}`, "success", "Room Created");
             hideAllModals();
             document.getElementById("room-name-input").value = "";
             enterRoom(data.roomId, roomName, data.inviteCode);
         } else {
-            showNotification(data.error || "Failed to create meet", "error", "Meet Creation Failed");
+            showNotification(data.error || "Failed to create room", "error", "Room Creation Failed");
         }
     } catch (error) {
         if (error.message === "Session expired") {
             handleSessionExpired();
         } else {
-            showNotification("Error creating meet: " + error.message, "error", "Connection Error");
+            showNotification("Error creating room: " + error.message, "error", "Connection Error");
         }
     }
 }
@@ -2810,29 +2380,36 @@ async function handleJoinRoom(inviteCode) {
             }),
         });
 
+        // ΠΑΡΑΣΗΜΑΝΤΙΚΟ: Δεν κάνουμε throw error για 404 πια!
+        // Απλά παίρνουμε το JSON response
         const data = await response.json();
 
         if (data.success) {
-            showNotification("Joined meet successfully!", "success", "Meet Joined");
+            showNotification("Joined room successfully!", "success", "Room Joined");
             hideAllModals();
             document.getElementById("invite-code-input").value = "";
             enterRoom(data.roomId, data.roomName, inviteCode.trim());
         } else {
-            showNotification(data.error || "Failed to join meet", "error", "Join Meet Failed");
+            // Απλά δείχνουμε το μήνυμα λάθους
+            showNotification(data.error || "Failed to join room", "error", "Join Room Failed");
         }
     } catch (error) {
-        console.error("Error joining meet:", error);
+        // Αυτό το catch τώρα θα πιάσει μόνο πραγματικά network errors
+        console.error("Error joining room:", error);
         showNotification("Connection error. Please try again.", "error", "Connection Error");
     }
 }
 
+// 🔥 FIXED: LEAVE ROOM FUNCTION - WITH FRIEND REMOVAL FOR PRIVATE CHATS
 async function handleLeaveRoom() {
+    // Έλεγχος αν είμαστε σε private chat ή κανονικό room
     if (!currentRoom.id) {
-        showNotification("You are not in a meet", "info", "No Meet");
+        showNotification("You are not in a room", "info", "No Room");
         return;
     }
     
     if (currentRoom.isPrivate) {
+        // Για private chats - ΑΦΑΙΡΕΣΗ ΦΙΛΟΥ
         const friendUsername = currentRoom.name;
         
         showConfirmationModal(
@@ -2840,6 +2417,7 @@ async function handleLeaveRoom() {
             "Leave Private Chat",
             async () => {
                 try {
+                    // 1. Αφαίρεση φίλου
                     const response = await fetch("/remove-friend", {
                         method: "POST",
                         headers: {
@@ -2859,6 +2437,7 @@ async function handleLeaveRoom() {
                     const data = await response.json();
 
                     if (data.success) {
+                        // 2. Επιστροφή στη σελίδα φίλων
                         showNotification(
                             `Left private chat with ${friendUsername} and removed as friend`,
                             "info",
@@ -2868,22 +2447,29 @@ async function handleLeaveRoom() {
                         showPage("friends-page");
                         loadUserFriends();
                         
+                        // 3. Reset current room
                         currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
+                        
+                        // 4. Clear chat state
                         clearChatState();
                         
+                        // 5. Επαναφορά UI
                         document.getElementById("room-name-sidebar").textContent = "RatScape";
-                        document.getElementById("room-name-header").textContent = "Meet Name";
+                        document.getElementById("room-name-header").textContent = "Room Name";
                         document.getElementById("room-invite-code").textContent = "------";
-                        document.getElementById("room-description").textContent = "Car meet chat";
-                        document.getElementById("room-status").textContent = "Not in a meet";
+                        document.getElementById("room-description").textContent = "Group chat";
+                        document.getElementById("room-status").textContent = "Not in a room";
                         document.getElementById("room-status").classList.remove("private-chat");
                         
+                        // 6. Επαναφορά του invite code section
                         document.getElementById("invite-code-container").classList.remove("hide-for-private");
                         document.getElementById("copy-invite-btn").style.display = "flex";
                         document.getElementById("copy-invite-btn").disabled = false;
                         
+                        // 7. Clear messages
                         document.getElementById("messages-container").innerHTML = "";
                         
+                        // 8. Ενημέρωση unread messages
                         clearUnread('private', friendUsername);
                     } else {
                         showNotification(data.error || "Failed to remove friend", "error", "Action Failed");
@@ -2892,23 +2478,27 @@ async function handleLeaveRoom() {
                     console.error("Error leaving private chat:", error);
                     showNotification("Error: " + error.message, "error", "Connection Error");
                     
+                    // Ακόμα κι αν υπάρχει error, επέστρεψε στη σελίδα friends
                     showPage("friends-page");
                     loadUserFriends();
                     
+                    // Reset current room
                     currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
                     clearChatState();
                 }
             },
             () => {
+                // User cancelled
                 console.log("User cancelled leaving private chat");
             }
         );
         return;
     }
     
+    // Για κανονικά rooms, ζήτηση επιβεβαίωσης
     showConfirmationModal(
-        "Are you sure you want to leave this meet? You can rejoin anytime with the invite code.",
-        "Leave Meet",
+        "Are you sure you want to leave this room? You can rejoin anytime with the invite code.",
+        "Leave Room",
         async () => {
             try {
                 const response = await fetch("/leave-room", {
@@ -2924,14 +2514,15 @@ async function handleLeaveRoom() {
                 });
 
                 if (!response.ok) {
-                    throw new Error("Failed to leave meet");
+                    throw new Error("Failed to leave room");
                 }
 
                 const data = await response.json();
 
                 if (data.success) {
-                    showNotification("Left meet successfully!", "success", "Meet Left");
+                    showNotification("Left room successfully!", "success", "Room Left");
                     
+                    // Κλείσιμο WebSocket connection για αυτό το room
                     if (currentRoom.id) {
                         socket.emit("leave_room", {
                             roomId: currentRoom.id,
@@ -2939,37 +2530,47 @@ async function handleLeaveRoom() {
                         });
                     }
                     
+                    // Επιστροφή στη σελίδα rooms
                     showPage("rooms-page");
                     loadUserRooms();
                     
+                    // Reset current room
                     currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
+                    
+                    // Clear chat state
                     clearChatState();
                     
+                    // Επαναφορά UI στο default state
                     document.getElementById("room-name-sidebar").textContent = "RatScape";
-                    document.getElementById("room-name-header").textContent = "Meet Name";
+                    document.getElementById("room-name-header").textContent = "Room Name";
                     document.getElementById("room-invite-code").textContent = "------";
-                    document.getElementById("room-description").textContent = "Car meet chat";
-                    document.getElementById("room-status").textContent = "Not in a meet";
+                    document.getElementById("room-description").textContent = "Group chat";
+                    document.getElementById("room-status").textContent = "Not in a room";
                     document.getElementById("room-status").classList.remove("private-chat");
                     
+                    // Clear messages
                     document.getElementById("messages-container").innerHTML = "";
                     
+                    // Επαναφορά του invite code section
                     document.getElementById("invite-code-container").classList.remove("hide-for-private");
                     document.getElementById("copy-invite-btn").style.display = "flex";
                     document.getElementById("copy-invite-btn").disabled = false;
                     
+                    // Ενημέρωση unread messages
                     clearUnread('group', null, currentRoom.id);
                     
                 } else {
-                    showNotification(data.error || "Failed to leave meet", "error", "Action Failed");
+                    showNotification(data.error || "Failed to leave room", "error", "Action Failed");
                 }
             } catch (error) {
-                console.error("Error leaving meet:", error);
-                showNotification("Error leaving meet: " + error.message, "error", "Connection Error");
+                console.error("Error leaving room:", error);
+                showNotification("Error leaving room: " + error.message, "error", "Connection Error");
                 
+                // Ακόμα κι αν υπάρχει error, επέστρεψε στη σελίδα rooms
                 showPage("rooms-page");
                 loadUserRooms();
                 
+                // Reset current room
                 currentRoom = { id: null, name: null, inviteCode: null, isPrivate: false };
                 clearChatState();
             }
@@ -2977,14 +2578,19 @@ async function handleLeaveRoom() {
     );
 }
 
+// 🔥 FIX: HANDLE SEND MESSAGE - ΔΕΝ ΣΤΕΛΝΕΙ ΑΡΧΕΙΑ ΑΠΟ ΕΔΩ
 function handleSendMessage() {
     const input = document.getElementById("message-input");
     const text = input.value.trim();
 
+    // 🔥 ΚΡΙΤΙΚΟ: Αν υπάρχει επιλεγμένο αρχείο, ΜΗΝ κάνεις τίποτα εδώ
+    // Το uploadFile() θα το χειριστεί
     if (selectedFile && !fileUploadInProgress) {
+        // ΔΕΝ καλούμε uploadFile() εδώ - το κουμπί "Send File" το κάνει
         return;
     }
 
+    // Αν δεν υπάρχει κείμενο ή δεν είμαστε σε room
     if (!text || !currentRoom.id) return;
 
     const messageData = {
@@ -3035,6 +2641,7 @@ async function loadUserProfile() {
 }
 
 function updateProfileUI(profile) {
+    // Basic info
     document.getElementById("profile-username").textContent = profile.username || currentUser.username;
     document.getElementById("profile-email").textContent = profile.email || currentUser.email;
     document.getElementById("info-username").textContent = profile.username || currentUser.username;
@@ -3042,6 +2649,7 @@ function updateProfileUI(profile) {
     document.getElementById("info-status").textContent = profile.status || "Online";
     document.getElementById("info-status").className = `info-value status-${profile.status?.toLowerCase() || 'online'}`;
     
+    // Joined date
     if (profile.created_at) {
         const joinedDate = new Date(profile.created_at).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -3051,8 +2659,10 @@ function updateProfileUI(profile) {
         document.getElementById("info-joined").textContent = joinedDate;
     }
     
+    // Profile picture
     const profileImage = document.getElementById("profile-image");
     if (profile.profile_picture) {
+        // 🔥 ΕΔΩ ΑΛΛΑΓΗ: Χρήση Base64 string απευθείας
         profileImage.src = profile.profile_picture;
         profileImage.style.display = 'block';
     } else {
@@ -3064,7 +2674,6 @@ function updateProfileStats(stats) {
     document.getElementById("stat-friends").textContent = stats.friends || 0;
     document.getElementById("stat-rooms").textContent = stats.rooms || 0;
     document.getElementById("stat-messages").textContent = stats.messages || 0;
-    document.getElementById("stat-events").textContent = stats.events || 0;
 }
 
 function showProfilePage() {
@@ -3072,9 +2681,11 @@ function showProfilePage() {
     showPage("profile-page");
 }
 
+// Προσθήκη αυτών των γραμμών στο uploadProfilePicture() συνάρτηση:
 async function uploadProfilePicture(file) {
     if (!file) return;
     
+    // 🔥 ΒΕΛΤΙΩΣΗ: Προσθήκη loading state
     const uploadBtn = document.getElementById("change-profile-pic-btn");
     const originalHTML = uploadBtn.innerHTML;
     uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
@@ -3098,10 +2709,13 @@ async function uploadProfilePicture(file) {
             if (data.success) {
                 showNotification("Profile picture updated successfully!", "avatar_upload_success", "Avatar Updated");
                 
+                // 🔥 ΑΛΛΑΓΗ: Clear cache και ανανέωση Base64 string
                 delete userAvatars[currentUser.username];
                 
+                // Update all avatar elements
                 await loadCurrentUserAvatar();
                 
+                // Ενημέρωση cache με το νέο Base64
                 userAvatars[currentUser.username] = data.profile_picture;
             }
         } else {
@@ -3111,11 +2725,13 @@ async function uploadProfilePicture(file) {
         console.error("Error uploading profile picture:", error);
         showNotification("Failed to upload profile picture", "error", "Upload Error");
     } finally {
+        // Επαναφορά του κουμπιού
         uploadBtn.innerHTML = originalHTML;
         uploadBtn.disabled = false;
     }
 }
 
+// Edit profile
 async function saveProfileChanges(username, email, profilePicture) {
     try {
         const updateData = {};
@@ -3146,6 +2762,7 @@ async function saveProfileChanges(username, email, profilePicture) {
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
+                // Update current user if username changed
                 if (data.user) {
                     currentUser.username = data.user.username;
                     currentUser.email = data.user.email;
@@ -3163,6 +2780,7 @@ async function saveProfileChanges(username, email, profilePicture) {
     }
 }
 
+// Change password
 async function changePassword(currentPassword, newPassword, confirmPassword) {
     if (newPassword !== confirmPassword) {
         showNotification("Passwords do not match!", "error", "Password Error");
@@ -3200,9 +2818,10 @@ async function changePassword(currentPassword, newPassword, confirmPassword) {
 
 // ===== CLEAR MESSAGES FUNCTIONS =====
 
+// 🔥 FIXED: Clear messages - Διαγράφει ΚΑΙ από τη βάση δεδομένων
 async function handleClearMessages() {
     if (!currentRoom.id) {
-        showNotification("You are not in a meet", "info", "No Meet");
+        showNotification("You are not in a room", "info", "No Room");
         return;
     }
     
@@ -3211,6 +2830,7 @@ async function handleClearMessages() {
         "Clear Messages",
         async () => {
             try {
+                // 1. Διαγραφή από τη βάση δεδομένων
                 const requestData = {
                     username: currentUser.username,
                     isPrivate: currentRoom.isPrivate
@@ -3238,6 +2858,7 @@ async function handleClearMessages() {
                 const data = await response.json();
                 
                 if (data.success) {
+                    // 2. Καθαρισμός του UI
                     document.getElementById("messages-container").innerHTML = "";
                     
                     showNotification(
@@ -3265,6 +2886,30 @@ async function handleClearMessages() {
     );
 }
 
+// 🔥 ΝΕΟ: WebSocket event για όταν κάποιος άλλος κάνει clear
+socket.on("messages_cleared", (data) => {
+    console.log("🗑️ Messages cleared event:", data);
+    
+    // Έλεγχος αν το event αφορά το τρέχον chat
+    const shouldClear = (
+        (data.type === 'private' && currentRoom.isPrivate && 
+         (data.user1 === currentUser.username || data.user2 === currentUser.username) &&
+         (data.user1 === currentRoom.name || data.user2 === currentRoom.name)) ||
+        (data.type === 'group' && !currentRoom.isPrivate && data.roomId === currentRoom.id)
+    );
+    
+    if (shouldClear) {
+        // Καθαρισμός του UI
+        document.getElementById("messages-container").innerHTML = "";
+        
+        showNotification(
+            "Messages have been cleared", 
+            "info", 
+            "Messages Cleared"
+        );
+    }
+});
+
 // ===== SOCKET EVENT HANDLERS =====
 
 socket.on("connect", () => {
@@ -3288,12 +2933,13 @@ socket.on("chat message", (message) => {
     if (message.room_id === currentRoom.id) {
         addMessageToChat(message);
     } else if (message.sender !== currentUser.username) {
+        // Προσθήκη unread για group message
         addUnreadMessage('group', message.sender, message.room_id);
         
         showNotification(
-            `New message from ${message.sender} in a meet`, 
+            `New message from ${message.sender} in a room`, 
             "info", 
-            "New Meet Message",
+            "New Room Message",
             {
                 type: 'room_message',
                 roomId: message.room_id,
@@ -3309,6 +2955,7 @@ socket.on("private message", (message) => {
     if (currentRoom.isPrivate && isFromCurrentFriend) {
         addMessageToChat(message);
     } else if (message.sender !== currentUser.username) {
+        // Προσθήκη unread για private message
         addUnreadMessage('private', message.sender);
         
         showNotification(
@@ -3323,15 +2970,18 @@ socket.on("private message", (message) => {
     }
 });
 
+// 🔥 FIX: WebSocket event - ΔΕΝ ΠΡΟΣΘΕΤΟΥΜΕ ΤΟ ΜΗΝΥΜΑ 2 ΦΟΡΕΣ
 socket.on("file_upload", (data) => {
     console.log("📁 File upload received:", data);
     
+    // 🔥 ΕΛΕΓΧΟΣ: Προσθέτουμε το μήνυμα ΜΟΝΟ αν είμαστε στο σωστό room/chat
     const shouldDisplay = (
         (currentRoom.isPrivate && (data.sender === currentRoom.name || data.receiver === currentRoom.name)) ||
         (!currentRoom.isPrivate && data.room_id === currentRoom.id)
     );
     
     if (shouldDisplay) {
+        // 🔥 ΕΛΕΓΧΟΣ: ΔΕΝ προσθέτουμε το μήνυμα αν ΗΔΗ υπάρχει με το ίδιο fileId
         const existingMessage = Array.from(document.querySelectorAll('.message')).find(msg => {
             return msg.textContent.includes(data.fileName);
         });
@@ -3354,6 +3004,7 @@ socket.on("file_upload", (data) => {
             console.log('⚠️ Message already exists, skipping duplicate');
         }
         
+        // Εμφάνιση notification ΜΟΝΟ αν δεν είμαστε ο αποστολέας
         if (data.sender !== currentUser.username) {
             showNotification(
                 `${data.sender} sent a file: ${data.fileName}`,
@@ -3364,6 +3015,7 @@ socket.on("file_upload", (data) => {
     }
 });
 
+// 🔥 ΝΕΟ: Unread summary από server
 socket.on("unread_summary", (summary) => {
     console.log("📊 Received unread summary:", summary);
     
@@ -3376,6 +3028,7 @@ socket.on("unread_summary", (summary) => {
     updateRoomsListBadges();
 });
 
+// 🔥 ΝΕΟ: Real-time unread updates
 socket.on("unread_update", (data) => {
     console.log("📬 Unread update:", data);
     
@@ -3386,13 +3039,16 @@ socket.on("unread_update", (data) => {
     }
 });
 
+// 🔥 ΝΕΟ: Unread cleared confirmation - FIXED για console spam
 socket.on("unread_cleared", (data) => {
+    // Μόνο αν έχουμε πραγματικά δεδομένα
     if (data && (data.type || data.sender || data.roomId)) {
         console.log("✅ Unread cleared:", data);
         clearUnread(data.type, data.sender, data.roomId);
     }
 });
 
+// 🔥 ΝΕΟ: Server notifications με actions
 socket.on("notification", (data) => {
     console.log("🔔 Server notification:", data);
     
@@ -3443,10 +3099,14 @@ socket.on("room members", (members) => {
         updateRoomMembers(members);
         document.getElementById("room-status").textContent = `${members.length} members`;
         
+        // Ενημέρωση κατάστασης για κάθε μέλος
         members.forEach(member => {
+            // Υποθέτουμε ότι είναι online όταν εμφανίζεται στη λίστα
+            // Μπορείς να βελτιώσεις αυτό με WebSocket status updates
             updateUserStatusInUI(member.username, true);
         });
         
+        // Make member items clickable για το user info modal
         setTimeout(() => {
             makeMemberItemsClickable();
             loadMemberAvatars();
@@ -3493,22 +3153,30 @@ socket.on("friend_request_accepted", (data) => {
     }
 });
 
+// 🔥 ΕΝΗΜΕΡΩΣΗ: WebSocket event όταν ένας χρήστης φεύγει από το room ΜΑΝΟΥΑΛΙΑ
 socket.on("user_left", (data) => {
     console.log(`👋 User ${data.username} left room ${data.roomId}`);
     
+    // Αν είμαστε στο ίδιο room, ανανέωσε τη λίστα μελών
     if (currentRoom.id === data.roomId) {
+        // Επαναφόρτωση της λίστας μελών
         socket.emit("get room members", { roomId: currentRoom.id });
     }
     
+    // Εμφάνιση notification μόνο αν δεν είμαστε εμείς που φύγαμε
     if (data.username !== currentUser.username) {
-        showNotification(`${data.username} left the meet`, "info", "User Left");
+        showNotification(`${data.username} left the room`, "info", "User Left");
     }
 });
 
+// 🔥 ΠΡΟΣΘΗΚΗ: WebSocket event όταν ένας χρήστης αποσυνδέεται (αλλά παραμένει στο room)
 socket.on("user_disconnected", (data) => {
     console.log(`📡 User ${data.username} disconnected from room ${data.roomId} (still a member)`);
     
+    // Αν είμαστε στο ίδιο room, ενημέρωσε ότι ο χρήστης είναι offline
     if (currentRoom.id === data.roomId) {
+        // Μπορούμε να ενημερώσουμε το UI ότι ο χρήστης είναι offline
+        // αλλά ΔΕΝ τον αφαιρούμε από τη λίστα
         const memberItem = document.querySelector(`.member-item[data-username="${data.username}"]`);
         if (memberItem) {
             const statusDot = memberItem.querySelector('.status-dot');
@@ -3520,9 +3188,10 @@ socket.on("user_disconnected", (data) => {
     }
 });
 
+// 🔥 ΠΡΟΣΘΗΚΗ: Εντολή για leave room στο WebSocket
 socket.on("leave_room_success", (data) => {
     console.log("✅ Successfully left room:", data.roomId);
-    showNotification("Left meet successfully", "info", "Meet Left");
+    showNotification("Left room successfully", "info", "Room Left");
 });
 
 socket.on("session_expired", () => {
@@ -3544,41 +3213,6 @@ socket.on("connect_error", (error) => {
     console.error("🔌 Connection error:", error);
 });
 
-// ===== EVENT SOCKET HANDLERS =====
-
-socket.on('new_event', (data) => {
-    console.log('🎪 New event received:', data);
-    
-    if (data.roomId === currentRoom.id) {
-        if (!roomEvents[data.roomId]) {
-            roomEvents[data.roomId] = [];
-        }
-        roomEvents[data.roomId].push(data.event);
-        updateEventsList(data.roomId);
-        
-        showNotification(`New event: ${data.event.title}`, 'info', 'New Event');
-    }
-});
-
-socket.on('event_updated', (data) => {
-    console.log('🔄 Event updated:', data);
-    
-    if (roomEvents[data.roomId]) {
-        const index = roomEvents[data.roomId].findIndex(e => e.id === data.event.id);
-        if (index !== -1) {
-            roomEvents[data.roomId][index] = data.event;
-            updateEventsList(data.roomId);
-            
-            if (currentEvent && currentEvent.id === data.event.id) {
-                currentEvent = data.event;
-                if (document.getElementById('event-page')?.classList.contains('active')) {
-                    showEventDetails(data.event.id);
-                }
-            }
-        }
-    }
-});
-
 // ===== EVENT LISTENERS =====
 
 function initializeEventListeners() {
@@ -3595,6 +3229,7 @@ function initializeEventListeners() {
         showPage("friends-page");
     });
 
+    // ΠΡΟΣΘΗΚΗ: Profile button listener
     document.getElementById("my-profile-btn").addEventListener("click", showProfilePage);
 
     document.getElementById("logout-btn").addEventListener("click", handleLogout);
@@ -3698,6 +3333,7 @@ function initializeEventListeners() {
         this.style.height = this.scrollHeight + "px";
     });
 
+    // ΑΝΤΙΚΑΤΑΣΤΑΣΗ ΤΟΥ copy-invite-btn EVENT LISTENER
     document.getElementById("copy-invite-btn").addEventListener("click", () => {
         if (currentRoom.isPrivate) {
             showNotification("Invite codes are not available for private chats", "info", "Private Chat");
@@ -3707,7 +3343,7 @@ function initializeEventListeners() {
         const inviteCode = document.getElementById("room-invite-code").textContent;
         if (inviteCode && inviteCode !== "------" && inviteCode !== "Private Chat") {
             navigator.clipboard.writeText(inviteCode).then(() => {
-                showNotification("Meet code copied!", "success", "Copied!");
+                showNotification("Invite code copied!", "success", "Copied!");
             });
         }
     });
@@ -3719,38 +3355,33 @@ function initializeEventListeners() {
         });
     });
 
+    // 🔥 FIXED: Leave room button
     document.getElementById("leave-room-btn").addEventListener("click", handleLeaveRoom);
 
+    // 🔥 ΑΛΛΑΓΗ: Ενημέρωση του event listener για το clear button
     document.getElementById("clear-messages-btn").addEventListener("click", handleClearMessages);
 
+    // Initialize file upload system
     initializeUploadAndEmojiListeners();
 
+    // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
     initializeProfileEventListeners();
-    
-    const browseEventsBtn = document.getElementById('browse-events-btn');
-    if (browseEventsBtn) {
-        browseEventsBtn.addEventListener('click', () => {
-            showNotification('Events browsing feature coming soon!', 'info', 'Coming Soon');
-        });
-    }
-    
-    const myEventsBtn = document.getElementById('my-events-btn');
-    if (myEventsBtn) {
-        myEventsBtn.addEventListener('click', () => {
-            showNotification('My events feature coming soon!', 'info', 'Coming Soon');
-        });
-    }
 }
 
+// ===== PROFILE EVENT LISTENERS =====
+
 function initializeProfileEventListeners() {
+    // Back from profile button
     document.getElementById("back-from-profile-btn").addEventListener("click", () => {
         showPage("home-page");
     });
     
+    // Change profile picture button
     document.getElementById("change-profile-pic-btn").addEventListener("click", () => {
         document.getElementById("profile-image-input").click();
     });
     
+    // Profile image input
     document.getElementById("profile-image-input").addEventListener("change", function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -3758,22 +3389,26 @@ function initializeProfileEventListeners() {
         }
     });
     
+    // Edit profile button
     document.getElementById("edit-profile-btn").addEventListener("click", () => {
         showModal("edit-profile-modal");
         document.getElementById("edit-username").value = currentUser.username;
         document.getElementById("edit-email").value = currentUser.email;
     });
     
+    // Change password button
     document.getElementById("change-password-btn").addEventListener("click", () => {
         showModal("change-password-modal");
     });
     
+    // Save profile changes
     document.getElementById("save-profile-btn").addEventListener("click", () => {
         const username = document.getElementById("edit-username").value;
         const email = document.getElementById("edit-email").value;
         saveProfileChanges(username, email);
     });
     
+    // Save password
     document.getElementById("save-password-btn").addEventListener("click", () => {
         const currentPassword = document.getElementById("current-password").value;
         const newPassword = document.getElementById("new-password").value;
@@ -3781,11 +3416,13 @@ function initializeProfileEventListeners() {
         changePassword(currentPassword, newPassword, confirmPassword);
     });
     
+    // Cancel buttons
     document.getElementById("cancel-edit-profile-btn").addEventListener("click", hideAllModals);
     document.getElementById("cancel-password-btn").addEventListener("click", hideAllModals);
     document.getElementById("close-edit-profile-modal").addEventListener("click", hideAllModals);
     document.getElementById("close-change-password-modal").addEventListener("click", hideAllModals);
     
+    // User info modal actions
     document.getElementById("close-user-info-modal").addEventListener("click", hideAllModals);
     
     document.getElementById("send-private-message-btn").addEventListener("click", () => {
@@ -3806,6 +3443,7 @@ function initializeProfileEventListeners() {
         showNotification("Feature coming soon!", "info", "Coming Soon");
     });
     
+    // Avatar preview for registration
     document.getElementById("register-browse-btn").addEventListener("click", () => {
         document.getElementById("register-avatar-input").click();
     });
@@ -3825,9 +3463,12 @@ function initializeProfileEventListeners() {
     });
 }
 
+// ===== ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ ΓΙΑ ΕΝΗΜΕΡΩΣΗ ΚΑΤΑΣΤΑΣΗΣ ΧΡΗΣΤΗ =====
+
 function updateUserStatusInUI(username, isOnline) {
     const memberItem = document.querySelector(`.member-item[data-username="${username}"]`);
     if (memberItem) {
+        // Προσθήκη status dot αν δεν υπάρχει
         let statusDot = memberItem.querySelector('.status-dot');
         if (!statusDot) {
             const avatarContainer = memberItem.querySelector('.member-avatar');
@@ -3862,6 +3503,7 @@ function initMobileSidebar() {
     const isMobile = window.innerWidth <= 768;
     
     if (isMobile && sidebar) {
+        // Create overlay
         let overlay = document.querySelector('.sidebar-overlay');
         if (!overlay) {
             overlay = document.createElement('div');
@@ -3869,6 +3511,7 @@ function initMobileSidebar() {
             document.body.appendChild(overlay);
         }
         
+        // Toggle sidebar on click
         sidebar.addEventListener('click', function(e) {
             if (!e.target.closest('.btn-icon') && !e.target.closest('.action-btn')) {
                 this.classList.toggle('mobile-expanded');
@@ -3876,11 +3519,13 @@ function initMobileSidebar() {
             }
         });
         
+        // Close sidebar when clicking overlay
         overlay.addEventListener('click', function() {
             sidebar.classList.remove('mobile-expanded');
             this.classList.remove('active');
         });
         
+        // Close sidebar when clicking in main chat area
         const mainChat = document.getElementById('main-chat');
         if (mainChat) {
             mainChat.addEventListener('click', function() {
@@ -3889,6 +3534,7 @@ function initMobileSidebar() {
             });
         }
     } else {
+        // Remove mobile expanded state on larger screens
         if (sidebar) {
             sidebar.classList.remove('mobile-expanded');
         }
@@ -3899,10 +3545,12 @@ function initMobileSidebar() {
     }
 }
 
+// Enhanced mobile view detection
 function isMobileDevice() {
     return window.innerWidth <= 768;
 }
 
+// Update UI elements based on mobile state
 function updateMobileUI() {
     if (isMobileDevice()) {
         document.body.classList.add('mobile-view');
@@ -3916,9 +3564,11 @@ function updateMobileUI() {
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("🐀 RatScape client initialized");
 
+    // Create notification container first
     createNotificationContainer();
     initializeEventListeners();
 
+    // Initialize mobile responsive features
     initMobileSidebar();
     updateMobileUI();
     window.addEventListener('resize', function() {
@@ -3926,6 +3576,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateMobileUI();
     });
 
+    // Προσθήκη CSS animations για unread system, file upload, και emoji picker
     const unreadStyle = document.createElement('style');
     unreadStyle.textContent = `
         @keyframes highlightPulse {
@@ -3963,6 +3614,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             animation: badgePop 0.3s ease-out;
         }
         
+        /* CSS για disabled copy button */
         #copy-invite-btn:disabled {
             opacity: 0.5 !important;
             cursor: not-allowed !important;
@@ -3972,6 +3624,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             transform: none !important;
         }
         
+        /* Avatar styling */
         .member-avatar, #sidebar-avatar, .friend-avatar {
             overflow: hidden;
         }
@@ -3983,6 +3636,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             border-radius: 50%;
         }
         
+        /* Message text better wrapping */
         .message-text {
             white-space: pre-wrap;
             word-wrap: break-word;
@@ -3990,6 +3644,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             word-break: break-word;
         }
         
+        /* File upload preview styling */
         .file-preview-container {
             margin: 10px 0;
             padding: 10px;
@@ -4050,6 +3705,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             background: var(--accent-red);
         }
         
+        /* Image preview modal */
         .image-preview-modal {
             position: fixed;
             top: 0;
@@ -4093,6 +3749,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             justify-content: center;
         }
         
+        /* Emoji picker styling */
         .emoji-picker-modal {
             position: fixed;
             top: 0;
@@ -4171,781 +3828,118 @@ document.addEventListener("DOMContentLoaded", async () => {
             transform: scale(1.1);
         }
         
-        /* Events System Styles */
-        .room-events-section {
-            margin: 15px 0;
-            padding: 15px;
-            background: rgba(38, 38, 38, 0.7);
-            border-radius: var(--radius);
-            border: 1px solid var(--border-color);
-        }
-        
-        .room-events-section h3 {
-            color: var(--text);
-            font-size: 0.9rem;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .events-list {
-            max-height: 200px;
-            overflow-y: auto;
-            margin-bottom: 10px;
-        }
-        
-        .event-item {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            background: rgba(26, 26, 26, 0.5);
-            border-radius: var(--radius);
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .event-item:hover {
-            background: rgba(139, 0, 0, 0.2);
-            transform: translateX(5px);
-        }
-        
-        .event-date {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: var(--primary);
-            color: white;
-            border-radius: 8px;
-            padding: 8px;
-            min-width: 50px;
-            margin-right: 10px;
-        }
-        
-        .event-day {
-            font-size: 1.2rem;
-            font-weight: bold;
-            line-height: 1;
-        }
-        
-        .event-month {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-        }
-        
-        .event-info {
-            flex: 1;
-        }
-        
-        .event-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text);
-            margin: 0 0 5px 0;
-        }
-        
-        .event-location {
-            font-size: 0.75rem;
-            color: var(--text-light);
-            margin: 0 0 3px 0;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .event-stats {
-            font-size: 0.7rem;
-            color: var(--text-light);
-        }
-        
-        .view-event-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-light);
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 50%;
-        }
-        
-        .view-event-btn:hover {
-            background: rgba(139, 0, 0, 0.2);
-            color: var(--accent-red);
-        }
-        
-        .no-events {
-            text-align: center;
+        /* Social media footer */
+        .social-media-footer {
+            margin-top: 40px;
             padding: 20px;
-            color: var(--text-light);
-            font-size: 0.9rem;
-        }
-        
-        /* Event Details Page */
-        .event-details-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .event-header {
-            position: relative;
-            border-radius: var(--radius);
-            overflow: hidden;
-            margin-bottom: 20px;
-        }
-        
-        .event-image {
-            height: 300px;
-            background-size: cover;
-            background-position: center;
-            position: relative;
-        }
-        
-        .event-header-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
-            padding: 30px;
-            color: white;
-        }
-        
-        .event-title-large {
-            font-size: 2.5rem;
-            margin: 0 0 10px 0;
-            color: white;
-        }
-        
-        .event-basic-info {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .event-date-large, .event-location-large {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.1rem;
-        }
-        
-        .event-content {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 30px;
-            margin-top: 30px;
-        }
-        
-        .event-section {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid var(--border-color);
-        }
-        
-        .event-section h3 {
-            color: var(--text);
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .event-description {
-            line-height: 1.6;
-            color: var(--text);
-            white-space: pre-line;
-        }
-        
-        .attendees-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 15px;
-        }
-        
-        .attendee-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 15px;
-            background: rgba(38, 38, 38, 0.7);
-            border-radius: var(--radius);
             text-align: center;
-        }
-        
-        .attendee-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: var(--primary);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.2rem;
-            margin-bottom: 10px;
-        }
-        
-        .attendee-name {
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 5px;
-        }
-        
-        .attendee-status {
-            font-size: 0.8rem;
-            color: var(--text-light);
-        }
-        
-        .event-chat-container {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-        }
-        
-        .event-messages {
-            height: 200px;
-            overflow-y: auto;
-            padding: 15px;
-        }
-        
-        .event-message {
-            margin-bottom: 10px;
-            padding: 10px;
-            background: rgba(38, 38, 38, 0.7);
-            border-radius: var(--radius);
-        }
-        
-        .event-message-sender {
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 5px;
-        }
-        
-        .event-message-text {
-            color: var(--text);
-            margin-bottom: 5px;
-        }
-        
-        .event-message-time {
-            font-size: 0.7rem;
-            color: var(--text-light);
-            text-align: right;
-        }
-        
-        .event-chat-input {
-            display: flex;
-            padding: 15px;
             border-top: 1px solid var(--border-color);
-            background: rgba(26, 26, 26, 0.5);
         }
         
-        .event-chat-input input {
-            flex: 1;
-            padding: 10px 15px;
-            background: var(--input-bg);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius);
-            color: var(--text);
-            font-size: 0.9rem;
-        }
-        
-        .event-chat-input button {
-            margin-left: 10px;
-        }
-        
-        .event-sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .event-card {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 20px;
-            border: 1px solid var(--border-color);
-        }
-        
-        .event-card h4 {
+        .social-media-footer h3 {
             color: var(--text);
             margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .event-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            text-align: center;
-        }
-        
-        .event-stat {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        
-        .event-stat .stat-number {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--accent-red);
-        }
-        
-        .event-stat .stat-label {
-            font-size: 0.8rem;
-            color: var(--text-light);
-            margin-top: 5px;
-        }
-        
-        .organizer-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .organizer-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: var(--primary);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.5rem;
-        }
-        
-        .organizer-details {
-            flex: 1;
-        }
-        
-        .organizer-name {
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 5px;
-        }
-        
-        .organizer-role {
-            font-size: 0.8rem;
-            color: var(--text-light);
-        }
-        
-        .quick-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .quick-actions button {
-            width: 100%;
-        }
-        
-        .no-attendees {
-            text-align: center;
-            padding: 20px;
-            color: var(--text-light);
-            font-size: 0.9rem;
-        }
-        
-        /* Featured meets on home page */
-        .featured-section {
-            padding: 60px 20px;
-            background: var(--background);
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .section-title {
-            text-align: center;
-            color: var(--text);
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-        
-        .section-subtitle {
-            text-align: center;
-            color: var(--text-light);
-            margin-bottom: 40px;
             font-size: 1.1rem;
         }
         
-        .featured-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-top: 40px;
-        }
-        
-        .featured-card {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        
-        .featured-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-        
-        .featured-image {
-            height: 200px;
-            background-size: cover;
-            background-position: center;
-            position: relative;
-        }
-        
-        .featured-badge {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: var(--accent-red);
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-        
-        .featured-badge.upcoming {
-            background: var(--primary);
-        }
-        
-        .featured-content {
-            padding: 20px;
-        }
-        
-        .featured-content h3 {
-            color: var(--text);
-            margin-bottom: 10px;
-            font-size: 1.3rem;
-        }
-        
-        .featured-location, .featured-date {
-            color: var(--text-light);
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-        }
-        
-        .featured-stats {
-            display: flex;
-            justify-content: space-between;
-            margin: 15px 0;
-            color: var(--text-light);
-            font-size: 0.9rem;
-        }
-        
-        .btn-block {
-            display: block;
-            width: 100%;
-        }
-        
-        /* Categories section */
-        .categories-section {
-            padding: 60px 20px;
-            background: rgba(26, 26, 26, 0.5);
-        }
-        
-        .categories-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 25px;
-            margin-top: 40px;
-        }
-        
-        .category-card {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 25px;
-            text-align: center;
-            border: 1px solid var(--border-color);
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .category-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--accent-red);
-            background: rgba(139, 0, 0, 0.1);
-        }
-        
-        .category-icon {
-            width: 60px;
-            height: 60px;
-            background: var(--primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            color: white;
-            font-size: 1.5rem;
-        }
-        
-        .category-card h3 {
-            color: var(--text);
-            margin-bottom: 10px;
-            font-size: 1.2rem;
-        }
-        
-        .category-card p {
-            color: var(--text-light);
-            font-size: 0.9rem;
-            margin-bottom: 10px;
-        }
-        
-        .category-count {
-            color: var(--accent-red);
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-        
-        /* Gallery section */
-        .gallery-section {
-            padding: 60px 20px;
-            background: var(--background);
-        }
-        
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 40px;
-        }
-        
-        .gallery-item {
-            position: relative;
-            border-radius: var(--radius);
-            overflow: hidden;
-            height: 250px;
-        }
-        
-        .gallery-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s ease;
-        }
-        
-        .gallery-item:hover .gallery-image {
-            transform: scale(1.1);
-        }
-        
-        .gallery-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-            padding: 15px;
-            color: white;
-            font-weight: 600;
-        }
-        
-        /* Stats section */
-        .stats-section {
-            padding: 60px 20px;
-            background: rgba(26, 26, 26, 0.5);
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 30px;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        
-        .stat-item {
-            text-align: center;
-        }
-        
-        .stat-number {
-            font-size: 3rem;
-            font-weight: bold;
-            color: var(--accent-red);
-            margin-bottom: 10px;
-        }
-        
-        .stat-label {
-            color: var(--text-light);
-            font-size: 1.1rem;
-        }
-        
-        /* Social media section */
-        .social-media-section {
-            padding: 60px 20px;
-            background: var(--background);
-        }
-        
-        .social-icons-grid {
+        .social-icons {
             display: flex;
             justify-content: center;
             gap: 20px;
             flex-wrap: wrap;
-            margin: 40px 0;
         }
         
-        .social-icon-circle {
-            width: 60px;
-            height: 60px;
+        .social-icon {
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             color: white;
+            font-size: 1.5rem;
             text-decoration: none;
             transition: all 0.3s ease;
         }
         
-        .social-icon-circle:hover {
+        .social-icon:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
         
-        .social-icon-circle i {
-            font-size: 1.5rem;
-            margin-bottom: 5px;
-        }
-        
-        .social-icon-label {
-            font-size: 0.7rem;
-            opacity: 0.9;
-        }
-        
-        .social-icon-circle.instagram {
+        .social-icon.instagram {
             background: linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D);
         }
         
-        .social-icon-circle.facebook {
+        .social-icon.facebook {
             background: #1877F2;
         }
         
-        .social-icon-circle.twitter {
+        .social-icon.twitter {
             background: #1DA1F2;
         }
         
-        .social-icon-circle.youtube {
+        .social-icon.youtube {
             background: #FF0000;
         }
         
-        .social-icon-circle.discord {
+        .social-icon.tiktok {
+            background: #000000;
+        }
+        
+        .social-icon.discord {
             background: #5865F2;
         }
         
-        .follow-us {
-            text-align: center;
-            color: var(--text-light);
-            margin-top: 20px;
-            font-size: 0.9rem;
+        /* File item in chat */
+        .message-file {
+            margin-top: 5px;
         }
         
-        /* Hero section */
-        .hero-section {
-            height: 80vh;
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
-                        url('/images/car-meet-hero.jpg');
-            background-size: cover;
-            background-position: center;
+        .file-item {
             display: flex;
             align-items: center;
-            justify-content: center;
-            text-align: center;
-            color: white;
-            padding: 20px;
-        }
-        
-        .hero-overlay {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 40px;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(38, 38, 38, 0.7);
             border-radius: var(--radius);
-            max-width: 800px;
+            border: 1px solid var(--border-color);
         }
         
-        .hero-title {
-            font-size: 3.5rem;
-            margin-bottom: 20px;
-            color: white;
-        }
-        
-        .hero-subtitle {
+        .file-item i {
             font-size: 1.5rem;
-            margin-bottom: 20px;
-            color: #FFD700;
+            color: var(--accent-red);
         }
         
-        .hero-description {
-            font-size: 1.1rem;
-            margin-bottom: 30px;
-            line-height: 1.6;
+        .file-details {
+            flex: 1;
         }
         
-        .hero-btn {
-            margin: 0 10px;
-            padding: 12px 30px;
-            font-size: 1rem;
+        .file-download-link {
+            color: var(--accent-red);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
         }
         
-        @media (max-width: 768px) {
-            .hero-title {
-                font-size: 2.5rem;
-            }
-            
-            .hero-subtitle {
-                font-size: 1.2rem;
-            }
-            
-            .hero-btn {
-                display: block;
-                margin: 10px auto;
-                width: 80%;
-            }
-            
-            .featured-grid,
-            .categories-grid,
-            .gallery-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .event-content {
-                grid-template-columns: 1fr;
-            }
-            
-            .attendees-list {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-        
-        .room-actions {
-            margin-top: 10px;
+        .file-download-link:hover {
+            text-decoration: underline;
         }
     `;
     document.head.appendChild(unreadStyle);
 
     const savedUser = getUserFromLocalStorage();
     
+    // 🔥 ΕΙΔΙΚΗ ΕΠΕΞΕΡΓΑΣΙΑ: Έλεγχος αν πρέπει να επαναφέρουμε chat
     const chatState = loadChatState();
     const lastPageId = localStorage.getItem('ratscape_last_page') || 'home-page';
     
     if (chatState && lastPageId === 'chat-page') {
         console.log('🔄 Προσπάθεια επαναφοράς chat:', chatState);
         
+        // Δείξε το chat page αμέσως (αλλά χωρίς περιεχόμενο ακόμα)
         showPage('chat-page');
     }
 
@@ -4968,9 +3962,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     };
                     updateUIForAuthState();
 
+                    // 🔥 ΕΙΔΙΚΟ: Αν έχουμε αποθηκευμένο chat state, επαναφέρουμε το chat
                     if (chatState && lastPageId === 'chat-page') {
                         console.log('🚀 Επαναφορά chat από saved state...');
                         
+                        // Ενημέρωση του currentRoom
                         currentRoom = {
                             id: chatState.roomId,
                             name: chatState.roomName,
@@ -4978,10 +3974,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                             isPrivate: chatState.isPrivate
                         };
                         
+                        // Ενημέρωση UI
                         document.getElementById("room-name-sidebar").textContent = chatState.roomName;
                         document.getElementById("room-name-header").textContent = chatState.roomName;
                         
                         if (chatState.isPrivate) {
+                            // Private chat
                             document.getElementById("room-description").textContent = `Private conversation with ${chatState.roomName}`;
                             document.getElementById("room-status").textContent = "Private chat";
                             document.getElementById("room-status").classList.add("private-chat");
@@ -4989,13 +3987,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                             document.getElementById("invite-code-container").classList.add("hide-for-private");
                             document.getElementById("copy-invite-btn").style.display = "none";
                             
+                            // Φόρτωση του avatar του χρήστη
                             const sidebarAvatar = document.getElementById("sidebar-avatar");
                             if (sidebarAvatar) {
                                 loadUserAvatar(currentUser.username, sidebarAvatar, true);
                             }
                             
+                            // Φόρτωση private messages
                             loadPrivateMessages(chatState.roomName);
                             
+                            // Εμφάνιση μελών
                             document.getElementById("room-members-list").innerHTML = `
                                 <div class="member-item" data-username="${currentUser.username}">
                                     <div class="member-avatar"></div>
@@ -5013,29 +4014,31 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 </div>
                             `;
                             
+                            // Φόρτωση avatars για τα μέλη
                             setTimeout(() => {
                                 loadMemberAvatars();
                                 makeMemberItemsClickable();
                             }, 100);
                             
                         } else {
+                            // Group room
                             document.getElementById("room-invite-code").textContent = chatState.inviteCode || "------";
                             document.getElementById("invite-code-container").classList.remove("hide-for-private");
                             document.getElementById("copy-invite-btn").style.display = "flex";
                             document.getElementById("copy-invite-btn").disabled = false;
                             
+                            // Join στο room μέσω WebSocket
                             socket.emit("join room", {
                                 roomId: chatState.roomId,
                                 username: currentUser.username,
                                 sessionId: currentUser.sessionId,
                             });
-                            
-                            initEventsForRoom(chatState.roomId);
                         }
                         
                         showPage('chat-page');
                         
                     } else {
+                        // Κανονική ροή - χωρίς chat επαναφορά
                         const lastPage = getLastPage();
                         showPage(lastPage);
                     }
@@ -5045,8 +4048,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                         sessionId: currentUser.sessionId,
                     });
 
+                    // 🔥 Φόρτωση avatar του χρήστη
                     loadCurrentUserAvatar();
                     
+                    // 🔥 Φόρτωση offline notifications
                     await loadOfflineNotifications();
 
                     if (lastPageId === "rooms-page") {
@@ -5079,6 +4084,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             showPage("home-page");
         }
     } else {
+        // 🔥 Αν δεν υπάρχει συνδεδεμένος χρήστης, αλλά έχουμε chat state, το καθαρίζουμε
         if (chatState) {
             clearChatState();
         }
@@ -5088,6 +4094,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("✅ Ready to chat!");
 });
 
+// Αποθήκευση κατάστασης πριν το refresh
 window.addEventListener('beforeunload', function() {
     if (currentRoom.id) {
         saveChatState();
