@@ -321,28 +321,30 @@
                 </div>
 
                 <!-- MEETUP DASHBOARD SECTION -->
-                <div id="meetup-dashboard" class="meetup-dashboard-section">
-                    <div class="meetup-dashboard-header">
-                        <h3>Room Meetups</h3>
-                        <div style="display: flex; gap: 10px;">
-                            <button id="create-meetup-btn" class="btn btn-primary btn-sm">
-                                <i class="fas fa-plus-circle"></i> Create Meetup
-                            </button>
-                            <button id="meetup-toggle-btn" class="meetup-toggle-btn">
-                                <i class="fas fa-calendar-times"></i> Hide
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="meetup-tabs">
-                        <button class="meetup-tab active" data-tab="upcoming">Upcoming</button>
-                        <button class="meetup-tab" data-tab="all">All Meetups</button>
-                    </div>
-                    
-                    <div id="meetup-list" class="meetup-list">
-                        <!-- Meetups will be loaded here -->
-                    </div>
-                </div>
+               <div id="meetup-dashboard" class="meetup-dashboard-section">
+    <div class="meetup-dashboard-header">
+        <h3>Room Meetups</h3>
+        <div style="display: flex; gap: 10px;">
+            <!-- 🔥 ΚΟΥΜΠΙ ΔΗΜΙΟΥΡΓΙΑΣ MEETUP -->
+            <button id="create-meetup-btn" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus-circle"></i> Create Meetup
+            </button>
+            <!-- ΚΟΥΜΠΙ ΚΑΛΥΨΗΣ/ΑΝΟΙΓΜΑΤΟΣ DASHBOARD -->
+            <button id="meetup-toggle-btn" class="meetup-toggle-btn">
+                <i class="fas fa-calendar-times"></i> Hide
+            </button>
+        </div>
+    </div>
+    
+    <div class="meetup-tabs">
+        <button class="meetup-tab active" data-tab="upcoming">Upcoming</button>
+        <button class="meetup-tab" data-tab="all">All Meetups</button>
+    </div>
+    
+    <div id="meetup-list" class="meetup-list">
+        <!-- Meetups will be loaded here -->
+    </div>
+</div>
 
                 <!-- 🔥 ΝΕΟ: FILE UPLOAD PREVIEW -->
                 <div id="file-preview" class="file-preview-container" style="display: none;">
@@ -912,3 +914,4 @@
 </body>
 
 </html>
+
