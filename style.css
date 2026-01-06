@@ -2760,6 +2760,552 @@ body.pwa-mode .pwa-floating-install-button {
     transform: translateY(0);
 }
 
+/* ========================================
+   MEETUP DASHBOARD STYLES
+   ======================================== */
+
+.meetup-dashboard-section {
+    margin: 15px;
+    padding: 15px;
+    background: rgba(26, 26, 26, 0.7);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    max-height: 400px;
+    overflow-y: auto;
+    display: none;
+}
+
+.meetup-dashboard-section.active {
+    display: block;
+    animation: slideInUp 0.3s ease-out;
+}
+
+.meetup-dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.meetup-dashboard-header h3 {
+    color: var(--text);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.meetup-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.meetup-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-light);
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.meetup-tab:hover {
+    color: var(--text);
+    background: rgba(139, 0, 0, 0.2);
+}
+
+.meetup-tab.active {
+    color: var(--accent-red);
+    background: rgba(139, 0, 0, 0.1);
+    border-bottom: 2px solid var(--accent-red);
+}
+
+.meetup-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.meetup-card {
+    background: rgba(38, 38, 38, 0.8);
+    border-radius: var(--radius);
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.meetup-card:hover {
+    border-color: var(--accent-red);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(139, 0, 0, 0.3);
+}
+
+.meetup-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 10px;
+}
+
+.meetup-card-header h4 {
+    color: var(--text);
+    font-size: 1rem;
+    margin: 0;
+    flex: 1;
+}
+
+.meetup-date {
+    font-size: 0.8rem;
+    color: var(--accent-red);
+    font-weight: 600;
+    background: rgba(139, 0, 0, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.meetup-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.meetup-detail-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+.meetup-detail-row i {
+    color: var(--accent-red);
+    width: 16px;
+    text-align: center;
+}
+
+.meetup-attendees {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid rgba(51, 51, 51, 0.5);
+}
+
+.attendees-count {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+.attendees-count i {
+    color: var(--accent-red);
+}
+
+.attendees-count .count-number {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.meetup-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.meetup-action-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-light);
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.meetup-action-btn:hover {
+    background: rgba(139, 0, 0, 0.2);
+    border-color: var(--accent-red);
+    color: var(--text);
+}
+
+.meetup-action-btn.going {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.meetup-action-btn.maybe {
+    background: var(--warning);
+    border-color: var(--warning);
+    color: white;
+}
+
+.meetup-action-btn.not-going {
+    background: var(--accent-red);
+    border-color: var(--accent-red);
+    color: white;
+}
+
+.no-meetups {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-light);
+}
+
+.no-meetups i {
+    font-size: 3rem;
+    color: var(--accent-red);
+    opacity: 0.5;
+    margin-bottom: 10px;
+}
+
+/* Meetup Modal */
+#meetup-modal .modal-content {
+    max-width: 500px;
+}
+
+.meetup-modal-content {
+    padding: 10px 0;
+}
+
+.meetup-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.meetup-form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.meetup-form-row .form-group {
+    flex: 1;
+}
+
+.meetup-form-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* Meetup Details Modal */
+#meetup-details-modal .modal-content {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.meetup-details-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.meetup-details-header {
+    text-align: center;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.meetup-details-header h3 {
+    color: var(--text);
+    margin-bottom: 5px;
+    font-size: 1.3rem;
+}
+
+.meetup-details-meta {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+.meta-item i {
+    color: var(--accent-red);
+}
+
+.meetup-description {
+    background: rgba(38, 38, 38, 0.5);
+    padding: 15px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+.meetup-description h4 {
+    color: var(--text);
+    margin-bottom: 10px;
+    font-size: 1rem;
+}
+
+.meetup-description p {
+    color: var(--text-light);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.meetup-attendees-section {
+    margin-top: 15px;
+}
+
+.meetup-attendees-section h4 {
+    color: var(--text);
+    margin-bottom: 10px;
+    font-size: 1rem;
+}
+
+.attendees-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 10px;
+    background: rgba(38, 38, 38, 0.5);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+.attendee-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(26, 26, 26, 0.5);
+    border-radius: var(--radius);
+}
+
+.attendee-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.attendee-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.attendee-name {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.attendee-status {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.attendee-status.going {
+    background: var(--success);
+    color: white;
+}
+
+.attendee-status.maybe {
+    background: var(--warning);
+    color: white;
+}
+
+.attendee-status.not-going {
+    background: var(--accent-red);
+    color: white;
+}
+
+.meetup-comments-section {
+    margin-top: 20px;
+}
+
+.meetup-comments-section h4 {
+    color: var(--text);
+    margin-bottom: 10px;
+    font-size: 1rem;
+}
+
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 10px;
+    background: rgba(38, 38, 38, 0.5);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+.comment-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(26, 26, 26, 0.5);
+    border-radius: var(--radius);
+}
+
+.comment-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.comment-content {
+    flex: 1;
+}
+
+.comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.comment-author {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.comment-time {
+    color: var(--text-light);
+    font-size: 0.7rem;
+}
+
+.comment-text {
+    color: var(--text-light);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.comment-form {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.comment-form input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    background: rgba(26, 26, 26, 0.9);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.comment-form input:focus {
+    border-color: var(--accent-red);
+    outline: none;
+}
+
+.meetup-details-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: center;
+}
+
+/* Toggle Button για το Dashboard */
+.meetup-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-light);
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.meetup-toggle-btn:hover {
+    background: rgba(139, 0, 0, 0.2);
+    border-color: var(--accent-red);
+    color: var(--text);
+}
+
+.meetup-toggle-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+/* Mobile responsive για meetup dashboard */
+@media (max-width: 768px) {
+    .meetup-dashboard-section {
+        margin: 10px;
+        padding: 10px;
+        max-height: 300px;
+    }
+    
+    .meetup-form-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    #meetup-details-modal .modal-content {
+        max-width: 95%;
+        max-height: 90vh;
+    }
+    
+    .meetup-details-meta {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .attendees-list,
+    .comments-list {
+        max-height: 150px;
+    }
+    
+    .meetup-details-actions {
+        flex-direction: column;
+    }
+    
+    .meetup-details-actions .btn {
+        width: 100%;
+    }
+}
+
 
 /* ========================================
    EMOJI PICKER MODAL STYLES
@@ -3879,3 +4425,4 @@ body::before {
         opacity: 0;
     }
 }
+
