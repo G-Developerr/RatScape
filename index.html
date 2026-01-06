@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RatScape - Group Chat</title>
+    <title>RatScape - Car Meet Platform</title>
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#8B0000">
@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="RatScape">
-    <meta name="description" content="Private group chat with invite codes. Join rooms and chat with friends in real-time.">
+    <meta name="description" content="The ultimate car and bike meetup platform. Find meets, connect with enthusiasts, and share your passion.">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
@@ -69,7 +69,7 @@
         <div class="nav-actions" id="nav-logged-in" style="display: none;">
             <span id="nav-username" class="nav-username"></span>
             <button id="my-friends-btn" class="nav-btn"><i class="fas fa-users"></i> Friends</button>
-            <button id="my-rooms-btn" class="nav-btn"><i class="fas fa-comments"></i> My Rooms</button>
+            <button id="my-rooms-btn" class="nav-btn"><i class="fas fa-comments"></i> My Meets</button>
             <button id="my-profile-btn" class="nav-btn"><i class="fas fa-user-circle"></i> Profile</button>
             <button id="logout-btn" class="nav-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
         </div>
@@ -77,62 +77,256 @@
 
     <!-- HOME PAGE -->
     <div id="home-page" class="page">
-        <div class="hero-section">
-            <h1>Welcome to RatScape</h1>
-            <p>Create private group chats with invite codes. Join rooms and chat with your friends in real-time.</p>
-            <div id="home-cta-logged-out">
-                <button id="home-login-btn" class="cta-btn"><i class="fas fa-sign-in-alt"></i> Login to Start</button>
-                <button id="home-register-btn" class="cta-btn-secondary"><i class="fas fa-user-plus"></i> Create Account</button>
-            </div>
-            <div id="home-cta-logged-in" style="display: none;">
-                <button id="create-room-btn" class="cta-btn"><i class="fas fa-plus-circle"></i> Create Room</button>
-                <button id="join-room-btn" class="cta-btn-secondary"><i class="fas fa-key"></i> Join with Code</button>
-            </div>
-        </div>
-
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-lock"></i></div>
-                <h3>Private Rooms</h3>
-                <p>Create private group chats accessible only with invite codes. Your conversations stay private.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-bolt"></i></div>
-                <h3>Real-time Messaging</h3>
-                <p>Instant message delivery with real-time synchronization across all connected users.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon"><i class="fas fa-user-friends"></i></div>
-                <h3>Group Collaboration</h3>
-                <p>See who's online, share messages, and collaborate with your team in dedicated rooms.</p>
+        <!-- HERO SECTION με background image -->
+        <div class="hero-section" id="car-meet-hero">
+            <div class="hero-overlay">
+                <div class="hero-content">
+                    <h1 class="hero-title">RatScape</h1>
+                    <p class="hero-subtitle">The Ultimate Car & Bike Meetup Platform</p>
+                    <p class="hero-description">Join the largest community of automotive enthusiasts. 
+                        Find meets, connect with riders, and share your passion.</p>
+                    
+                    <div id="home-cta-logged-out">
+                        <button id="home-login-btn" class="cta-btn hero-btn"><i class="fas fa-sign-in-alt"></i> Login to Start</button>
+                        <button id="home-register-btn" class="cta-btn-secondary hero-btn"><i class="fas fa-user-plus"></i> Create Account</button>
+                    </div>
+                    <div id="home-cta-logged-in" style="display: none;">
+                        <button id="create-room-btn" class="cta-btn hero-btn"><i class="fas fa-plus-circle"></i> Create Meet</button>
+                        <button id="join-room-btn" class="cta-btn-secondary hero-btn"><i class="fas fa-key"></i> Join Meet</button>
+                        <button id="browse-events-btn" class="cta-btn-secondary hero-btn"><i class="fas fa-calendar-alt"></i> Browse Events</button>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- 🔥 ΝΕΟ: SOCIAL MEDIA FOOTER SECTION -->
+        <!-- FEATURED MEETS SECTION -->
+        <div class="featured-section">
+            <div class="container">
+                <h2 class="section-title">Featured Car Meets</h2>
+                <p class="section-subtitle">Check out the hottest meets happening near you</p>
+                
+                <div class="featured-grid">
+                    <div class="featured-card">
+                        <div class="featured-image" style="background-image: url('/images/car-meet-1.jpg');">
+                            <span class="featured-badge">LIVE</span>
+                        </div>
+                        <div class="featured-content">
+                            <h3>Athens Night Riders</h3>
+                            <p class="featured-location"><i class="fas fa-map-marker-alt"></i> Athens, Greece</p>
+                            <p class="featured-date"><i class="fas fa-calendar"></i> Every Friday, 20:00</p>
+                            <div class="featured-stats">
+                                <span><i class="fas fa-users"></i> 128 Attending</span>
+                                <span><i class="fas fa-comments"></i> 45 Chatting</span>
+                            </div>
+                            <button class="btn btn-primary btn-block join-featured-btn">Join Meet</button>
+                        </div>
+                    </div>
+                    
+                    <div class="featured-card">
+                        <div class="featured-image" style="background-image: url('/images/car-meet-2.jpg');">
+                            <span class="featured-badge upcoming">UPCOMING</span>
+                        </div>
+                        <div class="featured-content">
+                            <h3>Greek Supercar Sunday</h3>
+                            <p class="featured-location"><i class="fas fa-map-marker-alt"></i> Thessaloniki, Greece</p>
+                            <p class="featured-date"><i class="fas fa-calendar"></i> Next Sunday, 10:00</p>
+                            <div class="featured-stats">
+                                <span><i class="fas fa-users"></i> 89 Attending</span>
+                                <span><i class="fas fa-comments"></i> 32 Chatting</span>
+                            </div>
+                            <button class="btn btn-primary btn-block join-featured-btn">Join Meet</button>
+                        </div>
+                    </div>
+                    
+                    <div class="featured-card">
+                        <div class="featured-image" style="background-image: url('/images/car-meet-3.jpg');">
+                            <span class="featured-badge">LIVE</span>
+                        </div>
+                        <div class="featured-content">
+                            <h3>Classic Car Gathering</h3>
+                            <p class="featured-location"><i class="fas fa-map-marker-alt"></i> Patras, Greece</p>
+                            <p class="featured-date"><i class="fas fa-calendar"></i> Every Saturday, 18:00</p>
+                            <div class="featured-stats">
+                                <span><i class="fas fa-users"></i> 64 Attending</span>
+                                <span><i class="fas fa-comments"></i> 28 Chatting</span>
+                            </div>
+                            <button class="btn btn-primary btn-block join-featured-btn">Join Meet</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MEET CATEGORIES -->
+        <div class="categories-section">
+            <div class="container">
+                <h2 class="section-title">Browse by Vehicle Type</h2>
+                <p class="section-subtitle">Find meets for your specific interest</p>
+                
+                <div class="categories-grid">
+                    <div class="category-card" data-category="supercars">
+                        <div class="category-icon">
+                            <i class="fas fa-car"></i>
+                        </div>
+                        <h3>Supercars</h3>
+                        <p>Lamborghini, Ferrari, Porsche meets</p>
+                        <span class="category-count">12 Active Meets</span>
+                    </div>
+                    
+                    <div class="category-card" data-category="classic">
+                        <div class="category-icon">
+                            <i class="fas fa-car-side"></i>
+                        </div>
+                        <h3>Classic Cars</h3>
+                        <p>Vintage & retro car gatherings</p>
+                        <span class="category-count">8 Active Meets</span>
+                    </div>
+                    
+                    <div class="category-card" data-category="jdm">
+                        <div class="category-icon">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <h3>JDM Culture</h3>
+                        <p>Japanese Domestic Market meets</p>
+                        <span class="category-count">15 Active Meets</span>
+                    </div>
+                    
+                    <div class="category-card" data-category="motorcycle">
+                        <div class="category-icon">
+                            <i class="fas fa-motorcycle"></i>
+                        </div>
+                        <h3>Motorcycles</h3>
+                        <p>Bike meets & rideouts</p>
+                        <span class="category-count">10 Active Meets</span>
+                    </div>
+                    
+                    <div class="category-card" data-category="diy">
+                        <div class="category-icon">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <h3>DIY & Mods</h3>
+                        <p>Workshop days & mod meets</p>
+                        <span class="category-count">7 Active Meets</span>
+                    </div>
+                    
+                    <div class="category-card" data-category="racing">
+                        <div class="category-icon">
+                            <i class="fas fa-flag-checkered"></i>
+                        </div>
+                        <h3>Track Days</h3>
+                        <p>Circuit events & time attacks</p>
+                        <span class="category-count">5 Active Meets</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GALLERY SECTION -->
+        <div class="gallery-section">
+            <div class="container">
+                <h2 class="section-title">From Our Community</h2>
+                <p class="section-subtitle">Real meets, real people, real passion</p>
+                
+                <div class="gallery-grid">
+                    <div class="gallery-item">
+                        <img src="/images/gallery-1.jpg" alt="Car Meet" class="gallery-image">
+                        <div class="gallery-overlay">
+                            <p>Athens Night Meet</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item">
+                        <img src="/images/gallery-2.jpg" alt="Bike Meet" class="gallery-image">
+                        <div class="gallery-overlay">
+                            <p>Bike Rideout</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item">
+                        <img src="/images/gallery-3.jpg" alt="Car Show" class="gallery-image">
+                        <div class="gallery-overlay">
+                            <p>Car Show 2024</p>
+                        </div>
+                    </div>
+                    <div class="gallery-item">
+                        <img src="/images/gallery-4.jpg" alt="Workshop" class="gallery-image">
+                        <div class="gallery-overlay">
+                            <p>Modding Workshop</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATS SECTION -->
+        <div class="stats-section">
+            <div class="container">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number" id="total-meets">250+</div>
+                        <div class="stat-label">Active Meets</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="total-users">5,000+</div>
+                        <div class="stat-label">Community Members</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="total-events">120+</div>
+                        <div class="stat-label">Events This Month</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="total-countries">15+</div>
+                        <div class="stat-label">Countries</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SOCIAL MEDIA FOOTER SECTION -->
         <div class="social-media-section">
-            <h2>Join Our Community</h2>
-            <p>Connect with us on social media for updates, news, and to meet other car enthusiasts!</p>
-            
-            <div class="social-icons-grid">
-                <a href="https://www.instagram.com/ratscape.official/" target="_blank" class="social-icon-circle instagram" title="Instagram">
-                    <i class="fab fa-instagram"></i>
-                    <span class="social-icon-label">Instagram</span>
-                </a>
+            <div class="container">
+                <h2 class="section-title">Join Our Social Community</h2>
+                <p class="section-subtitle">Connect with us for updates, news, and to meet other automotive enthusiasts!</p>
                 
-                <a href="https://www.facebook.com/profile.php?id=61586110163264" target="_blank" class="social-icon-circle facebook" title="Facebook">
-                    <i class="fab fa-facebook-f"></i>
-                    <span class="social-icon-label">Facebook</span>
-                </a>
+                <div class="social-icons-grid">
+                    <a href="https://www.instagram.com/ratscape.official/" target="_blank" 
+                       class="social-icon-circle instagram" title="Instagram"
+                       onclick="trackSocialMediaClick('instagram')">
+                        <i class="fab fa-instagram"></i>
+                        <span class="social-icon-label">Instagram</span>
+                    </a>
+                    
+                    <a href="https://www.facebook.com/profile.php?id=61586110163264" target="_blank" 
+                       class="social-icon-circle facebook" title="Facebook"
+                       onclick="trackSocialMediaClick('facebook')">
+                        <i class="fab fa-facebook-f"></i>
+                        <span class="social-icon-label">Facebook</span>
+                    </a>
+                    
+                    <a href="https://x.com/Ratscapee" target="_blank" 
+                       class="social-icon-circle twitter" title="Twitter"
+                       onclick="trackSocialMediaClick('twitter')">
+                        <i class="fab fa-twitter"></i>
+                        <span class="social-icon-label">Twitter</span>
+                    </a>
+                    
+                    <a href="https://www.youtube.com/@RatScape" target="_blank" 
+                       class="social-icon-circle youtube" title="YouTube"
+                       onclick="trackSocialMediaClick('youtube')">
+                        <i class="fab fa-youtube"></i>
+                        <span class="social-icon-label">YouTube</span>
+                    </a>
+                    
+                    <a href="https://discord.gg/ratscape" target="_blank" 
+                       class="social-icon-circle discord" title="Discord"
+                       onclick="trackSocialMediaClick('discord')">
+                        <i class="fab fa-discord"></i>
+                        <span class="social-icon-label">Discord</span>
+                    </a>
+                </div>
                 
-                <a href="https://x.com/Ratscapee" target="_blank" class="social-icon-circle twitter" title="Twitter">
-                    <i class="fab fa-twitter"></i>
-                    <span class="social-icon-label">Twitter</span>
-                </a>
+                <p class="follow-us">
+                    Follow us for the latest updates on car meets, events, and community news!
+                </p>
             </div>
-            
-            <p class="follow-us">
-                Follow us for the latest updates on car meets, events, and community news!
-            </p>
         </div>
     </div>
 
@@ -140,10 +334,10 @@
     <div id="rooms-page" class="page">
         <div class="rooms-container">
             <div class="rooms-header">
-                <h2>My Rooms</h2>
+                <h2>My Meets</h2>
                 <div class="rooms-actions">
-                    <button id="create-room-btn-2" class="btn btn-primary"><i class="fas fa-plus-circle"></i> Create Room</button>
-                    <button id="join-room-btn-2" class="btn btn-secondary"><i class="fas fa-key"></i> Join Room</button>
+                    <button id="create-room-btn-2" class="btn btn-primary"><i class="fas fa-plus-circle"></i> Create Meet</button>
+                    <button id="join-room-btn-2" class="btn btn-secondary"><i class="fas fa-key"></i> Join Meet</button>
                 </div>
             </div>
             <div id="rooms-list" class="rooms-list">
@@ -240,11 +434,15 @@
                             </div>
                             <div class="stat-item">
                                 <div class="stat-value" id="stat-rooms">0</div>
-                                <div class="stat-label">Rooms</div>
+                                <div class="stat-label">Meets</div>
                             </div>
                             <div class="stat-item">
                                 <div class="stat-value" id="stat-messages">0</div>
                                 <div class="stat-label">Messages</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-events">0</div>
+                                <div class="stat-label">Events</div>
                             </div>
                         </div>
                     </div>
@@ -256,6 +454,9 @@
                         </button>
                         <button id="change-password-btn" class="btn btn-secondary">
                             <i class="fas fa-key"></i> Change Password
+                        </button>
+                        <button id="my-events-btn" class="btn btn-secondary">
+                            <i class="fas fa-calendar-alt"></i> My Events
                         </button>
                     </div>
                 </div>
@@ -279,11 +480,24 @@
                 <!-- Room Info -->
                 <div class="room-details" id="invite-code-container">
                     <div class="invite-code-section">
-                        <label>Invite Code:</label>
+                        <label>Meet Code:</label>
                         <div class="invite-code-display">
                             <span id="room-invite-code">------</span>
-                            <button id="copy-invite-btn" class="btn-icon" title="Copy invite code"><i class="fas fa-copy"></i></button>
+                            <button id="copy-invite-btn" class="btn-icon" title="Copy meet code"><i class="fas fa-copy"></i></button>
                         </div>
+                    </div>
+                    <div class="room-actions">
+                        <button id="create-event-btn" class="btn btn-primary btn-sm btn-block">
+                            <i class="fas fa-calendar-plus"></i> Create Event
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Room Events -->
+                <div class="room-events-section" id="events-section">
+                    <h3><i class="fas fa-calendar-alt"></i> MEET EVENTS</h3>
+                    <div id="room-events-list" class="events-list">
+                        <!-- Events will be loaded here -->
                     </div>
                 </div>
 
@@ -304,7 +518,7 @@
                         <span class="profile-name" id="sidebar-username">User</span>
                         <span class="profile-status">Online</span>
                     </div>
-                    <button id="leave-room-btn" class="btn-icon" title="Leave room"><i class="fas fa-sign-out-alt"></i></button>
+                    <button id="leave-room-btn" class="btn-icon" title="Leave meet"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </div>
 
@@ -312,8 +526,8 @@
             <div id="main-chat">
                 <div class="chat-header">
                     <div class="chat-info">
-                        <h2 id="room-name-header">Room Name</h2>
-                        <span class="chat-description" id="room-description">Group chat</span>
+                        <h2 id="room-name-header">Meet Name</h2>
+                        <span class="chat-description" id="room-description">Car meet chat</span>
                     </div>
                     <div class="chat-actions">
                         <button class="action-btn clear-btn" id="clear-messages-btn"><i class="fas fa-trash"></i> Clear</button>
@@ -325,7 +539,7 @@
                     <!-- Messages will be loaded here -->
                 </div>
 
-                <!-- 🔥 ΝΕΟ: FILE UPLOAD PREVIEW -->
+                <!-- FILE UPLOAD PREVIEW -->
                 <div id="file-preview" class="file-preview-container" style="display: none;">
                     <div class="file-preview-header">
                         <div class="file-preview-title">
@@ -361,22 +575,19 @@
                     </div>
                 </div>
 
-                <!-- 🔥 ΕΝΗΜΕΡΩΜΕΝΟ: MESSAGE INPUT WITH FILE UPLOAD & EMOJI PICKER -->
+                <!-- MESSAGE INPUT WITH FILE UPLOAD & EMOJI PICKER -->
                 <div class="message-input-container">
                     <form id="chat-form">
                         <div class="input-actions">
-                            <!-- 🔥 ΑΛΛΑΓΗ: File upload button αντί για τυχαία emoji -->
                             <button type="button" class="file-upload-btn" title="Upload file">
                                 <i class="fas fa-paperclip"></i>
                             </button>
                             
-                            <!-- 🔥 ΑΛΛΑΓΗ: Emoji picker button -->
                             <button type="button" class="emoji-picker-btn" title="Emoji picker">
                                 <i class="fas fa-smile"></i>
                             </button>
                         </div>
                         
-                        <!-- 🔥 ΚΡΥΦΟ FILE INPUT -->
                         <input type="file" id="file-upload-input" accept="image/*, .pdf, .doc, .docx, .txt" style="display: none;">
                         
                         <textarea id="message-input" autocomplete="off" placeholder="Type your message..." rows="1"></textarea>
@@ -390,7 +601,12 @@
         </div>
     </div>
 
-    <!-- 🔥 ΝΕΟ: EMOJI PICKER MODAL -->
+    <!-- EVENT PAGE -->
+    <div id="event-page" class="page">
+        <!-- This will be generated dynamically by JavaScript -->
+    </div>
+
+    <!-- EMOJI PICKER MODAL -->
     <div class="modal" id="emoji-picker-modal">
         <div class="emoji-picker-content">
             <div class="emoji-picker-header">
@@ -405,6 +621,50 @@
             <div class="emoji-grid-container">
                 <div class="emoji-grid" id="emoji-grid">
                     <!-- Emojis will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE EVENT MODAL -->
+    <div class="modal" id="create-event-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Event</h3>
+                <button class="close-modal-btn" id="close-create-event-modal">×</button>
+            </div>
+            <div class="form-container active">
+                <div class="form-group">
+                    <label for="event-title">Event Title</label>
+                    <input type="text" id="event-title" placeholder="e.g., Friday Night Meet">
+                </div>
+                <div class="form-group">
+                    <label for="event-date">Date & Time</label>
+                    <input type="datetime-local" id="event-date">
+                </div>
+                <div class="form-group">
+                    <label for="event-location">Location</label>
+                    <input type="text" id="event-location" placeholder="e.g., Syntagma Square, Athens">
+                </div>
+                <div class="form-group">
+                    <label for="event-description">Description</label>
+                    <textarea id="event-description" placeholder="Describe your event..." rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="event-image">Event Image (Optional)</label>
+                    <input type="file" id="event-image" accept="image/*">
+                    <div class="image-preview" id="event-image-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="event-private"> Private Event (Meet Members Only)
+                    </label>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="create-event-submit">
+                        <i class="fas fa-calendar-plus"></i> Create Event
+                    </button>
+                    <button class="btn btn-secondary" id="cancel-create-event">Cancel</button>
                 </div>
             </div>
         </div>
@@ -493,16 +753,16 @@
     <div class="modal" id="create-room-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Create New Room</h3>
+                <h3>Create New Meet</h3>
                 <button class="close-modal-btn" id="close-create-room-modal">×</button>
             </div>
             <div class="form-container active">
                 <div class="form-group">
-                    <label for="room-name-input">Room Name</label>
-                    <input type="text" id="room-name-input" placeholder="Enter room name">
+                    <label for="room-name-input">Meet Name</label>
+                    <input type="text" id="room-name-input" placeholder="Enter meet name">
                 </div>
                 <div class="modal-buttons">
-                    <button class="btn btn-primary" id="create-room-submit"><i class="fas fa-plus-circle"></i> Create Room</button>
+                    <button class="btn btn-primary" id="create-room-submit"><i class="fas fa-plus-circle"></i> Create Meet</button>
                     <button class="btn btn-secondary" id="create-room-cancel">Cancel</button>
                 </div>
             </div>
@@ -513,16 +773,16 @@
     <div class="modal" id="join-room-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Join Room with Code</h3>
+                <h3>Join Meet with Code</h3>
                 <button class="close-modal-btn" id="close-join-room-modal">×</button>
             </div>
             <div class="form-container active">
                 <div class="form-group">
-                    <label for="invite-code-input">Invite Code</label>
-                    <input type="text" id="invite-code-input" placeholder="Enter invite code" style="text-transform: uppercase;">
+                    <label for="invite-code-input">Meet Code</label>
+                    <input type="text" id="invite-code-input" placeholder="Enter meet code" style="text-transform: uppercase;">
                 </div>
                 <div class="modal-buttons">
-                    <button class="btn btn-primary" id="join-room-submit"><i class="fas fa-key"></i> Join Room</button>
+                    <button class="btn btn-primary" id="join-room-submit"><i class="fas fa-key"></i> Join Meet</button>
                     <button class="btn btn-secondary" id="join-room-cancel">Cancel</button>
                 </div>
             </div>
@@ -638,7 +898,7 @@
                             <i class="fas fa-user-plus"></i> Add Friend
                         </button>
                         <button id="view-mutual-rooms-btn" class="btn btn-secondary">
-                            <i class="fas fa-door-open"></i> Mutual Rooms
+                            <i class="fas fa-door-open"></i> Mutual Meets
                         </button>
                     </div>
                 </div>
@@ -795,6 +1055,21 @@
             link.addEventListener('click', function() {
                 const platform = this.classList[1]; // παίρνουμε την κλάση (instagram, facebook, κλπ.)
                 trackSocialMediaClick(platform);
+            });
+        });
+        
+        // Browse events button
+        const browseEventsBtn = document.getElementById('browse-events-btn');
+        if (browseEventsBtn) {
+            browseEventsBtn.addEventListener('click', function() {
+                showNotification('Events feature coming soon!', 'info', 'Coming Soon');
+            });
+        }
+        
+        // Join featured meet buttons
+        document.querySelectorAll('.join-featured-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                showNotification('Please login to join meets', 'info', 'Login Required');
             });
         });
     });
