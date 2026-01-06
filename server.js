@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR PROFILE PICS & LEAVE ROOM
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR PROFILE PICS & LEAVE ROOM & MEETUP DASHBOARD
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -737,6 +737,272 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
     }
 });
 
+// ===== ΝΕΑ ENDPOINTS: MEETUP DASHBOARD =====
+
+// Δημιουργία νέου meetup
+app.post("/create-meetup", validateSession, async (req, res) => {
+    try {
+        const { roomId, title, description, location, date, time, maxAttendees, createdBy } = req.body;
+        
+        if (!roomId || !title || !location || !date || !time || !createdBy) {
+            return res.status(400).json({ success: false, error: "Missing required fields" });
+        }
+        
+        const meetupData = {
+            roomId,
+            title,
+            description: description || '',
+            location,
+            date,
+            time,
+            maxAttendees: maxAttendees || 0,
+            createdBy
+        };
+        
+        const meetup = await dbHelpers.createMeetup(meetupData);
+        
+        res.json({
+            success: true,
+            meetup: meetup,
+            message: "Meetup created successfully!"
+        });
+        
+    } catch (error) {
+        console.error("❌ Error creating meetup:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Λήψη meetups ενός room
+app.get("/room-meetups/:roomId", validateSession, async (req, res) => {
+    try {
+        const { roomId } = req.params;
+        const { upcoming } = req.query;
+        
+        let meetups;
+        if (upcoming === 'true') {
+            meetups = await dbHelpers.getUpcomingMeetups(roomId);
+        } else {
+            meetups = await dbHelpers.getRoomMeetups(roomId);
+        }
+        
+        res.json({
+            success: true,
+            meetups: meetups
+        });
+        
+    } catch (error) {
+        console.error("❌ Error getting room meetups:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Λήψη συγκεκριμένου meetup
+app.get("/meetup/:meetupId", validateSession, async (req, res) => {
+    try {
+        const { meetupId } = req.params;
+        
+        const meetup = await dbHelpers.getMeetupById(meetupId);
+        
+        if (!meetup) {
+            return res.status(404).json({ success: false, error: "Meetup not found" });
+        }
+        
+        res.json({
+            success: true,
+            meetup: meetup
+        });
+        
+    } catch (error) {
+        console.error("❌ Error getting meetup:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Εγγραφή σε meetup
+app.post("/join-meetup", validateSession, async (req, res) => {
+    try {
+        const { meetupId, username, status } = req.body;
+        
+        if (!meetupId || !username) {
+            return res.status(400).json({ success: false, error: "Missing required fields" });
+        }
+        
+        const meetup = await dbHelpers.joinMeetup(meetupId, username, status || 'going');
+        
+        if (!meetup) {
+            return res.status(404).json({ success: false, error: "Meetup not found" });
+        }
+        
+        // Ενημέρωση WebSocket για όλους στο room
+        io.to(meetup.room_id).emit("meetup_updated", { 
+            meetupId: meetup.meetup_id,
+            action: 'join',
+            username: username,
+            status: status || 'going',
+            attendees: meetup.attendees
+        });
+        
+        res.json({
+            success: true,
+            meetup: meetup,
+            message: "Successfully joined meetup!"
+        });
+        
+    } catch (error) {
+        console.error("❌ Error joining meetup:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Αποχώρηση από meetup
+app.post("/leave-meetup", validateSession, async (req, res) => {
+    try {
+        const { meetupId, username } = req.body;
+        
+        if (!meetupId || !username) {
+            return res.status(400).json({ success: false, error: "Missing required fields" });
+        }
+        
+        const meetup = await dbHelpers.leaveMeetup(meetupId, username);
+        
+        if (!meetup) {
+            return res.status(404).json({ success: false, error: "Meetup not found" });
+        }
+        
+        // Ενημέρωση WebSocket
+        io.to(meetup.room_id).emit("meetup_updated", { 
+            meetupId: meetup.meetup_id,
+            action: 'leave',
+            username: username,
+            attendees: meetup.attendees
+        });
+        
+        res.json({
+            success: true,
+            meetup: meetup,
+            message: "Successfully left meetup"
+        });
+        
+    } catch (error) {
+        console.error("❌ Error leaving meetup:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Προσθήκη σχολίου σε meetup
+app.post("/add-meetup-comment", validateSession, async (req, res) => {
+    try {
+        const { meetupId, username, text } = req.body;
+        
+        if (!meetupId || !username || !text) {
+            return res.status(400).json({ success: false, error: "Missing required fields" });
+        }
+        
+        const comment = await dbHelpers.addMeetupComment({
+            meetupId,
+            username,
+            text
+        });
+        
+        // Ενημέρωση WebSocket
+        const meetup = await dbHelpers.getMeetupById(meetupId);
+        if (meetup) {
+            io.to(meetup.room_id).emit("meetup_comment_added", {
+                meetupId: meetupId,
+                comment: comment
+            });
+        }
+        
+        res.json({
+            success: true,
+            comment: comment,
+            message: "Comment added successfully!"
+        });
+        
+    } catch (error) {
+        console.error("❌ Error adding meetup comment:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Ενημέρωση meetup
+app.put("/update-meetup/:meetupId", validateSession, async (req, res) => {
+    try {
+        const { meetupId } = req.params;
+        const updates = req.body;
+        
+        const meetup = await dbHelpers.updateMeetup(meetupId, updates);
+        
+        if (!meetup) {
+            return res.status(404).json({ success: false, error: "Meetup not found" });
+        }
+        
+        // Ενημέρωση WebSocket
+        io.to(meetup.room_id).emit("meetup_updated", { 
+            meetupId: meetup.meetup_id,
+            action: 'update',
+            meetup: meetup
+        });
+        
+        res.json({
+            success: true,
+            meetup: meetup,
+            message: "Meetup updated successfully!"
+        });
+        
+    } catch (error) {
+        console.error("❌ Error updating meetup:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Διαγραφή meetup
+app.delete("/delete-meetup/:meetupId", validateSession, async (req, res) => {
+    try {
+        const { meetupId } = req.params;
+        const { roomId } = req.body;
+        
+        const deleted = await dbHelpers.deleteMeetup(meetupId);
+        
+        if (!deleted) {
+            return res.status(404).json({ success: false, error: "Meetup not found" });
+        }
+        
+        // Ενημέρωση WebSocket
+        if (roomId) {
+            io.to(roomId).emit("meetup_deleted", { meetupId: meetupId });
+        }
+        
+        res.json({
+            success: true,
+            message: "Meetup deleted successfully"
+        });
+        
+    } catch (error) {
+        console.error("❌ Error deleting meetup:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Λήψη meetups του χρήστη
+app.get("/user-meetups/:username", validateSession, async (req, res) => {
+    try {
+        const { username } = req.params;
+        
+        const meetups = await dbHelpers.getUserMeetups(username);
+        
+        res.json({
+            success: true,
+            meetups: meetups
+        });
+        
+    } catch (error) {
+        console.error("❌ Error getting user meetups:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
 // ===== ΥΠΑΡΧΟΝΤΑ ENDPOINTS (ΜΕΝΟΥΝ ΑΚΛΑΔΑ) =====
 
 // Authentication routes
@@ -1323,6 +1589,54 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // 🔥 ΠΡΟΣΘΗΚΗ WebSocket events για meetups
+  socket.on("get_room_meetups", async (data) => {
+      try {
+          const { roomId, upcoming } = data;
+          
+          let meetups;
+          if (upcoming) {
+              meetups = await dbHelpers.getUpcomingMeetups(roomId);
+          } else {
+              meetups = await dbHelpers.getRoomMeetups(roomId);
+          }
+          
+          socket.emit("room_meetups", { roomId, meetups });
+          
+      } catch (error) {
+          console.error("❌ Error getting room meetups via socket:", error);
+      }
+  });
+  
+  socket.on("get_meetup_details", async (data) => {
+      try {
+          const { meetupId } = data;
+          
+          const meetup = await dbHelpers.getMeetupById(meetupId);
+          
+          if (meetup) {
+              socket.emit("meetup_details", { meetup });
+          }
+          
+      } catch (error) {
+          console.error("❌ Error getting meetup details via socket:", error);
+      }
+  });
+  
+  socket.on("meetup_created", async (data) => {
+      try {
+          const { roomId, meetup } = data;
+          
+          if (roomId) {
+              // Ενημέρωση όλων στο room
+              io.to(roomId).emit("meetup_created", { roomId, meetup });
+          }
+          
+      } catch (error) {
+          console.error("❌ Error handling meetup creation via socket:", error);
+      }
+  });
+
   socket.on("chat message", async (data) => {
     try {
       if (!currentRoomId || !currentUsername || !currentSessionId) {
@@ -1640,6 +1954,7 @@ async function startServer() {
       console.log(`🖼️ AVATAR SYSTEM: ENABLED (PERMANENT STORAGE)`);
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
       console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
+      console.log(`📅 MEETUP DASHBOARD SYSTEM: ENABLED`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
