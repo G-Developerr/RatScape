@@ -320,30 +320,9 @@
                     </div>
                 </div>
 
-                <!-- 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: MEETUP DASHBOARD ΜΕ ΚΟΥΜΠΙ CREATE MEETUP -->
-                <div id="meetup-dashboard" class="meetup-dashboard-section">
-                    <div class="meetup-dashboard-header">
-                        <h3>Room Meetups</h3>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <!-- 🔥 ΚΟΥΜΠΙ ΔΗΜΙΟΥΡΓΙΑΣ MEETUP - ΠΡΟΣΘΗΚΗ -->
-                            <button id="create-meetup-btn" class="btn btn-primary btn-sm">
-                                <i class="fas fa-plus-circle"></i> New Meetup
-                            </button>
-                            <!-- ΚΟΥΜΠΙ ΚΑΛΥΨΗΣ/ΑΝΟΙΓΜΑΤΟΣ DASHBOARD -->
-                            <button id="meetup-toggle-btn" class="meetup-toggle-btn">
-                                <i class="fas fa-calendar-times"></i> Hide
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="meetup-tabs">
-                        <button class="meetup-tab active" data-tab="upcoming">Upcoming</button>
-                        <button class="meetup-tab" data-tab="all">All Meetups</button>
-                    </div>
-                    
-                    <div id="meetup-list" class="meetup-list">
-                        <!-- Meetups will be loaded here -->
-                    </div>
+                <!-- MESSAGES AREA -->
+                <div id="messages-container">
+                    <!-- Messages will be loaded here -->
                 </div>
 
                 <!-- 🔥 ΝΕΟ: FILE UPLOAD PREVIEW -->
@@ -662,97 +641,6 @@
                             <i class="fas fa-door-open"></i> Mutual Rooms
                         </button>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Create Meetup Modal -->
-    <div class="modal" id="meetup-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Create New Meetup</h3>
-                <button class="close-modal-btn" id="close-meetup-modal">×</button>
-            </div>
-            <form id="create-meetup-form" class="meetup-form">
-                <div class="form-group">
-                    <label for="meetup-title">Title *</label>
-                    <input type="text" id="meetup-title" placeholder="Car meet at downtown" required>
-                </div>
-                <div class="form-group">
-                    <label for="meetup-description">Description</label>
-                    <textarea id="meetup-description" rows="3" placeholder="Details about the meet..."></textarea>
-                </div>
-                <div class="meetup-form-row">
-                    <div class="form-group">
-                        <label for="meetup-location">Location *</label>
-                        <input type="text" id="meetup-location" placeholder="Central Square" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="meetup-max-attendees">Max Attendees (0 = unlimited)</label>
-                        <input type="number" id="meetup-max-attendees" value="0" min="0">
-                    </div>
-                </div>
-                <div class="meetup-form-row">
-                    <div class="form-group">
-                        <label for="meetup-date">Date *</label>
-                        <input type="date" id="meetup-date" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="meetup-time">Time *</label>
-                        <input type="time" id="meetup-time" required>
-                    </div>
-                </div>
-                <div class="modal-buttons">
-                    <button type="submit" class="btn btn-primary">Create Meetup</button>
-                    <button type="button" class="btn btn-secondary" id="cancel-meetup-btn">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Meetup Details Modal -->
-    <div class="modal" id="meetup-details-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="meetup-details-title">Meetup Details</h3>
-                <button class="close-modal-btn" id="close-meetup-details-modal">×</button>
-            </div>
-            
-            <div class="meetup-details-container">
-                <div class="meetup-details-header">
-                    <div class="meetup-details-meta">
-                        <!-- Meta info will be loaded here -->
-                    </div>
-                </div>
-                
-                <div id="meetup-details-description" class="meetup-description" style="display: none;">
-                    <h4>Description</h4>
-                    <!-- Description will be loaded here -->
-                </div>
-                
-                <div class="meetup-attendees-section">
-                    <h4>Attendees</h4>
-                    <div class="attendees-list">
-                        <!-- Attendees will be loaded here -->
-                    </div>
-                </div>
-                
-                <div class="meetup-comments-section">
-                    <h4>Comments</h4>
-                    <div class="comments-list">
-                        <!-- Comments will be loaded here -->
-                    </div>
-                    <form class="comment-form">
-                        <input type="text" placeholder="Add a comment..." required>
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </form>
-                </div>
-                
-                <div class="meetup-details-actions">
-                    <!-- Action buttons will be loaded here -->
                 </div>
             </div>
         </div>
