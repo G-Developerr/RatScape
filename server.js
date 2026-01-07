@@ -914,7 +914,7 @@ app.post("/events/:eventId/leave", validateSession, async (req, res) => {
     }
 });
 
-// Delete event
+// ===== 🔥 ΔΙΟΡΘΩΜΕΝΟ ENDPOINT: DELETE EVENT =====
 app.delete("/events/:eventId", validateSession, async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -924,6 +924,22 @@ app.delete("/events/:eventId", validateSession, async (req, res) => {
             return res.status(400).json({ success: false, error: "Username required" });
         }
         
+        // 🔥 Ο admin μπορεί να διαγράψει τα πάντα
+        if (username === "Vf-Rat") {
+            await dbHelpers.deleteEvent(eventId, username);
+            res.json({
+                success: true,
+                message: "Event deleted successfully by admin"
+            });
+            
+            io.emit("event_update", {
+                type: "event_deleted",
+                eventId: eventId
+            });
+            return;
+        }
+        
+        // Για άλλους χρήστες, κανονικός έλεγχος
         await dbHelpers.deleteEvent(eventId, username);
         
         res.json({
@@ -931,7 +947,6 @@ app.delete("/events/:eventId", validateSession, async (req, res) => {
             message: "Event deleted successfully"
         });
         
-        // Ενημέρωση μέσω WebSocket
         io.emit("event_update", {
             type: "event_deleted",
             eventId: eventId
@@ -985,6 +1000,45 @@ app.put("/events/:eventId", validateSession, async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: error.message || "Failed to update event" 
+        });
+    }
+});
+
+// ===== 🔥 ΝΕΟ ENDPOINT: DELETE ALL SAMPLE EVENTS (Για τον admin) =====
+app.delete("/events/admin/clear-samples", validateSession, async (req, res) => {
+    try {
+        const username = req.body.username || req.user?.username;
+        
+        // Μόνο ο admin μπορεί να χρησιμοποιήσει αυτό το endpoint
+        if (username !== "Vf-Rat") {
+            return res.status(403).json({ 
+                success: false, 
+                error: "Only admin can clear sample events" 
+            });
+        }
+        
+        // Χρήση του dbHelpers για διαγραφή sample events
+        const result = await dbHelpers.clearSampleEvents();
+        
+        console.log(`🧹 Admin cleared ${result.deletedCount} sample events`);
+        
+        res.json({
+            success: true,
+            deletedCount: result.deletedCount,
+            message: `Cleared ${result.deletedCount} sample events`
+        });
+        
+        // Ενημέρωση όλων των clients
+        io.emit("events_cleared", { 
+            type: "samples_cleared",
+            deletedCount: result.deletedCount 
+        });
+        
+    } catch (error) {
+        console.error("❌ Error clearing sample events:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: "Failed to clear sample events" 
         });
     }
 });
@@ -1946,6 +2000,7 @@ async function startServer() {
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
       console.log(`🎯 EVENT CAPACITY: UNLIMITED`);
       console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
+      console.log(`👑 ADMIN SYSTEM: ENABLED (Vf-Rat can delete any event)`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
