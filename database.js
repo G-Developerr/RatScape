@@ -764,7 +764,7 @@ const dbHelpers = {
         return event;
     },
 
-    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Διορθωμένη μέθοδος deleteEvent - Ο admin μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
+    // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Ο admin μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event, άσχετα από το ποιος το δημιούργησε
     deleteEvent: async function(eventId, username) {
         const event = await Event.findOne({ event_id: eventId });
         if (!event) {
@@ -772,10 +772,9 @@ const dbHelpers = {
         }
         
         // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Ο admin (Vf-Rat) μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
-        // Και ΟΧΙ ΜΟΝΟ sample events!
         if (username === "Vf-Rat") {
             await Event.deleteOne({ event_id: eventId });
-            console.log(`✅ Event "${event.title}" deleted by admin: ${username}`);
+            console.log(`✅ Admin "${username}" deleted event: "${event.title}"`);
             return true;
         }
         
@@ -785,7 +784,7 @@ const dbHelpers = {
         }
         
         await Event.deleteOne({ event_id: eventId });
-        console.log(`✅ Event deleted: ${event.title}`);
+        console.log(`✅ Event deleted: ${event.title} by ${username}`);
         return true;
     },
 
@@ -796,7 +795,7 @@ const dbHelpers = {
         }
         
         // Μόνο ο δημιουργός μπορεί να ενημερώσει το event
-        if (event.created_by !== username) {
+        if (event.created_by !== username && username !== "Vf-Rat") {
             throw new Error("Only the creator can update this event");
         }
         
@@ -825,20 +824,18 @@ const dbHelpers = {
     // 🔥 ΒΟΗΘΗΤΙΚΗ: Δημιουργία sample events αν δεν υπάρχουν - ΔΙΟΡΘΩΜΕΝΗ
     createSampleEvents: async function() {
         try {
-            // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Έλεγχος αν υπάρχουν ΟΛΟΙ οι sample events
-            const sampleTitles = ["Car Meet & Coffee", "Mountain Drive"];
-            const existingSampleEvents = await Event.find({ 
-                title: { $in: sampleTitles },
+            // Έλεγχος αν υπάρχουν sample events
+            const existingEvents = await Event.find({ 
                 created_by: { $in: ["admin", "demo"] }
             });
             
-            // Αν δεν υπάρχουν ΟΛΑ τα sample events, δημιουργήστε τα
-            if (existingSampleEvents.length < sampleTitles.length) {
-                console.log("📅 Creating missing sample events...");
+            // Αν δεν υπάρχουν sample events, δημιουργήστε τα
+            if (existingEvents.length === 0) {
+                console.log("📅 Creating sample events...");
                 
                 const sampleEvents = [
                     {
-                        event_id: `event_${Date.now()}_1`,
+                        event_id: `event_sample_${Date.now()}_1`,
                         title: "Car Meet & Coffee",
                         description: "Weekly car meet for all enthusiasts. Bring your car, share stories, and enjoy coffee together!",
                         date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -850,7 +847,7 @@ const dbHelpers = {
                         created_at: new Date()
                     },
                     {
-                        event_id: `event_${Date.now()}_2`,
+                        event_id: `event_sample_${Date.now()}_2`,
                         title: "Mountain Drive",
                         description: "Scenic drive through mountain roads. Perfect for sports cars and photography enthusiasts.",
                         date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -863,15 +860,12 @@ const dbHelpers = {
                     }
                 ];
                 
-                // Δημιουργήστε μόνο τα events που λείπουν
+                // Δημιουργία sample events
                 for (const sampleEvent of sampleEvents) {
-                    const exists = existingSampleEvents.some(e => e.title === sampleEvent.title);
-                    if (!exists) {
-                        await Event.create(sampleEvent);
-                        console.log(`✅ Created sample event: ${sampleEvent.title}`);
-                    }
+                    await Event.create(sampleEvent);
+                    console.log(`✅ Created sample event: ${sampleEvent.title}`);
                 }
-                console.log("✅ Sample events checked/created");
+                console.log("✅ Sample events created");
             } else {
                 console.log("📅 Sample events already exist, skipping...");
             }
@@ -886,18 +880,12 @@ const dbHelpers = {
             throw new Error("Only admin can clear sample events");
         }
         
-        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Διαγραφή ΟΛΩΝ των events που δεν είναι από πραγματικούς χρήστες
+        // Διαγραφή ΟΛΩΝ των events που είναι από admin ή demo
         const result = await Event.deleteMany({ 
-            $or: [
-                { created_by: "admin" },
-                { created_by: "demo" },
-                { title: { $regex: /sample|demo|test/i } },
-                // 🔥 ΝΕΟ: Διαγραφή και events που είναι πολύ παλιά (over 30 ημέρες)
-                { created_at: { $lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }
-            ]
+            created_by: { $in: ["admin", "demo"] }
         });
         
-        console.log(`🧹 Admin cleared ${result.deletedCount} sample/test events`);
+        console.log(`🧹 Admin cleared ${result.deletedCount} sample events`);
         return result.deletedCount;
     },
 
@@ -910,6 +898,22 @@ const dbHelpers = {
         const result = await Event.deleteMany({});
         console.log(`🔥 Admin ${username} deleted ALL events: ${result.deletedCount}`);
         return result.deletedCount;
+    },
+
+    // 🔥 ΝΕΟ: Διαγραφή συγκεκριμένου event από admin
+    deleteEventAsAdmin: async function(eventId, username) {
+        if (username !== "Vf-Rat") {
+            throw new Error("Only admin can delete events");
+        }
+        
+        const event = await Event.findOne({ event_id: eventId });
+        if (!event) {
+            throw new Error("Event not found");
+        }
+        
+        await Event.deleteOne({ event_id: eventId });
+        console.log(`✅ Admin ${username} deleted event: "${event.title}"`);
+        return true;
     }
 };
 
