@@ -764,7 +764,7 @@ const dbHelpers = {
         return event;
     },
 
-    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Διορθωμένη μέθοδος deleteEvent - Ο admin μπορεί να διαγράψει τα πάντα
+    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Διορθωμένη μέθοδος deleteEvent - Ο admin μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
     deleteEvent: async function(eventId, username) {
         const event = await Event.findOne({ event_id: eventId });
         if (!event) {
@@ -772,9 +772,10 @@ const dbHelpers = {
         }
         
         // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Ο admin (Vf-Rat) μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
+        // Και ΟΧΙ ΜΟΝΟ sample events!
         if (username === "Vf-Rat") {
             await Event.deleteOne({ event_id: eventId });
-            console.log(`✅ Event deleted by admin: ${event.title}`);
+            console.log(`✅ Event "${event.title}" deleted by admin: ${username}`);
             return true;
         }
         
@@ -824,18 +825,20 @@ const dbHelpers = {
     // 🔥 ΒΟΗΘΗΤΙΚΗ: Δημιουργία sample events αν δεν υπάρχουν - ΔΙΟΡΘΩΜΕΝΗ
     createSampleEvents: async function() {
         try {
-            const count = await Event.countDocuments();
+            // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Έλεγχος αν υπάρχουν ΟΛΟΙ οι sample events
+            const sampleTitles = ["Car Meet & Coffee", "Mountain Drive"];
+            const existingSampleEvents = await Event.find({ 
+                title: { $in: sampleTitles },
+                created_by: { $in: ["admin", "demo"] }
+            });
             
-            // 🔥 ΑΛΛΑΓΗ: Μόνο αν δεν υπάρχουν ΚΑΝΕΝΑ events, όχι μόνο αν count === 0
-            // (Αυτό εμποδίζει την επανάληψη δημιουργίας samples)
-            const sampleEventsExist = await Event.findOne({ created_by: "admin" });
-            
-            if (!sampleEventsExist) {
-                console.log("📅 Creating sample events...");
+            // Αν δεν υπάρχουν ΟΛΑ τα sample events, δημιουργήστε τα
+            if (existingSampleEvents.length < sampleTitles.length) {
+                console.log("📅 Creating missing sample events...");
                 
                 const sampleEvents = [
                     {
-                        event_id: `event_sample_${Date.now()}_1`,
+                        event_id: `event_${Date.now()}_1`,
                         title: "Car Meet & Coffee",
                         description: "Weekly car meet for all enthusiasts. Bring your car, share stories, and enjoy coffee together!",
                         date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -847,7 +850,7 @@ const dbHelpers = {
                         created_at: new Date()
                     },
                     {
-                        event_id: `event_sample_${Date.now()}_2`,
+                        event_id: `event_${Date.now()}_2`,
                         title: "Mountain Drive",
                         description: "Scenic drive through mountain roads. Perfect for sports cars and photography enthusiasts.",
                         date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -860,8 +863,15 @@ const dbHelpers = {
                     }
                 ];
                 
-                await Event.insertMany(sampleEvents);
-                console.log("✅ Sample events created");
+                // Δημιουργήστε μόνο τα events που λείπουν
+                for (const sampleEvent of sampleEvents) {
+                    const exists = existingSampleEvents.some(e => e.title === sampleEvent.title);
+                    if (!exists) {
+                        await Event.create(sampleEvent);
+                        console.log(`✅ Created sample event: ${sampleEvent.title}`);
+                    }
+                }
+                console.log("✅ Sample events checked/created");
             } else {
                 console.log("📅 Sample events already exist, skipping...");
             }
@@ -870,21 +880,35 @@ const dbHelpers = {
         }
     },
 
-    // 🔥 ΝΕΟ: Διαγραφή όλων των sample events (για admin)
+    // 🔥 ΝΕΟ: Διαγραφή όλων των sample events (για admin) - ΕΝΗΜΕΡΩΜΕΝΗ
     clearSampleEvents: async function(username) {
         if (username !== "Vf-Rat") {
             throw new Error("Only admin can clear sample events");
         }
         
+        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Διαγραφή ΟΛΩΝ των events που δεν είναι από πραγματικούς χρήστες
         const result = await Event.deleteMany({ 
             $or: [
                 { created_by: "admin" },
                 { created_by: "demo" },
-                { title: { $regex: /sample|demo|test/i } }
+                { title: { $regex: /sample|demo|test/i } },
+                // 🔥 ΝΕΟ: Διαγραφή και events που είναι πολύ παλιά (over 30 ημέρες)
+                { created_at: { $lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }
             ]
         });
         
-        console.log(`🧹 Admin cleared ${result.deletedCount} sample events`);
+        console.log(`🧹 Admin cleared ${result.deletedCount} sample/test events`);
+        return result.deletedCount;
+    },
+
+    // 🔥 ΝΕΟ: Delete all events (μόνο για admin)
+    deleteAllEvents: async function(username) {
+        if (username !== "Vf-Rat") {
+            throw new Error("Only admin can delete all events");
+        }
+        
+        const result = await Event.deleteMany({});
+        console.log(`🔥 Admin ${username} deleted ALL events: ${result.deletedCount}`);
         return result.deletedCount;
     }
 };
@@ -931,6 +955,27 @@ async function initializeDatabase() {
             console.log("🔗 MongoDB connection established");
         });
 
+        // 🔥 ΠΡΟΣΘΗΚΗ: Δημιουργία admin user αν δεν υπάρχει
+        async function createAdminIfNotExists() {
+            try {
+                const adminUser = await dbHelpers.findUserByUsername("Vf-Rat");
+                if (!adminUser) {
+                    console.log("👑 Creating admin user...");
+                    await dbHelpers.createUser(
+                        "mitsosjinavos@gmail.com",
+                        "Vf-Rat",
+                        "Lion2623",
+                        null
+                    );
+                    console.log("✅ Admin user created");
+                } else {
+                    console.log("✅ Admin user already exists");
+                }
+            } catch (error) {
+                console.error("❌ Error creating admin user:", error);
+            }
+        }
+
         // 🔥 ΝΕΟ: Create indexes για καλύτερη απόδοση
         await File.createIndexes();
         await UnreadMessage.createIndexes();
@@ -941,6 +986,9 @@ async function initializeDatabase() {
         console.log('📅 Events system: ENABLED');
         console.log('📊 File schema: READY');
         console.log('📅 Event schema: READY');
+
+        // 🔥 Δημιουργία admin user
+        await createAdminIfNotExists();
 
         // 🔥 Δημιουργία sample events αν χρειαστεί
         await dbHelpers.createSampleEvents();
