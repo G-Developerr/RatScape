@@ -764,13 +764,21 @@ const dbHelpers = {
         return event;
     },
 
+    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Διορθωμένη μέθοδος deleteEvent - Ο admin μπορεί να διαγράψει τα πάντα
     deleteEvent: async function(eventId, username) {
         const event = await Event.findOne({ event_id: eventId });
         if (!event) {
             throw new Error("Event not found");
         }
         
-        // Μόνο ο δημιουργός μπορεί να διαγράψει το event
+        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Ο admin (Vf-Rat) μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
+        if (username === "Vf-Rat") {
+            await Event.deleteOne({ event_id: eventId });
+            console.log(`✅ Event deleted by admin: ${event.title}`);
+            return true;
+        }
+        
+        // Μόνο ο δημιουργός μπορεί να διαγράψει το event (για άλλους χρήστες)
         if (event.created_by !== username) {
             throw new Error("Only the creator can delete this event");
         }
@@ -813,54 +821,71 @@ const dbHelpers = {
         }).sort({ date: 1 });
     },
 
-    // 🔥 ΒΟΗΘΗΤΙΚΗ: Δημιουργία sample events αν δεν υπάρχουν
+    // 🔥 ΒΟΗΘΗΤΙΚΗ: Δημιουργία sample events αν δεν υπάρχουν - ΔΙΟΡΘΩΜΕΝΗ
     createSampleEvents: async function() {
-        const count = await Event.countDocuments();
-        if (count === 0) {
-            console.log("📅 Creating sample events...");
+        try {
+            const count = await Event.countDocuments();
             
-            const sampleEvents = [
-                {
-                    event_id: `event_${Date.now()}_sample1`,
-                    title: "Car Meet & Coffee",
-                    description: "Weekly car meet for all enthusiasts. Bring your car, share stories, and enjoy coffee together!",
-                    date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
-                    location: "Downtown Parking Lot",
-                    created_by: "admin",
-                    max_participants: 50,
-                    participants: ["admin", "demo"],
-                    is_public: true,
-                    created_at: new Date()
-                },
-                {
-                    event_id: `event_${Date.now()}_sample2`,
-                    title: "Mountain Drive",
-                    description: "Scenic drive through mountain roads. Perfect for sports cars and photography enthusiasts.",
-                    date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 2 weeks from now
-                    location: "Mountain Road Starting Point",
-                    created_by: "demo",
-                    max_participants: 30,
-                    participants: ["demo", "admin"],
-                    is_public: true,
-                    created_at: new Date()
-                },
-                {
-                    event_id: `event_${Date.now()}_sample3`,
-                    title: "Technical Workshop: Car Maintenance",
-                    description: "Learn basic car maintenance from experienced mechanics. Tools provided.",
-                    date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000), // 3 weeks from now
-                    location: "Garage Workshop",
-                    created_by: "admin",
-                    max_participants: 20,
-                    participants: ["admin"],
-                    is_public: true,
-                    created_at: new Date()
-                }
-            ];
+            // 🔥 ΑΛΛΑΓΗ: Μόνο αν δεν υπάρχουν ΚΑΝΕΝΑ events, όχι μόνο αν count === 0
+            // (Αυτό εμποδίζει την επανάληψη δημιουργίας samples)
+            const sampleEventsExist = await Event.findOne({ created_by: "admin" });
             
-            await Event.insertMany(sampleEvents);
-            console.log("✅ Sample events created");
+            if (!sampleEventsExist) {
+                console.log("📅 Creating sample events...");
+                
+                const sampleEvents = [
+                    {
+                        event_id: `event_sample_${Date.now()}_1`,
+                        title: "Car Meet & Coffee",
+                        description: "Weekly car meet for all enthusiasts. Bring your car, share stories, and enjoy coffee together!",
+                        date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                        location: "Downtown Parking Lot",
+                        created_by: "admin",
+                        max_participants: 50,
+                        participants: ["admin", "demo"],
+                        is_public: true,
+                        created_at: new Date()
+                    },
+                    {
+                        event_id: `event_sample_${Date.now()}_2`,
+                        title: "Mountain Drive",
+                        description: "Scenic drive through mountain roads. Perfect for sports cars and photography enthusiasts.",
+                        date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+                        location: "Mountain Road Starting Point",
+                        created_by: "demo",
+                        max_participants: 30,
+                        participants: ["demo", "admin"],
+                        is_public: true,
+                        created_at: new Date()
+                    }
+                ];
+                
+                await Event.insertMany(sampleEvents);
+                console.log("✅ Sample events created");
+            } else {
+                console.log("📅 Sample events already exist, skipping...");
+            }
+        } catch (error) {
+            console.error("❌ Error creating sample events:", error);
         }
+    },
+
+    // 🔥 ΝΕΟ: Διαγραφή όλων των sample events (για admin)
+    clearSampleEvents: async function(username) {
+        if (username !== "Vf-Rat") {
+            throw new Error("Only admin can clear sample events");
+        }
+        
+        const result = await Event.deleteMany({ 
+            $or: [
+                { created_by: "admin" },
+                { created_by: "demo" },
+                { title: { $regex: /sample|demo|test/i } }
+            ]
+        });
+        
+        console.log(`🧹 Admin cleared ${result.deletedCount} sample events`);
+        return result.deletedCount;
     }
 };
 
