@@ -1,4 +1,4 @@
-// database.js - RatScape MongoDB Database - ENHANCED VERSION WITH FILE STORAGE
+// database.js - RatScape MongoDB Database - ENHANCED VERSION WITH FILE STORAGE & EVENTS
 const mongoose = require('mongoose');
 
 // 🔥 ΣΗΜΑΝΤΙΚΟ: Χρησιμοποιεί το MONGODB_URI από το Render Environment
@@ -103,6 +103,20 @@ const fileSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now }
 });
 
+// 🔥 ΝΕΟ: EVENTS SCHEMA
+const eventSchema = new mongoose.Schema({
+    event_id: { type: String, required: true, unique: true },
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    date: { type: Date, required: true },
+    location: { type: String, required: true },
+    created_by: { type: String, required: true },
+    max_participants: { type: Number, default: 0 }, // 0 = unlimited
+    participants: [{ type: String }], // Array of usernames
+    is_public: { type: Boolean, default: true },
+    created_at: { type: Date, default: Date.now }
+});
+
 // ===== MODELS =====
 const User = mongoose.model('User', userSchema);
 const Room = mongoose.model('Room', roomSchema);
@@ -113,6 +127,7 @@ const Friend = mongoose.model('Friend', friendSchema);
 const Session = mongoose.model('Session', sessionSchema);
 const UnreadMessage = mongoose.model('UnreadMessage', unreadMessageSchema);
 const File = mongoose.model('File', fileSchema); // 🔥 ΝΕΟ: File model
+const Event = mongoose.model('Event', eventSchema); // 🔥 ΝΕΟ: Event model
 
 // ===== DATABASE HELPERS =====
 
@@ -645,6 +660,207 @@ const dbHelpers = {
     // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη μεθόδου για να επιστρέφει το File model
     getFileModel: function() {
         return File;
+    },
+
+    // 🔥 ΝΕΟ: Event methods
+    createEvent: async function(eventData) {
+        const eventId = `event_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        
+        const event = new Event({
+            event_id: eventId,
+            title: eventData.title,
+            description: eventData.description,
+            date: eventData.date,
+            location: eventData.location,
+            created_by: eventData.created_by,
+            max_participants: eventData.max_participants || 0,
+            participants: [eventData.created_by], // Creator is automatically a participant
+            is_public: eventData.is_public !== false, // Default to true
+            created_at: new Date()
+        });
+        
+        await event.save();
+        console.log(`✅ Event created: ${eventData.title} by ${eventData.created_by}`);
+        return event;
+    },
+
+    getAllEvents: async function(username = null) {
+        let query = {};
+        
+        // Αν δοθεί username, επέστρεψε public events + events που ο χρήστης δημιούργησε/ενέταξε
+        if (username) {
+            query = {
+                $or: [
+                    { is_public: true },
+                    { created_by: username },
+                    { participants: username }
+                ]
+            };
+        }
+        
+        return await Event.find(query).sort({ date: 1 }); // Ταξινόμηση κατά ημερομηνία
+    },
+
+    getEventById: async function(eventId) {
+        const event = await Event.findOne({ event_id: eventId });
+        if (event) {
+            return {
+                id: event.event_id,
+                title: event.title,
+                description: event.description,
+                date: event.date,
+                location: event.location,
+                created_by: event.created_by,
+                max_participants: event.max_participants,
+                participants: event.participants,
+                is_public: event.is_public,
+                created_at: event.created_at,
+                participant_count: event.participants.length
+            };
+        }
+        return null;
+    },
+
+    joinEvent: async function(eventId, username) {
+        const event = await Event.findOne({ event_id: eventId });
+        if (!event) {
+            throw new Error("Event not found");
+        }
+        
+        // Έλεγχος αν έχει φτάσει το μέγιστο όριο συμμετεχόντων
+        if (event.max_participants > 0 && event.participants.length >= event.max_participants) {
+            throw new Error("Event is full");
+        }
+        
+        // Έλεγχος αν ο χρήστης είναι ήδη συμμετέχων
+        if (event.participants.includes(username)) {
+            return event; // Already joined
+        }
+        
+        event.participants.push(username);
+        await event.save();
+        console.log(`✅ ${username} joined event: ${event.title}`);
+        return event;
+    },
+
+    leaveEvent: async function(eventId, username) {
+        const event = await Event.findOne({ event_id: eventId });
+        if (!event) {
+            throw new Error("Event not found");
+        }
+        
+        // Ο δημιουργός δεν μπορεί να φύγει από το event
+        if (event.created_by === username) {
+            throw new Error("Creator cannot leave the event");
+        }
+        
+        const participantIndex = event.participants.indexOf(username);
+        if (participantIndex > -1) {
+            event.participants.splice(participantIndex, 1);
+            await event.save();
+            console.log(`✅ ${username} left event: ${event.title}`);
+        }
+        
+        return event;
+    },
+
+    deleteEvent: async function(eventId, username) {
+        const event = await Event.findOne({ event_id: eventId });
+        if (!event) {
+            throw new Error("Event not found");
+        }
+        
+        // Μόνο ο δημιουργός μπορεί να διαγράψει το event
+        if (event.created_by !== username) {
+            throw new Error("Only the creator can delete this event");
+        }
+        
+        await Event.deleteOne({ event_id: eventId });
+        console.log(`✅ Event deleted: ${event.title}`);
+        return true;
+    },
+
+    updateEvent: async function(eventId, username, updates) {
+        const event = await Event.findOne({ event_id: eventId });
+        if (!event) {
+            throw new Error("Event not found");
+        }
+        
+        // Μόνο ο δημιουργός μπορεί να ενημερώσει το event
+        if (event.created_by !== username) {
+            throw new Error("Only the creator can update this event");
+        }
+        
+        // Ενημέρωση πεδίων
+        Object.keys(updates).forEach(key => {
+            if (updates[key] !== undefined && key !== 'participants') {
+                event[key] = updates[key];
+            }
+        });
+        
+        await event.save();
+        console.log(`✅ Event updated: ${event.title}`);
+        return event;
+    },
+
+    getUserEvents: async function(username) {
+        // Events που ο χρήστης δημιούργησε ή συμμετέχει
+        return await Event.find({
+            $or: [
+                { created_by: username },
+                { participants: username }
+            ]
+        }).sort({ date: 1 });
+    },
+
+    // 🔥 ΒΟΗΘΗΤΙΚΗ: Δημιουργία sample events αν δεν υπάρχουν
+    createSampleEvents: async function() {
+        const count = await Event.countDocuments();
+        if (count === 0) {
+            console.log("📅 Creating sample events...");
+            
+            const sampleEvents = [
+                {
+                    event_id: `event_${Date.now()}_sample1`,
+                    title: "Car Meet & Coffee",
+                    description: "Weekly car meet for all enthusiasts. Bring your car, share stories, and enjoy coffee together!",
+                    date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
+                    location: "Downtown Parking Lot",
+                    created_by: "admin",
+                    max_participants: 50,
+                    participants: ["admin", "demo"],
+                    is_public: true,
+                    created_at: new Date()
+                },
+                {
+                    event_id: `event_${Date.now()}_sample2`,
+                    title: "Mountain Drive",
+                    description: "Scenic drive through mountain roads. Perfect for sports cars and photography enthusiasts.",
+                    date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 2 weeks from now
+                    location: "Mountain Road Starting Point",
+                    created_by: "demo",
+                    max_participants: 30,
+                    participants: ["demo", "admin"],
+                    is_public: true,
+                    created_at: new Date()
+                },
+                {
+                    event_id: `event_${Date.now()}_sample3`,
+                    title: "Technical Workshop: Car Maintenance",
+                    description: "Learn basic car maintenance from experienced mechanics. Tools provided.",
+                    date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000), // 3 weeks from now
+                    location: "Garage Workshop",
+                    created_by: "admin",
+                    max_participants: 20,
+                    participants: ["admin"],
+                    is_public: true,
+                    created_at: new Date()
+                }
+            ];
+            
+            await Event.insertMany(sampleEvents);
+            console.log("✅ Sample events created");
+        }
     }
 };
 
@@ -693,10 +909,16 @@ async function initializeDatabase() {
         // 🔥 ΝΕΟ: Create indexes για καλύτερη απόδοση
         await File.createIndexes();
         await UnreadMessage.createIndexes();
+        await Event.createIndexes();
         
         console.log('📈 Database indexes created successfully');
         console.log('💾 File storage system: ENABLED');
+        console.log('📅 Events system: ENABLED');
         console.log('📊 File schema: READY');
+        console.log('📅 Event schema: READY');
+
+        // 🔥 Δημιουργία sample events αν χρειαστεί
+        await dbHelpers.createSampleEvents();
 
         return mongoose.connection;
     } catch (error) {
@@ -729,5 +951,6 @@ module.exports = {
     Friend,
     Session,
     UnreadMessage,
-    File
+    File,
+    Event  // 🔥 ΝΕΟ
 };
