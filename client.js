@@ -1,4 +1,4 @@
-// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER & EVENTS
+// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER & EVENTS & ADMIN SYSTEM
 const socket = io();
 
 // Current user state
@@ -2912,6 +2912,98 @@ socket.on("messages_cleared", (data) => {
     }
 });
 
+// ===== ADMIN SYSTEM FUNCTIONS =====
+
+// 🔥 ΝΕΟ: Delete all events (admin only)
+async function deleteAllEvents() {
+    if (currentUser.username !== "Vf-Rat") {
+        showNotification("Only admin can delete all events", "error", "Admin Only");
+        return;
+    }
+    
+    showConfirmationModal(
+        "⚠️ **CRITICAL: DELETE ALL EVENTS** ⚠️\n\nAre you ABSOLUTELY sure? This will delete EVERY event in the system! This action cannot be undone!",
+        "DELETE ALL EVENTS",
+        async () => {
+            try {
+                const response = await fetch("/events/admin/delete-all", {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Session-ID": currentUser.sessionId,
+                    },
+                    body: JSON.stringify({
+                        username: currentUser.username
+                    }),
+                });
+                
+                if (!response.ok) {
+                    throw new Error("Failed to delete all events");
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(
+                        `Deleted ALL events (${data.deletedCount} total)`, 
+                        "success", 
+                        "Events Deleted"
+                    );
+                    loadEvents();
+                }
+            } catch (error) {
+                console.error("Error deleting all events:", error);
+                showNotification(error.message || "Failed to delete events", "error", "Error");
+            }
+        }
+    );
+}
+
+// 🔥 ΝΕΟ: Clear sample events (admin only)
+async function clearSampleEvents() {
+    if (currentUser.username !== "Vf-Rat") {
+        showNotification("Only admin can clear sample events", "error", "Admin Only");
+        return;
+    }
+    
+    showConfirmationModal(
+        "Clear all sample events? This will remove demo/test events.",
+        "Clear Sample Events",
+        async () => {
+            try {
+                const response = await fetch("/events/admin/clear-samples", {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Session-ID": currentUser.sessionId,
+                    },
+                    body: JSON.stringify({
+                        username: currentUser.username
+                    }),
+                });
+                
+                if (!response.ok) {
+                    throw new Error("Failed to clear sample events");
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(
+                        `Cleared ${data.deletedCount} sample events`, 
+                        "success", 
+                        "Sample Events Cleared"
+                    );
+                    loadEvents();
+                }
+            } catch (error) {
+                console.error("Error clearing sample events:", error);
+                showNotification(error.message || "Failed to clear sample events", "error", "Error");
+            }
+        }
+    );
+}
+
 // ===== SOCKET EVENT HANDLERS =====
 
 socket.on("connect", () => {
@@ -3855,6 +3947,16 @@ function initializeEventListeners() {
 
     // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
     initializeProfileEventListeners();
+    
+    // 🔥 ΠΡΟΣΘΗΚΗ: Admin controls (only for Vf-Rat)
+    const adminSection = document.getElementById("admin-section");
+    if (adminSection && currentUser.username === "Vf-Rat") {
+        adminSection.style.display = "block";
+        
+        document.getElementById("clear-sample-events-btn").addEventListener("click", clearSampleEvents);
+        document.getElementById("delete-all-events-btn").addEventListener("click", deleteAllEvents);
+        document.getElementById("reload-events-btn").addEventListener("click", loadEvents);
+    }
 }
 
 // ===== PROFILE EVENT LISTENERS =====
