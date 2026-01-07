@@ -1,4 +1,4 @@
-// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER
+// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER & EVENTS
 const socket = io();
 
 // Current user state
@@ -1534,6 +1534,8 @@ function loadUserRooms() {
         .then((data) => {
             if (data.success) {
                 displayUserRooms(data.rooms);
+                // 🔥 Φόρτωση events
+                loadEvents();
             }
         })
         .catch((error) => {
@@ -3213,6 +3215,454 @@ socket.on("connect_error", (error) => {
     console.error("🔌 Connection error:", error);
 });
 
+// ===== EVENTS SYSTEM FUNCTIONS =====
+
+async function loadEvents() {
+    if (!currentUser.authenticated) return;
+    
+    try {
+        const response = await fetch(`/events?username=${currentUser.username}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (!response.ok) {
+            throw new Error("Failed to load events");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            displayEvents(data.events);
+        }
+    } catch (error) {
+        console.error("Error loading events:", error);
+        showNotification("Could not load events", "error", "Events Error");
+    }
+}
+
+function displayEvents(events) {
+    const eventsList = document.getElementById("events-list");
+    if (!eventsList) return;
+    
+    eventsList.innerHTML = "";
+    
+    if (!events || events.length === 0) {
+        eventsList.innerHTML = `
+            <div class="no-events">
+                <i class="fas fa-calendar-times"></i>
+                <h3>No upcoming events</h3>
+                <p>Be the first to create an event!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const now = new Date();
+    
+    events.forEach(event => {
+        const eventDate = new Date(event.date);
+        const isPast = eventDate < now;
+        const isFull = event.max_participants > 0 && event.participant_count >= event.max_participants;
+        const isParticipant = event.participants.includes(currentUser.username);
+        const isCreator = event.created_by === currentUser.username;
+        
+        let statusClass = "upcoming";
+        let statusText = "Upcoming";
+        
+        if (isPast) {
+            statusClass = "past";
+            statusText = "Past";
+        } else if (isFull) {
+            statusClass = "full";
+            statusText = "Full";
+        }
+        
+        const eventCard = document.createElement("div");
+        eventCard.className = `event-card ${statusClass}`;
+        eventCard.dataset.eventId = event.id;
+        
+        // Format date
+        const formattedDate = eventDate.toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        eventCard.innerHTML = `
+            <div class="event-card-header">
+                <h3>${event.title}</h3>
+                <span class="event-status ${statusClass}">${statusText}</span>
+            </div>
+            
+            <div class="event-details">
+                <div class="event-detail">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>${formattedDate}</span>
+                </div>
+                <div class="event-detail">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>${event.location}</span>
+                </div>
+                ${event.description ? `
+                    <div class="event-detail">
+                        <i class="fas fa-align-left"></i>
+                        <span>${event.description.substring(0, 50)}${event.description.length > 50 ? '...' : ''}</span>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="event-participants">
+                <div class="participant-count">
+                    <i class="fas fa-users"></i>
+                    <span>${event.participant_count} ${event.max_participants > 0 ? `/ ${event.max_participants}` : ''} participants</span>
+                </div>
+            </div>
+            
+            <div class="event-card-footer">
+                <div class="event-creator">
+                    <i class="fas fa-user"></i>
+                    <span>${event.created_by}</span>
+                </div>
+                <div class="event-actions">
+                    <button class="btn-event details" data-event-id="${event.id}">Details</button>
+                    ${!isPast && !isCreator ? (
+                        isParticipant 
+                            ? `<button class="btn-event leave" data-event-id="${event.id}">Leave</button>`
+                            : (!isFull ? `<button class="btn-event join" data-event-id="${event.id}">Join</button>` : '')
+                    ) : ''}
+                </div>
+            </div>
+        `;
+        
+        eventsList.appendChild(eventCard);
+    });
+    
+    // Add event listeners to buttons
+    addEventButtonListeners();
+}
+
+function addEventButtonListeners() {
+    // Details buttons
+    document.querySelectorAll('.btn-event.details').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const eventId = this.dataset.eventId;
+            showEventDetails(eventId);
+        });
+    });
+    
+    // Join buttons
+    document.querySelectorAll('.btn-event.join').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const eventId = this.dataset.eventId;
+            joinEvent(eventId);
+        });
+    });
+    
+    // Leave buttons
+    document.querySelectorAll('.btn-event.leave').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const eventId = this.dataset.eventId;
+            leaveEvent(eventId);
+        });
+    });
+}
+
+async function showEventDetails(eventId) {
+    try {
+        const response = await fetch(`/events/${eventId}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (!response.ok) {
+            throw new Error("Failed to load event details");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateEventDetailsModal(data.event);
+            showModal("event-details-modal");
+        }
+    } catch (error) {
+        console.error("Error loading event details:", error);
+        showNotification("Could not load event details", "error", "Error");
+    }
+}
+
+function updateEventDetailsModal(event) {
+    document.getElementById("event-details-title").textContent = event.title;
+    
+    const eventDate = new Date(event.date);
+    const formattedDate = eventDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    const isPast = eventDate < new Date();
+    const isFull = event.max_participants > 0 && event.participant_count >= event.max_participants;
+    const isParticipant = event.participants.includes(currentUser.username);
+    const isCreator = event.created_by === currentUser.username;
+    
+    let detailsHTML = `
+        <div class="event-detail-item">
+            <h4>Description</h4>
+            <p>${event.description || 'No description provided.'}</p>
+        </div>
+        
+        <div class="event-detail-item">
+            <h4>Date & Time</h4>
+            <p><i class="fas fa-calendar-alt"></i> ${formattedDate}</p>
+        </div>
+        
+        <div class="event-detail-item">
+            <h4>Location</h4>
+            <p><i class="fas fa-map-marker-alt"></i> ${event.location}</p>
+        </div>
+        
+        <div class="event-detail-item">
+            <h4>Participants (${event.participant_count}${event.max_participants > 0 ? ` / ${event.max_participants}` : ''})</h4>
+            <div class="event-participants-list">
+    `;
+    
+    event.participants.forEach(participant => {
+        const isCreatorClass = participant === event.created_by ? 'creator' : '';
+        const initials = participant.substring(0, 2).toUpperCase();
+        detailsHTML += `
+            <div class="participant-item ${isCreatorClass}">
+                <div class="participant-avatar">${initials}</div>
+                <span class="participant-name">${participant}${participant === event.created_by ? ' (Creator)' : ''}</span>
+            </div>
+        `;
+    });
+    
+    detailsHTML += `
+            </div>
+        </div>
+        
+        <div class="event-detail-item">
+            <h4>Event Information</h4>
+            <p><i class="fas fa-user"></i> Created by: ${event.created_by}</p>
+            <p><i class="fas fa-clock"></i> Created: ${new Date(event.created_at).toLocaleDateString()}</p>
+            <p><i class="fas fa-globe"></i> ${event.is_public ? 'Public Event' : 'Private Event'}</p>
+        </div>
+    `;
+    
+    document.getElementById("event-details-content").innerHTML = detailsHTML;
+    
+    // Action buttons
+    let actionButtonsHTML = '';
+    
+    if (isCreator) {
+        actionButtonsHTML = `
+            <button class="btn btn-danger" id="delete-event-btn" data-event-id="${event.id}">
+                <i class="fas fa-trash"></i> Delete Event
+            </button>
+            ${!isPast ? `
+                <button class="btn btn-secondary" id="edit-event-btn" data-event-id="${event.id}">
+                    <i class="fas fa-edit"></i> Edit Event
+                </button>
+            ` : ''}
+        `;
+    } else if (!isPast) {
+        if (isParticipant) {
+            actionButtonsHTML = `
+                <button class="btn btn-danger" id="leave-event-btn" data-event-id="${event.id}">
+                    <i class="fas fa-sign-out-alt"></i> Leave Event
+                </button>
+            `;
+        } else if (!isFull) {
+            actionButtonsHTML = `
+                <button class="btn btn-primary" id="join-event-btn" data-event-id="${event.id}">
+                    <i class="fas fa-plus"></i> Join Event
+                </button>
+            `;
+        } else {
+            actionButtonsHTML = '<p style="color: var(--accent-red);">This event is full</p>';
+        }
+    }
+    
+    document.getElementById("event-action-buttons").innerHTML = actionButtonsHTML;
+    
+    // Add event listeners to action buttons
+    addEventActionListeners(event);
+}
+
+function addEventActionListeners(event) {
+    // Join button
+    const joinBtn = document.getElementById("join-event-btn");
+    if (joinBtn) {
+        joinBtn.addEventListener('click', function() {
+            joinEvent(event.id);
+            hideModal("event-details-modal");
+        });
+    }
+    
+    // Leave button
+    const leaveBtn = document.getElementById("leave-event-btn");
+    if (leaveBtn) {
+        leaveBtn.addEventListener('click', function() {
+            leaveEvent(event.id);
+            hideModal("event-details-modal");
+        });
+    }
+    
+    // Delete button
+    const deleteBtn = document.getElementById("delete-event-btn");
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            showConfirmationModal(
+                "Are you sure you want to delete this event? This action cannot be undone!",
+                "Delete Event",
+                () => deleteEvent(event.id)
+            );
+        });
+    }
+    
+    // Edit button
+    const editBtn = document.getElementById("edit-event-btn");
+    if (editBtn) {
+        editBtn.addEventListener('click', function() {
+            showEditEventModal(event);
+        });
+    }
+}
+
+async function createEvent(eventData) {
+    try {
+        const response = await fetch("/create-event", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                ...eventData,
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            throw new Error("Failed to create event");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification("Event created successfully!", "success", "Event Created");
+            hideAllModals();
+            loadEvents();
+            return data.event;
+        } else {
+            showNotification(data.error || "Failed to create event", "error", "Event Error");
+        }
+    } catch (error) {
+        console.error("Error creating event:", error);
+        showNotification("Failed to create event", "error", "Error");
+    }
+}
+
+async function joinEvent(eventId) {
+    try {
+        const response = await fetch(`/events/${eventId}/join`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to join event");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification("Joined event successfully!", "success", "Event Joined");
+            loadEvents();
+        }
+    } catch (error) {
+        console.error("Error joining event:", error);
+        showNotification(error.message || "Failed to join event", "error", "Error");
+    }
+}
+
+async function leaveEvent(eventId) {
+    try {
+        const response = await fetch(`/events/${eventId}/leave`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to leave event");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification("Left event successfully", "info", "Event Left");
+            loadEvents();
+        }
+    } catch (error) {
+        console.error("Error leaving event:", error);
+        showNotification(error.message || "Failed to leave event", "error", "Error");
+    }
+}
+
+async function deleteEvent(eventId) {
+    try {
+        const response = await fetch(`/events/${eventId}`, {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to delete event");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification("Event deleted successfully", "success", "Event Deleted");
+            hideModal("event-details-modal");
+            loadEvents();
+        }
+    } catch (error) {
+        console.error("Error deleting event:", error);
+        showNotification(error.message || "Failed to delete event", "error", "Error");
+    }
+}
+
 // ===== EVENT LISTENERS =====
 
 function initializeEventListeners() {
@@ -3265,6 +3715,45 @@ function initializeEventListeners() {
     document.getElementById("add-friend-btn").addEventListener("click", () => {
         showModal("add-friend-modal");
     });
+
+    // Events listeners
+    document.getElementById("create-event-btn").addEventListener("click", () => {
+        showModal("create-event-modal");
+        // Set minimum date to today
+        const now = new Date();
+        const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 16);
+        document.getElementById("event-date-input").min = localDateTime;
+        document.getElementById("event-date-input").value = localDateTime;
+    });
+    
+    document.getElementById("create-event-submit").addEventListener("click", () => {
+        const title = document.getElementById("event-title-input").value.trim();
+        const description = document.getElementById("event-description-input").value.trim();
+        const date = document.getElementById("event-date-input").value;
+        const location = document.getElementById("event-location-input").value.trim();
+        const maxParticipants = parseInt(document.getElementById("event-max-participants-input").value) || 0;
+        const isPublic = document.getElementById("event-is-public-input").checked;
+        
+        if (!title || !description || !date || !location) {
+            showNotification("Please fill in all required fields", "error", "Missing Information");
+            return;
+        }
+        
+        createEvent({
+            title,
+            description,
+            date,
+            location,
+            max_participants: maxParticipants,
+            is_public: isPublic
+        });
+    });
+    
+    document.getElementById("create-event-cancel").addEventListener("click", hideAllModals);
+    document.getElementById("close-create-event-modal").addEventListener("click", hideAllModals);
+    document.getElementById("close-event-details-modal").addEventListener("click", hideAllModals);
 
     document.querySelectorAll(".close-modal-btn").forEach((btn) => {
         btn.addEventListener("click", hideAllModals);
@@ -3495,6 +3984,43 @@ function updateUserStatusInUI(username, isOnline) {
         }
     }
 }
+
+// ===== WEBSOCKET EVENTS ΓΙΑ REAL-TIME UPDATES =====
+
+// Προσθήκη στο socket.on("connect") ή στο initialize:
+socket.on("event_update", (data) => {
+    console.log("📅 Event update received:", data);
+    
+    switch (data.type) {
+        case "participant_joined":
+        case "participant_left":
+            showNotification(
+                `${data.username} ${data.type === "participant_joined" ? "joined" : "left"} an event`,
+                "info",
+                "Event Update"
+            );
+            loadEvents();
+            break;
+            
+        case "event_updated":
+            showNotification(
+                "An event has been updated",
+                "info",
+                "Event Updated"
+            );
+            loadEvents();
+            break;
+            
+        case "event_deleted":
+            showNotification(
+                "An event has been deleted",
+                "info",
+                "Event Deleted"
+            );
+            loadEvents();
+            break;
+    }
+});
 
 // ===== MOBILE RESPONSIVE FUNCTIONALITY =====
 
