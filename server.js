@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR PROFILE PICS & LEAVE ROOM
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR PROFILE PICS, LEAVE ROOM & EVENTS SYSTEM
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -737,6 +737,258 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
     }
 });
 
+// ===== 🔥 ΝΕΑ ENDPOINTS: EVENTS SYSTEM =====
+
+// Create event
+app.post("/create-event", validateSession, async (req, res) => {
+    try {
+        const { title, description, date, location, max_participants, is_public } = req.body;
+        const username = req.body.username || req.user?.username;
+
+        if (!title || !description || !date || !location || !username) {
+            return res.status(400).json({ success: false, error: "All required fields must be provided" });
+        }
+
+        const event = await dbHelpers.createEvent({
+            title,
+            description,
+            date: new Date(date),
+            location,
+            created_by: username,
+            max_participants: parseInt(max_participants) || 0,
+            is_public: is_public !== false
+        });
+
+        res.json({
+            success: true,
+            event: {
+                id: event.event_id,
+                title: event.title,
+                description: event.description,
+                date: event.date,
+                location: event.location,
+                created_by: event.created_by,
+                max_participants: event.max_participants,
+                participants: event.participants,
+                is_public: event.is_public,
+                created_at: event.created_at
+            },
+            message: "Event created successfully"
+        });
+    } catch (error) {
+        console.error("❌ Error creating event:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Get all events
+app.get("/events", validateSession, async (req, res) => {
+    try {
+        const username = req.query.username || req.user?.username;
+        const events = await dbHelpers.getAllEvents(username);
+        
+        const formattedEvents = events.map(event => ({
+            id: event.event_id,
+            title: event.title,
+            description: event.description,
+            date: event.date,
+            location: event.location,
+            created_by: event.created_by,
+            max_participants: event.max_participants,
+            participants: event.participants,
+            participant_count: event.participants.length,
+            is_public: event.is_public,
+            created_at: event.created_at,
+            is_full: event.max_participants > 0 && event.participants.length >= event.max_participants,
+            is_creator: event.created_by === username,
+            is_participant: event.participants.includes(username)
+        }));
+        
+        res.json({
+            success: true,
+            events: formattedEvents
+        });
+    } catch (error) {
+        console.error("❌ Error getting events:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Get single event
+app.get("/events/:eventId", validateSession, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const event = await dbHelpers.getEventById(eventId);
+        
+        if (!event) {
+            return res.status(404).json({ success: false, error: "Event not found" });
+        }
+        
+        res.json({
+            success: true,
+            event: event
+        });
+    } catch (error) {
+        console.error("❌ Error getting event:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// Join event
+app.post("/events/:eventId/join", validateSession, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const username = req.body.username || req.user?.username;
+        
+        if (!username) {
+            return res.status(400).json({ success: false, error: "Username required" });
+        }
+        
+        const event = await dbHelpers.joinEvent(eventId, username);
+        
+        res.json({
+            success: true,
+            event: {
+                id: event.event_id,
+                title: event.title,
+                participants: event.participants,
+                participant_count: event.participants.length
+            },
+            message: "Joined event successfully"
+        });
+        
+        // Ενημέρωση μέσω WebSocket
+        io.emit("event_update", {
+            type: "participant_joined",
+            eventId: eventId,
+            username: username,
+            participant_count: event.participants.length
+        });
+        
+    } catch (error) {
+        console.error("❌ Error joining event:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || "Failed to join event" 
+        });
+    }
+});
+
+// Leave event
+app.post("/events/:eventId/leave", validateSession, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const username = req.body.username || req.user?.username;
+        
+        if (!username) {
+            return res.status(400).json({ success: false, error: "Username required" });
+        }
+        
+        const event = await dbHelpers.leaveEvent(eventId, username);
+        
+        res.json({
+            success: true,
+            event: {
+                id: event.event_id,
+                title: event.title,
+                participants: event.participants,
+                participant_count: event.participants.length
+            },
+            message: "Left event successfully"
+        });
+        
+        // Ενημέρωση μέσω WebSocket
+        io.emit("event_update", {
+            type: "participant_left",
+            eventId: eventId,
+            username: username,
+            participant_count: event.participants.length
+        });
+        
+    } catch (error) {
+        console.error("❌ Error leaving event:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || "Failed to leave event" 
+        });
+    }
+});
+
+// Delete event
+app.delete("/events/:eventId", validateSession, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const username = req.body.username || req.user?.username;
+        
+        if (!username) {
+            return res.status(400).json({ success: false, error: "Username required" });
+        }
+        
+        await dbHelpers.deleteEvent(eventId, username);
+        
+        res.json({
+            success: true,
+            message: "Event deleted successfully"
+        });
+        
+        // Ενημέρωση μέσω WebSocket
+        io.emit("event_update", {
+            type: "event_deleted",
+            eventId: eventId
+        });
+        
+    } catch (error) {
+        console.error("❌ Error deleting event:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || "Failed to delete event" 
+        });
+    }
+});
+
+// Update event
+app.put("/events/:eventId", validateSession, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const username = req.body.username || req.user?.username;
+        const updates = req.body.updates;
+        
+        if (!username || !updates) {
+            return res.status(400).json({ success: false, error: "Username and updates required" });
+        }
+        
+        const event = await dbHelpers.updateEvent(eventId, username, updates);
+        
+        res.json({
+            success: true,
+            event: {
+                id: event.event_id,
+                title: event.title,
+                description: event.description,
+                date: event.date,
+                location: event.location,
+                max_participants: event.max_participants,
+                is_public: event.is_public
+            },
+            message: "Event updated successfully"
+        });
+        
+        // Ενημέρωση μέσω WebSocket
+        io.emit("event_update", {
+            type: "event_updated",
+            eventId: eventId,
+            updates: updates
+        });
+        
+    } catch (error) {
+        console.error("❌ Error updating event:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || "Failed to update event" 
+        });
+    }
+});
+
 // ===== ΥΠΑΡΧΟΝΤΑ ENDPOINTS (ΜΕΝΟΥΝ ΑΚΛΑΔΑ) =====
 
 // Authentication routes
@@ -1184,7 +1436,7 @@ app.get("/private-messages/:user1/:user2", validateSession, async (req, res) => 
   }
 });
 
-// ===== SOCKET.IO CONNECTION WITH ENHANCED UNREAD SYSTEM =====
+// ===== SOCKET.IO CONNECTION WITH ENHANCED UNREAD SYSTEM & EVENTS =====
 
 io.on("connection", async (socket) => {
   console.log("🔗 User connected:", socket.id);
@@ -1530,6 +1782,58 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // 🔥 ΝΕΟ EVENT: Join event via WebSocket
+  socket.on("join_event", async (data) => {
+    try {
+      const { eventId, username } = data;
+      
+      if (!username || !eventId) {
+        socket.emit("error", { message: "Missing data" });
+        return;
+      }
+      
+      const event = await dbHelpers.joinEvent(eventId, username);
+      
+      // Ενημέρωση όλων για το update
+      io.emit("event_update", {
+        type: "participant_joined",
+        eventId: eventId,
+        username: username,
+        participant_count: event.participants.length
+      });
+      
+    } catch (error) {
+      console.error("Error joining event via socket:", error);
+      socket.emit("error", { message: error.message });
+    }
+  });
+
+  // 🔥 ΝΕΟ EVENT: Leave event via WebSocket
+  socket.on("leave_event", async (data) => {
+    try {
+      const { eventId, username } = data;
+      
+      if (!username || !eventId) {
+        socket.emit("error", { message: "Missing data" });
+        return;
+      }
+      
+      const event = await dbHelpers.leaveEvent(eventId, username);
+      
+      // Ενημέρωση όλων για το update
+      io.emit("event_update", {
+        type: "participant_left",
+        eventId: eventId,
+        username: username,
+        participant_count: event.participants.length
+      });
+      
+    } catch (error) {
+      console.error("Error leaving event via socket:", error);
+      socket.emit("error", { message: error.message });
+    }
+  });
+
   socket.on("get room info", async (data) => {
     try {
       const { roomId } = data;
@@ -1631,6 +1935,7 @@ async function startServer() {
       console.log(`📬 UNREAD MESSAGES SYSTEM: ENABLED`);
       console.log(`👤 PROFILE SYSTEM: ENABLED`);
       console.log(`👤 USER INFO SYSTEM: ENABLED`);
+      console.log(`📅 EVENTS SYSTEM: ENABLED`);
       console.log(`🔔 NOTIFICATION TIMEOUT: 5 SECONDS`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
       console.log(`📸 IMAGE STORAGE: BASE64 IN MONGODB`);
@@ -1639,6 +1944,7 @@ async function startServer() {
       console.log(`😀 EMOJI PICKER: ENABLED`);
       console.log(`🖼️ AVATAR SYSTEM: ENABLED (PERMANENT STORAGE)`);
       console.log(`👥 ROOM CAPACITY: UNLIMITED`);
+      console.log(`🎯 EVENT CAPACITY: UNLIMITED`);
       console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
     });
   } catch (error) {
