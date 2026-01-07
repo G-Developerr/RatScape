@@ -924,22 +924,7 @@ app.delete("/events/:eventId", validateSession, async (req, res) => {
             return res.status(400).json({ success: false, error: "Username required" });
         }
         
-        // 🔥 Ο admin μπορεί να διαγράψει τα πάντα
-        if (username === "Vf-Rat") {
-            await dbHelpers.deleteEvent(eventId, username);
-            res.json({
-                success: true,
-                message: "Event deleted successfully by admin"
-            });
-            
-            io.emit("event_update", {
-                type: "event_deleted",
-                eventId: eventId
-            });
-            return;
-        }
-        
-        // Για άλλους χρήστες, κανονικός έλεγχος
+        // 🔥 Ο admin μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event, όχι μόνο samples
         await dbHelpers.deleteEvent(eventId, username);
         
         res.json({
@@ -947,6 +932,7 @@ app.delete("/events/:eventId", validateSession, async (req, res) => {
             message: "Event deleted successfully"
         });
         
+        // Ενημέρωση όλων μέσω WebSocket
         io.emit("event_update", {
             type: "event_deleted",
             eventId: eventId
@@ -957,6 +943,45 @@ app.delete("/events/:eventId", validateSession, async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: error.message || "Failed to delete event" 
+        });
+    }
+});
+
+// ===== 🔥 ΝΕΟ ENDPOINT: DELETE ALL EVENTS (ΜΟΝΟ ΓΙΑ ADMIN) =====
+app.delete("/events/admin/delete-all", validateSession, async (req, res) => {
+    try {
+        const username = req.body.username || req.user?.username;
+        
+        // Μόνο ο admin μπορεί να χρησιμοποιήσει αυτό το endpoint
+        if (username !== "Vf-Rat") {
+            return res.status(403).json({ 
+                success: false, 
+                error: "Only admin can delete all events" 
+            });
+        }
+        
+        // Χρήση της νέας συνάρτησης για διαγραφή ΟΛΩΝ των events
+        const result = await dbHelpers.deleteAllEvents(username);
+        
+        console.log(`🔥 Admin deleted ALL events: ${result.deletedCount}`);
+        
+        res.json({
+            success: true,
+            deletedCount: result.deletedCount,
+            message: `Deleted ${result.deletedCount} events`
+        });
+        
+        // Ενημέρωση όλων των clients
+        io.emit("events_cleared", { 
+            type: "all_events_deleted",
+            deletedCount: result.deletedCount 
+        });
+        
+    } catch (error) {
+        console.error("❌ Error deleting all events:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: "Failed to delete events" 
         });
     }
 });
