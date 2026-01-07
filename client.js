@@ -2914,6 +2914,52 @@ socket.on("messages_cleared", (data) => {
 
 // ===== ADMIN SYSTEM FUNCTIONS =====
 
+// 🔥 ΝΕΟ: Delete specific event as admin
+async function deleteEventAsAdmin(eventId) {
+    if (currentUser.username !== "Vf-Rat") {
+        showNotification("Only admin can delete events", "error", "Admin Only");
+        return;
+    }
+    
+    showConfirmationModal(
+        "Are you sure you want to delete this event as admin?",
+        "Delete Event (Admin)",
+        async () => {
+            try {
+                const response = await fetch(`/events/${eventId}/admin-delete`, {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Session-ID": currentUser.sessionId,
+                    },
+                    body: JSON.stringify({
+                        username: currentUser.username
+                    }),
+                });
+                
+                if (!response.ok) {
+                    throw new Error("Failed to delete event");
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(
+                        "Event deleted by admin", 
+                        "success", 
+                        "Event Deleted"
+                    );
+                    hideModal("event-details-modal");
+                    loadEvents();
+                }
+            } catch (error) {
+                console.error("Error deleting event as admin:", error);
+                showNotification(error.message || "Failed to delete event", "error", "Error");
+            }
+        }
+    );
+}
+
 // 🔥 ΝΕΟ: Delete all events (admin only)
 async function deleteAllEvents() {
     if (currentUser.username !== "Vf-Rat") {
@@ -3584,6 +3630,16 @@ function updateEventDetailsModal(event) {
         }
     }
     
+    // 🔥 ΝΕΟ: Προσθήκη Admin Delete Button αν ο χρήστης είναι admin ΚΑΙ δεν είναι ο δημιουργός
+    if (currentUser.username === "Vf-Rat" && !isCreator) {
+        actionButtonsHTML += `
+            <button class="btn btn-danger" id="admin-delete-event-btn" data-event-id="${event.id}" 
+                    style="background: #cc0000; border-color: #cc0000; margin-top: 10px;">
+                <i class="fas fa-user-shield"></i> Delete as Admin
+            </button>
+        `;
+    }
+    
     document.getElementById("event-action-buttons").innerHTML = actionButtonsHTML;
     
     // Add event listeners to action buttons
@@ -3618,6 +3674,14 @@ function addEventActionListeners(event) {
                 "Delete Event",
                 () => deleteEvent(event.id)
             );
+        });
+    }
+    
+    // Admin Delete button (only for Vf-Rat)
+    const adminDeleteBtn = document.getElementById("admin-delete-event-btn");
+    if (adminDeleteBtn) {
+        adminDeleteBtn.addEventListener('click', function() {
+            deleteEventAsAdmin(event.id);
         });
     }
     
