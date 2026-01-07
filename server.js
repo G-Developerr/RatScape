@@ -947,6 +947,47 @@ app.delete("/events/:eventId", validateSession, async (req, res) => {
     }
 });
 
+// ===== 🔥 ΝΕΟ ENDPOINT: DELETE EVENT AS ADMIN =====
+app.delete("/events/:eventId/admin-delete", validateSession, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const username = req.body.username || req.user?.username;
+        
+        if (!username) {
+            return res.status(400).json({ success: false, error: "Username required" });
+        }
+        
+        // Μόνο ο admin μπορεί να χρησιμοποιήσει αυτό το endpoint
+        if (username !== "Vf-Rat") {
+            return res.status(403).json({ 
+                success: false, 
+                error: "Only admin can delete events" 
+            });
+        }
+        
+        // Χρήση της νέας συνάρτησης για διαγραφή event από admin
+        const result = await dbHelpers.deleteEventAsAdmin(eventId, username);
+        
+        res.json({
+            success: true,
+            message: "Event deleted by admin"
+        });
+        
+        // Ενημέρωση όλων μέσω WebSocket
+        io.emit("event_update", {
+            type: "event_deleted",
+            eventId: eventId
+        });
+        
+    } catch (error) {
+        console.error("❌ Error deleting event as admin:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || "Failed to delete event" 
+        });
+    }
+});
+
 // ===== 🔥 ΝΕΟ ENDPOINT: DELETE ALL EVENTS (ΜΟΝΟ ΓΙΑ ADMIN) =====
 app.delete("/events/admin/delete-all", validateSession, async (req, res) => {
     try {
