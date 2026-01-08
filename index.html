@@ -753,6 +753,48 @@
         </div>
     </div>
 
+    <!-- EDIT EVENT MODAL -->
+    <div class="modal" id="edit-event-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Event</h3>
+                <button class="close-modal-btn" id="close-edit-event-modal">×</button>
+            </div>
+            <div class="form-container active">
+                <div class="form-group">
+                    <label for="edit-event-title-input">Event Title *</label>
+                    <input type="text" id="edit-event-title-input" placeholder="Enter event title" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-event-description-input">Description *</label>
+                    <textarea id="edit-event-description-input" placeholder="Describe your event..." rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-event-date-input">Date & Time *</label>
+                    <input type="datetime-local" id="edit-event-date-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-event-location-input">Location *</label>
+                    <input type="text" id="edit-event-location-input" placeholder="Enter location" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-event-max-participants-input">Max Participants (0 for unlimited)</label>
+                    <input type="number" id="edit-event-max-participants-input" placeholder="0" min="0" value="0">
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="edit-event-is-public-input" checked>
+                    <label for="edit-event-is-public-input" style="margin: 0;">Public Event</label>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" id="save-edit-event-btn">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <button class="btn btn-secondary" id="cancel-edit-event-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- CONFIRMATION MODAL (Dynamic) -->
     <!-- This modal is created dynamically in client.js -->
 
