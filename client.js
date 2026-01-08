@@ -232,7 +232,7 @@ function cancelFileUpload() {
     fileUploadInProgress = false;
 }
 
-// 🔥 ΚΡΙΤΙΚΟ FIX: UPLOAD FILE TO SERVER - ΜΟΝΟ ΜΙΑ ΦΟΡΑ ΑΠΟΣΤΟΛΗ
+// 🔥 ΚΡΙΤΙΚΟ FIX: UPLOAD FILE TO SERVER - ΜΟΝΟ ΜΙΑ ΦΟΡΕ ΑΠΟΣΤΟΛΗ
 let isUploading = false;
 
 async function uploadFile() {
@@ -3358,6 +3358,8 @@ socket.on("connect_error", (error) => {
 async function loadEvents() {
     if (!currentUser.authenticated) return;
     
+    console.log(`🔄 Loading events for ${currentUser.username}`);
+    
     try {
         const response = await fetch(`/events?username=${currentUser.username}`, {
             headers: {
@@ -3372,6 +3374,8 @@ async function loadEvents() {
         const data = await response.json();
         
         if (data.success) {
+            console.log(`✅ Loaded ${data.events.length} events`);
+            setupEventDelegation();
             displayEvents(data.events);
         }
     } catch (error) {
@@ -3420,6 +3424,13 @@ function displayEvents(events) {
         const eventCard = document.createElement("div");
         eventCard.className = `event-card ${statusClass}`;
         eventCard.dataset.eventId = event.id;
+        
+        // 🔥 ΠΡΟΣΘΗΚΗ: data attributes για καλύτερο event delegation
+        eventCard.dataset.eventId = event.id;
+        eventCard.dataset.isPast = isPast;
+        eventCard.dataset.isFull = isFull;
+        eventCard.dataset.isParticipant = isParticipant;
+        eventCard.dataset.isCreator = isCreator;
         
         // Format date
         const formattedDate = eventDate.toLocaleDateString('en-US', {
@@ -3479,35 +3490,60 @@ function displayEvents(events) {
         
         eventsList.appendChild(eventCard);
     });
-    
-    // Add event listeners to buttons
-    addEventButtonListeners();
 }
 
-function addEventButtonListeners() {
-    // Details buttons
-    document.querySelectorAll('.btn-event.details').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const eventId = this.dataset.eventId;
+// 🔥 ΒΕΛΤΙΩΜΕΝΗ ΛΥΣΗ: Event Delegation για events
+function setupEventDelegation() {
+    const eventsList = document.getElementById("events-list");
+    if (!eventsList) return;
+    
+    // Αφαίρεση όλων των παλιών listeners
+    const newEventsList = eventsList.cloneNode(false);
+    eventsList.parentNode.replaceChild(newEventsList, eventsList);
+    
+    // Προσθήκη ενός μόνο listener στο container
+    newEventsList.addEventListener('click', function(e) {
+        const target = e.target;
+        
+        // Βρες το πλησιέστερο κουμπί
+        const detailsBtn = target.closest('.btn-event.details');
+        const joinBtn = target.closest('.btn-event.join');
+        const leaveBtn = target.closest('.btn-event.leave');
+        const adminDeleteBtn = target.closest('[id^="admin-delete-event-"]');
+        
+        if (detailsBtn) {
+            const eventId = detailsBtn.dataset.eventId;
             showEventDetails(eventId);
-        });
-    });
-    
-    // Join buttons
-    document.querySelectorAll('.btn-event.join').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const eventId = this.dataset.eventId;
+            return;
+        }
+        
+        if (joinBtn) {
+            const eventId = joinBtn.dataset.eventId;
             joinEvent(eventId);
-        });
+            return;
+        }
+        
+        if (leaveBtn) {
+            const eventId = leaveBtn.dataset.eventId;
+            leaveEvent(eventId);
+            return;
+        }
+        
+        if (adminDeleteBtn) {
+            const eventId = adminDeleteBtn.dataset.eventId;
+            deleteEventAsAdmin(eventId);
+            return;
+        }
+        
+        // Αν κλικ στο event card (όχι σε κουμπί), ανοίγει details
+        const eventCard = target.closest('.event-card');
+        if (eventCard && !detailsBtn && !joinBtn && !leaveBtn) {
+            const eventId = eventCard.dataset.eventId;
+            showEventDetails(eventId);
+        }
     });
     
-    // Leave buttons
-    document.querySelectorAll('.btn-event.leave').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const eventId = this.dataset.eventId;
-            leaveEvent(eventId);
-        });
-    });
+    return newEventsList;
 }
 
 async function showEventDetails(eventId) {
@@ -3718,6 +3754,8 @@ async function createEvent(eventData) {
         if (data.success) {
             showNotification("Event created successfully!", "success", "Event Created");
             hideAllModals();
+            
+            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
             loadEvents();
             return data.event;
         } else {
@@ -3751,6 +3789,8 @@ async function joinEvent(eventId) {
         
         if (data.success) {
             showNotification("Joined event successfully!", "success", "Event Joined");
+            
+            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
             loadEvents();
         }
     } catch (error) {
@@ -3781,6 +3821,8 @@ async function leaveEvent(eventId) {
         
         if (data.success) {
             showNotification("Left event successfully", "info", "Event Left");
+            
+            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
             loadEvents();
         }
     } catch (error) {
@@ -3812,6 +3854,8 @@ async function deleteEvent(eventId) {
         if (data.success) {
             showNotification("Event deleted successfully", "success", "Event Deleted");
             hideModal("event-details-modal");
+            
+            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
             loadEvents();
         }
     } catch (error) {
@@ -3891,6 +3935,8 @@ async function saveEditedEvent() {
         if (data.success) {
             showNotification("Event updated successfully!", "success", "Event Updated");
             hideAllModals();
+            
+            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
             loadEvents();
         }
     } catch (error) {
