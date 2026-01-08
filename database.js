@@ -764,15 +764,18 @@ const dbHelpers = {
         return event;
     },
 
-    // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Ο admin μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event, άσχετα από το ποιος το δημιούργησε
+    // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Ο admin μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
     deleteEvent: async function(eventId, username) {
+        console.log("🔥 deleteEvent called:", { eventId, username });
+        
         const event = await Event.findOne({ event_id: eventId });
         if (!event) {
             throw new Error("Event not found");
         }
         
         // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Ο admin (Vf-Rat) μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
-        if (username === "Vf-Rat") {
+        // Χρησιμοποιούμε case insensitive check
+        if (username.toLowerCase() === "vf-rat") {
             await Event.deleteOne({ event_id: eventId });
             console.log(`✅ Admin "${username}" deleted event: "${event.title}"`);
             return true;
@@ -876,7 +879,7 @@ const dbHelpers = {
 
     // 🔥 ΝΕΟ: Διαγραφή όλων των sample events (για admin) - ΕΝΗΜΕΡΩΜΕΝΗ
     clearSampleEvents: async function(username) {
-        if (username !== "Vf-Rat") {
+        if (username.toLowerCase() !== "vf-rat") {
             throw new Error("Only admin can clear sample events");
         }
         
@@ -891,7 +894,7 @@ const dbHelpers = {
 
     // 🔥 ΝΕΟ: Delete all events (μόνο για admin)
     deleteAllEvents: async function(username) {
-        if (username !== "Vf-Rat") {
+        if (username.toLowerCase() !== "vf-rat") {
             throw new Error("Only admin can delete all events");
         }
         
@@ -905,27 +908,6 @@ const dbHelpers = {
         console.log("🔥 deleteEventAsAdmin called:", { eventId, username });
         
         // Case insensitive check για τον admin
-        if (username.toLowerCase() !== "vf-rat") {
-            throw new Error("Only admin can delete events");
-        }
-        
-        const event = await Event.findOne({ event_id: eventId });
-        if (!event) {
-            throw new Error("Event not found");
-        }
-        
-        console.log("📝 Deleting event:", event.title);
-        
-        await Event.deleteOne({ event_id: eventId });
-        console.log(`✅ Admin ${username} deleted event: "${event.title}"`);
-        return true;
-    },
-
-    // 🔥 ΝΕΟ: Διαγραφή συγκεκριμένου event από admin (προσθήκη στην υπάρχουσα μέθοδο)
-    deleteEventAsAdmin: async function(eventId, username) {
-        console.log("🔥 deleteEventAsAdmin called:", { eventId, username });
-        
-        // Case insensitive check
         if (username.toLowerCase() !== "vf-rat") {
             throw new Error("Only admin can delete events");
         }
