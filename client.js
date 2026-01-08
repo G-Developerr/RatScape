@@ -1763,7 +1763,6 @@ function displayUserFriends(friends, pendingRequests) {
                 `
                   )
                   .join("")}
-            </div>
         `;
 
         // 🔥 Φόρτωση avatars για τους φίλους
@@ -2939,10 +2938,10 @@ async function deleteEvent(eventId) {
             showNotification("Event deleted successfully", "success", "Event Deleted");
             hideModal("event-details-modal");
             
-            // 🔥 ΚΡΙΤΙΚΟ: Δυναμική επαναφόρτωση χωρίς refresh
+            // 🔥 ΚΡΙΤΙΚΗ ΒΕΛΤΙΩΣΗ: Καθυστερημένο reload για να δώσει χρόνο στο database
             setTimeout(() => {
                 loadEvents();
-            }, 300);
+            }, 500);
         }
     } catch (error) {
         console.error("Error deleting event:", error);
