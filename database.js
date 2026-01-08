@@ -103,7 +103,7 @@ const fileSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now }
 });
 
-// 🔥 ΝΕΟ: EVENTS SCHEMA
+// 🔥 ΝΕΟ: EVENTS SCHEMA - ΕΝΗΜΕΡΩΜΕΝΗ ΜΕ ΑΝΤΊΣΤΟΙΧΟ ΠΕΔΙΟ ID
 const eventSchema = new mongoose.Schema({
     event_id: { type: String, required: true, unique: true },
     title: { type: String, required: true },
@@ -721,6 +721,27 @@ const dbHelpers = {
         return null;
     },
 
+    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη getEventByEventId για συμβατότητα με client-side code
+    getEventByEventId: async function(eventId) {
+        const event = await Event.findOne({ event_id: eventId });
+        if (event) {
+            return {
+                id: event.event_id,
+                title: event.title,
+                description: event.description,
+                date: event.date,
+                location: event.location,
+                created_by: event.created_by,
+                max_participants: event.max_participants,
+                participants: event.participants,
+                is_public: event.is_public,
+                created_at: event.created_at,
+                participant_count: event.participants.length
+            };
+        }
+        return null;
+    },
+
     joinEvent: async function(eventId, username) {
         const event = await Event.findOne({ event_id: eventId });
         if (!event) {
@@ -789,6 +810,14 @@ const dbHelpers = {
         await Event.deleteOne({ event_id: eventId });
         console.log(`✅ Event deleted: ${event.title} by ${username}`);
         return true;
+    },
+
+    // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Ειδική μέθοδος που χρησιμοποιείται από τον client API
+    deleteEventById: async function(eventId, username) {
+        console.log("🔥 deleteEventById called:", { eventId, username });
+        
+        // Χρησιμοποιούμε την υπάρχουσα deleteEvent για συμβατότητα
+        return await this.deleteEvent(eventId, username);
     },
 
     updateEvent: async function(eventId, username, updates) {
@@ -922,6 +951,12 @@ const dbHelpers = {
         await Event.deleteOne({ event_id: eventId });
         console.log(`✅ Admin ${username} deleted event: "${event.title}"`);
         return true;
+    },
+
+    // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Έλεγχος αν υπάρχει το event πριν την εμφάνιση
+    checkEventExists: async function(eventId) {
+        const event = await Event.findOne({ event_id: eventId });
+        return !!event;
     }
 };
 
