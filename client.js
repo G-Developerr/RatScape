@@ -2914,98 +2914,163 @@ socket.on("messages_cleared", (data) => {
 
 // ===== ADMIN SYSTEM FUNCTIONS =====
 
-// 🔥 ΝΕΟ: Delete specific event as admin
-async function deleteEventAsAdmin(eventId) {
-    if (currentUser.username !== "Vf-Rat") {
-        showNotification("Only admin can delete events", "error", "Admin Only");
-        return;
-    }
-    
-    showConfirmationModal(
-        "Are you sure you want to delete this event as admin?",
-        "Delete Event (Admin)",
-        async () => {
-            try {
-                const response = await fetch(`/events/${eventId}/admin-delete`, {
-                    method: "DELETE",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Session-ID": currentUser.sessionId,
-                    },
-                    body: JSON.stringify({
-                        username: currentUser.username
-                    }),
-                });
-                
-                if (!response.ok) {
-                    throw new Error("Failed to delete event");
-                }
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showNotification(
-                        "Event deleted by admin", 
-                        "success", 
-                        "Event Deleted"
-                    );
-                    hideModal("event-details-modal");
-                    loadEvents();
-                }
-            } catch (error) {
-                console.error("Error deleting event as admin:", error);
-                showNotification(error.message || "Failed to delete event", "error", "Error");
-            }
+// 🔥 ΒΗΜΑ 1: ΕΝΙΑΙΑ deleteEvent που λειτουργεί και για admin και για κανονικούς
+async function deleteEvent(eventId) {
+    try {
+        const response = await fetch(`/events/${eventId}`, {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to delete event");
         }
-    );
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification("Event deleted successfully", "success", "Event Deleted");
+            hideModal("event-details-modal");
+            
+            // 🔥 ΚΡΙΤΙΚΟ: Δυναμική επαναφόρτωση χωρίς refresh
+            setTimeout(() => {
+                loadEvents();
+            }, 300);
+        }
+    } catch (error) {
+        console.error("Error deleting event:", error);
+        showNotification(error.message || "Failed to delete event", "error", "Error");
+    }
 }
 
-// 🔥 ΝΕΟ: Delete all events (admin only)
-async function deleteAllEvents() {
-    if (currentUser.username !== "Vf-Rat") {
-        showNotification("Only admin can delete all events", "error", "Admin Only");
-        return;
-    }
+// 🔥 ΝΕΟ: ΒΕΛΤΙΩΜΕΝΗ VERSION ΤΗΣ loadEvents()
+async function loadEvents() {
+    if (!currentUser.authenticated) return;
     
-    showConfirmationModal(
-        "⚠️ **CRITICAL: DELETE ALL EVENTS** ⚠️\n\nAre you ABSOLUTELY sure? This will delete EVERY event in the system! This action cannot be undone!",
-        "DELETE ALL EVENTS",
-        async () => {
-            try {
-                const response = await fetch("/events/admin/delete-all", {
-                    method: "DELETE",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Session-ID": currentUser.sessionId,
-                    },
-                    body: JSON.stringify({
-                        username: currentUser.username
-                    }),
-                });
-                
-                if (!response.ok) {
-                    throw new Error("Failed to delete all events");
-                }
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showNotification(
-                        `Deleted ALL events (${data.deletedCount} total)`, 
-                        "success", 
-                        "Events Deleted"
-                    );
-                    loadEvents();
-                }
-            } catch (error) {
-                console.error("Error deleting all events:", error);
-                showNotification(error.message || "Failed to delete events", "error", "Error");
-            }
+    console.log("📅 Loading events...");
+    
+    try {
+        const response = await fetch(`/events?username=${currentUser.username}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (!response.ok) {
+            throw new Error("Failed to load events");
         }
-    );
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log(`✅ Loaded ${data.events.length} events`);
+            displayEvents(data.events);
+            
+            // 🔥 ΚΡΙΤΙΚΟ: Επανάθεση event listeners για όλα τα events
+            setTimeout(() => {
+                attachAllEventListeners();
+            }, 100);
+        }
+    } catch (error) {
+        console.error("Error loading events:", error);
+        showNotification("Could not load events", "error", "Events Error");
+    }
 }
 
-// 🔥 ΝΕΟ: Clear sample events (admin only)
+// 🔥 ΝΕΟ: Κεντρική συνάρτηση για επανάθεση όλων των listeners
+function attachAllEventListeners() {
+    console.log("🔄 Re-attaching all event listeners...");
+    
+    // 1. Event card buttons
+    attachEventCardListeners();
+    
+    // 2. Admin controls (αν υπάρχουν)
+    attachAdminControlListeners();
+    
+    console.log("✅ All listeners attached");
+}
+
+function attachEventCardListeners() {
+    // Χρησιμοποίησε event delegation για να αποφύγεις issues
+    const eventsList = document.getElementById("events-list");
+    if (!eventsList) return;
+    
+    // Αφαίρεση όλων των υπαρχόντων listeners
+    const newEventsList = eventsList.cloneNode(false);
+    newEventsList.innerHTML = eventsList.innerHTML;
+    eventsList.parentNode.replaceChild(newEventsList, eventsList);
+    
+    // Event delegation για όλα τα κουμπιά
+    newEventsList.addEventListener('click', function(e) {
+        const target = e.target;
+        const eventCard = target.closest('.event-card');
+        
+        if (!eventCard) return;
+        
+        const eventId = eventCard.dataset.eventId;
+        
+        // Details button
+        if (target.classList.contains('btn-event') || target.closest('.btn-event.details')) {
+            showEventDetails(eventId);
+            return;
+        }
+        
+        // Join button
+        if (target.classList.contains('join') || target.closest('.btn-event.join')) {
+            joinEvent(eventId);
+            return;
+        }
+        
+        // Leave button
+        if (target.classList.contains('leave') || target.closest('.btn-event.leave')) {
+            leaveEvent(eventId);
+            return;
+        }
+        
+        // Αν κλικ στο event card αλλά όχι σε κουμπί, ανοίγει details
+        if (!target.classList.contains('btn-event') && !target.closest('.btn-event')) {
+            showEventDetails(eventId);
+        }
+    });
+}
+
+function attachAdminControlListeners() {
+    // Clear sample events button
+    const clearSamplesBtn = document.getElementById("clear-sample-events-btn");
+    if (clearSamplesBtn) {
+        const newBtn = clearSamplesBtn.cloneNode(true);
+        clearSamplesBtn.parentNode.replaceChild(newBtn, clearSamplesBtn);
+        
+        newBtn.addEventListener('click', clearSampleEvents);
+    }
+    
+    // Delete all events button
+    const deleteAllBtn = document.getElementById("delete-all-events-btn");
+    if (deleteAllBtn) {
+        const newBtn = deleteAllBtn.cloneNode(true);
+        deleteAllBtn.parentNode.replaceChild(newBtn, deleteAllBtn);
+        
+        newBtn.addEventListener('click', deleteAllEvents);
+    }
+    
+    // Reload events button
+    const reloadBtn = document.getElementById("reload-events-btn");
+    if (reloadBtn) {
+        const newBtn = reloadBtn.cloneNode(true);
+        reloadBtn.parentNode.replaceChild(newBtn, reloadBtn);
+        
+        newBtn.addEventListener('click', loadEvents);
+    }
+}
+
+// 🔥 ΒΗΜΑ 5: ΕΝΗΜΕΡΩΣΗ ΤΩΝ ADMIN FUNCTIONS
 async function clearSampleEvents() {
     if (currentUser.username !== "Vf-Rat") {
         showNotification("Only admin can clear sample events", "error", "Admin Only");
@@ -3040,11 +3105,63 @@ async function clearSampleEvents() {
                         "success", 
                         "Sample Events Cleared"
                     );
-                    loadEvents();
+                    
+                    // 🔥 ΚΡΙΤΙΚΟ: Ανανέωση χωρίς refresh
+                    setTimeout(() => {
+                        loadEvents();
+                    }, 300);
                 }
             } catch (error) {
                 console.error("Error clearing sample events:", error);
                 showNotification(error.message || "Failed to clear sample events", "error", "Error");
+            }
+        }
+    );
+}
+
+async function deleteAllEvents() {
+    if (currentUser.username !== "Vf-Rat") {
+        showNotification("Only admin can delete all events", "error", "Admin Only");
+        return;
+    }
+    
+    showConfirmationModal(
+        "⚠️ **CRITICAL: DELETE ALL EVENTS** ⚠️\n\nAre you ABSOLUTELY sure? This will delete EVERY event in the system! This action cannot be undone!",
+        "DELETE ALL EVENTS",
+        async () => {
+            try {
+                const response = await fetch("/events/admin/delete-all", {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Session-ID": currentUser.sessionId,
+                    },
+                    body: JSON.stringify({
+                        username: currentUser.username
+                    }),
+                });
+                
+                if (!response.ok) {
+                    throw new Error("Failed to delete all events");
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(
+                        `Deleted ALL events (${data.deletedCount} total)`, 
+                        "success", 
+                        "Events Deleted"
+                    );
+                    
+                    // 🔥 ΚΡΙΤΙΚΟ: Ανανέωση χωρίς refresh
+                    setTimeout(() => {
+                        loadEvents();
+                    }, 300);
+                }
+            } catch (error) {
+                console.error("Error deleting all events:", error);
+                showNotification(error.message || "Failed to delete events", "error", "Error");
             }
         }
     );
@@ -3355,35 +3472,6 @@ socket.on("connect_error", (error) => {
 
 // ===== EVENTS SYSTEM FUNCTIONS =====
 
-async function loadEvents() {
-    if (!currentUser.authenticated) return;
-    
-    console.log(`🔄 Loading events for ${currentUser.username}`);
-    
-    try {
-        const response = await fetch(`/events?username=${currentUser.username}`, {
-            headers: {
-                "X-Session-ID": currentUser.sessionId,
-            },
-        });
-        
-        if (!response.ok) {
-            throw new Error("Failed to load events");
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            console.log(`✅ Loaded ${data.events.length} events`);
-            setupEventDelegation();
-            displayEvents(data.events);
-        }
-    } catch (error) {
-        console.error("Error loading events:", error);
-        showNotification("Could not load events", "error", "Events Error");
-    }
-}
-
 function displayEvents(events) {
     const eventsList = document.getElementById("events-list");
     if (!eventsList) return;
@@ -3490,60 +3578,6 @@ function displayEvents(events) {
         
         eventsList.appendChild(eventCard);
     });
-}
-
-// 🔥 ΒΕΛΤΙΩΜΕΝΗ ΛΥΣΗ: Event Delegation για events
-function setupEventDelegation() {
-    const eventsList = document.getElementById("events-list");
-    if (!eventsList) return;
-    
-    // Αφαίρεση όλων των παλιών listeners
-    const newEventsList = eventsList.cloneNode(false);
-    eventsList.parentNode.replaceChild(newEventsList, eventsList);
-    
-    // Προσθήκη ενός μόνο listener στο container
-    newEventsList.addEventListener('click', function(e) {
-        const target = e.target;
-        
-        // Βρες το πλησιέστερο κουμπί
-        const detailsBtn = target.closest('.btn-event.details');
-        const joinBtn = target.closest('.btn-event.join');
-        const leaveBtn = target.closest('.btn-event.leave');
-        const adminDeleteBtn = target.closest('[id^="admin-delete-event-"]');
-        
-        if (detailsBtn) {
-            const eventId = detailsBtn.dataset.eventId;
-            showEventDetails(eventId);
-            return;
-        }
-        
-        if (joinBtn) {
-            const eventId = joinBtn.dataset.eventId;
-            joinEvent(eventId);
-            return;
-        }
-        
-        if (leaveBtn) {
-            const eventId = leaveBtn.dataset.eventId;
-            leaveEvent(eventId);
-            return;
-        }
-        
-        if (adminDeleteBtn) {
-            const eventId = adminDeleteBtn.dataset.eventId;
-            deleteEventAsAdmin(eventId);
-            return;
-        }
-        
-        // Αν κλικ στο event card (όχι σε κουμπί), ανοίγει details
-        const eventCard = target.closest('.event-card');
-        if (eventCard && !detailsBtn && !joinBtn && !leaveBtn) {
-            const eventId = eventCard.dataset.eventId;
-            showEventDetails(eventId);
-        }
-    });
-    
-    return newEventsList;
 }
 
 async function showEventDetails(eventId) {
@@ -3666,7 +3700,7 @@ function updateEventDetailsModal(event) {
         }
     }
     
-    // 🔥 ΝΕΟ: Προσθήκη Admin Delete Button αν ο χρήστης είναι admin ΚΑΙ δεν είναι ο δημιουργός
+    // 🔥 ΒΗΜΑ 3: Admin Delete button - ΜΟΝΟ αν ο χρήστης είναι admin ΚΑΙ δεν είναι ο δημιουργός
     if (currentUser.username === "Vf-Rat" && !isCreator) {
         actionButtonsHTML += `
             <button class="btn btn-danger" id="admin-delete-event-btn" data-event-id="${event.id}" 
@@ -3678,15 +3712,22 @@ function updateEventDetailsModal(event) {
     
     document.getElementById("event-action-buttons").innerHTML = actionButtonsHTML;
     
-    // Add event listeners to action buttons
+    // 🔥 ΒΗΜΑ 2: ΕΝΗΜΕΡΩΣΗ ΤΟΥ addEventActionListeners()
     addEventActionListeners(event);
 }
 
+// 🔥 ΒΗΜΑ 2: ΕΝΗΜΕΡΩΣΗ ΤΟΥ addEventActionListeners()
 function addEventActionListeners(event) {
+    console.log("🔔 Setting up action listeners for event:", event.id);
+    
     // Join button
     const joinBtn = document.getElementById("join-event-btn");
     if (joinBtn) {
-        joinBtn.addEventListener('click', function() {
+        // Αφαίρεση παλιών listeners
+        const newJoinBtn = joinBtn.cloneNode(true);
+        joinBtn.parentNode.replaceChild(newJoinBtn, joinBtn);
+        
+        newJoinBtn.addEventListener('click', function() {
             joinEvent(event.id);
             hideModal("event-details-modal");
         });
@@ -3695,16 +3736,22 @@ function addEventActionListeners(event) {
     // Leave button
     const leaveBtn = document.getElementById("leave-event-btn");
     if (leaveBtn) {
-        leaveBtn.addEventListener('click', function() {
+        const newLeaveBtn = leaveBtn.cloneNode(true);
+        leaveBtn.parentNode.replaceChild(newLeaveBtn, leaveBtn);
+        
+        newLeaveBtn.addEventListener('click', function() {
             leaveEvent(event.id);
             hideModal("event-details-modal");
         });
     }
     
-    // Delete button
+    // Delete button (για δημιουργό)
     const deleteBtn = document.getElementById("delete-event-btn");
     if (deleteBtn) {
-        deleteBtn.addEventListener('click', function() {
+        const newDeleteBtn = deleteBtn.cloneNode(true);
+        deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+        
+        newDeleteBtn.addEventListener('click', function() {
             showConfirmationModal(
                 "Are you sure you want to delete this event? This action cannot be undone!",
                 "Delete Event",
@@ -3713,20 +3760,29 @@ function addEventActionListeners(event) {
         });
     }
     
-    // Admin Delete button (only for Vf-Rat)
+    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Admin Delete button - ΧΡΗΣΙΜΟΠΟΙΕΙ ΤΗΝ ΙΔΙΑ ΣΥΝΑΡΤΗΣΗ
     const adminDeleteBtn = document.getElementById("admin-delete-event-btn");
     if (adminDeleteBtn) {
-        adminDeleteBtn.addEventListener('click', function() {
-            deleteEventAsAdmin(event.id);
+        const newAdminBtn = adminDeleteBtn.cloneNode(true);
+        adminDeleteBtn.parentNode.replaceChild(newAdminBtn, adminDeleteBtn);
+        
+        newAdminBtn.addEventListener('click', function() {
+            showConfirmationModal(
+                "Are you sure you want to delete this event as ADMIN?",
+                "Delete Event (Admin)",
+                () => deleteEvent(event.id) // 🔥 ΧΡΗΣΗ ΤΗΣ ΙΔΙΑΣ ΣΥΝΑΡΤΗΣΗΣ
+            );
         });
     }
     
     // Edit button
     const editBtn = document.getElementById("edit-event-btn");
     if (editBtn) {
-        editBtn.addEventListener('click', function() {
+        const newEditBtn = editBtn.cloneNode(true);
+        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+        
+        newEditBtn.addEventListener('click', function() {
             showEditEventModal(event);
-            hideModal("event-details-modal");
         });
     }
 }
@@ -3828,39 +3884,6 @@ async function leaveEvent(eventId) {
     } catch (error) {
         console.error("Error leaving event:", error);
         showNotification(error.message || "Failed to leave event", "error", "Error");
-    }
-}
-
-async function deleteEvent(eventId) {
-    try {
-        const response = await fetch(`/events/${eventId}`, {
-            method: "DELETE",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Session-ID": currentUser.sessionId,
-            },
-            body: JSON.stringify({
-                username: currentUser.username
-            }),
-        });
-        
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Failed to delete event");
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification("Event deleted successfully", "success", "Event Deleted");
-            hideModal("event-details-modal");
-            
-            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
-            loadEvents();
-        }
-    } catch (error) {
-        console.error("Error deleting event:", error);
-        showNotification(error.message || "Failed to delete event", "error", "Error");
     }
 }
 
@@ -4284,37 +4307,34 @@ function updateUserStatusInUI(username, isOnline) {
 
 // ===== WEBSOCKET EVENTS ΓΙΑ REAL-TIME UPDATES =====
 
-// Προσθήκη στο socket.on("connect") ή στο initialize:
+// 🔥 ΒΗΜΑ 6: DEBUGGING - ΠΡΟΣΘΗΚΗ LOGS ΣΤΟ socket.on("event_update")
 socket.on("event_update", (data) => {
     console.log("📅 Event update received:", data);
     
     switch (data.type) {
         case "participant_joined":
         case "participant_left":
-            showNotification(
-                `${data.username} ${data.type === "participant_joined" ? "joined" : "left"} an event`,
-                "info",
-                "Event Update"
-            );
-            loadEvents();
+            console.log(`👤 ${data.username} ${data.type === "participant_joined" ? "joined" : "left"} event ${data.eventId}`);
+            loadEvents(); // 🔥 Αυτόματη ανανέωση
             break;
             
         case "event_updated":
-            showNotification(
-                "An event has been updated",
-                "info",
-                "Event Updated"
-            );
+            console.log(`✏️ Event ${data.eventId} was updated`);
             loadEvents();
             break;
             
         case "event_deleted":
+            console.log(`🗑️ Event ${data.eventId} was deleted`);
+            // Εμφάνιση notification
             showNotification(
                 "An event has been deleted",
                 "info",
                 "Event Deleted"
             );
-            loadEvents();
+            // Ανανέωση λίστας
+            setTimeout(() => {
+                loadEvents();
+            }, 500);
             break;
     }
 });
