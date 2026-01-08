@@ -3690,6 +3690,7 @@ function addEventActionListeners(event) {
     if (editBtn) {
         editBtn.addEventListener('click', function() {
             showEditEventModal(event);
+            hideModal("event-details-modal");
         });
     }
 }
@@ -3819,6 +3820,85 @@ async function deleteEvent(eventId) {
     }
 }
 
+// ===== EVENT EDIT FUNCTIONS =====
+
+// 🔥 ΝΕΟ: Show edit event modal
+function showEditEventModal(event) {
+    // Populate form with event data
+    document.getElementById("edit-event-title-input").value = event.title;
+    document.getElementById("edit-event-description-input").value = event.description;
+    
+    // Format date for datetime-local input
+    const eventDate = new Date(event.date);
+    const localDateTime = new Date(eventDate.getTime() - eventDate.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+    document.getElementById("edit-event-date-input").value = localDateTime;
+    document.getElementById("edit-event-date-input").min = new Date().toISOString().slice(0, 16);
+    
+    document.getElementById("edit-event-location-input").value = event.location;
+    document.getElementById("edit-event-max-participants-input").value = event.max_participants || 0;
+    document.getElementById("edit-event-is-public-input").checked = event.is_public !== false;
+    
+    // Store event ID for the save function
+    document.getElementById("edit-event-modal").dataset.eventId = event.id;
+    
+    showModal("edit-event-modal");
+}
+
+// 🔥 ΝΕΟ: Save edited event
+async function saveEditedEvent() {
+    const eventId = document.getElementById("edit-event-modal").dataset.eventId;
+    const title = document.getElementById("edit-event-title-input").value.trim();
+    const description = document.getElementById("edit-event-description-input").value.trim();
+    const date = document.getElementById("edit-event-date-input").value;
+    const location = document.getElementById("edit-event-location-input").value.trim();
+    const maxParticipants = parseInt(document.getElementById("edit-event-max-participants-input").value) || 0;
+    const isPublic = document.getElementById("edit-event-is-public-input").checked;
+    
+    if (!title || !description || !date || !location) {
+        showNotification("Please fill in all required fields", "error", "Missing Information");
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/events/${eventId}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username,
+                updates: {
+                    title,
+                    description,
+                    date: new Date(date),
+                    location,
+                    max_participants: maxParticipants,
+                    is_public: isPublic
+                }
+            }),
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to update event");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification("Event updated successfully!", "success", "Event Updated");
+            hideAllModals();
+            loadEvents();
+        }
+    } catch (error) {
+        console.error("Error updating event:", error);
+        showNotification(error.message || "Failed to update event", "error", "Error");
+    }
+}
+
 // ===== EVENT LISTENERS =====
 
 function initializeEventListeners() {
@@ -3910,6 +3990,11 @@ function initializeEventListeners() {
     document.getElementById("create-event-cancel").addEventListener("click", hideAllModals);
     document.getElementById("close-create-event-modal").addEventListener("click", hideAllModals);
     document.getElementById("close-event-details-modal").addEventListener("click", hideAllModals);
+    
+    // Edit event listeners
+    document.getElementById("close-edit-event-modal").addEventListener("click", hideAllModals);
+    document.getElementById("cancel-edit-event-btn").addEventListener("click", hideAllModals);
+    document.getElementById("save-edit-event-btn").addEventListener("click", saveEditedEvent);
 
     document.querySelectorAll(".close-modal-btn").forEach((btn) => {
         btn.addEventListener("click", hideAllModals);
