@@ -900,9 +900,12 @@ const dbHelpers = {
         return result.deletedCount;
     },
 
-    // 🔥 ΝΕΟ: Διαγραφή συγκεκριμένου event από admin
+    // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Διαγραφή συγκεκριμένου event από admin - με case insensitive check
     deleteEventAsAdmin: async function(eventId, username) {
-        if (username !== "Vf-Rat") {
+        console.log("🔥 deleteEventAsAdmin called:", { eventId, username });
+        
+        // Case insensitive check για τον admin
+        if (username.toLowerCase() !== "vf-rat") {
             throw new Error("Only admin can delete events");
         }
         
@@ -910,6 +913,29 @@ const dbHelpers = {
         if (!event) {
             throw new Error("Event not found");
         }
+        
+        console.log("📝 Deleting event:", event.title);
+        
+        await Event.deleteOne({ event_id: eventId });
+        console.log(`✅ Admin ${username} deleted event: "${event.title}"`);
+        return true;
+    },
+
+    // 🔥 ΝΕΟ: Διαγραφή συγκεκριμένου event από admin (προσθήκη στην υπάρχουσα μέθοδο)
+    deleteEventAsAdmin: async function(eventId, username) {
+        console.log("🔥 deleteEventAsAdmin called:", { eventId, username });
+        
+        // Case insensitive check
+        if (username.toLowerCase() !== "vf-rat") {
+            throw new Error("Only admin can delete events");
+        }
+        
+        const event = await Event.findOne({ event_id: eventId });
+        if (!event) {
+            throw new Error("Event not found");
+        }
+        
+        console.log("📝 Deleting event:", event.title);
         
         await Event.deleteOne({ event_id: eventId });
         console.log(`✅ Admin ${username} deleted event: "${event.title}"`);
