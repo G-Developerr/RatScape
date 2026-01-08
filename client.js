@@ -2913,9 +2913,19 @@ socket.on("messages_cleared", (data) => {
 
 // ===== ADMIN SYSTEM FUNCTIONS =====
 
-// 🔥 ΒΗΜΑ 2: ΕΝΙΑΙΑ deleteEvent που λειτουργεί και για admin και για κανονικούς
+// 🔥 ΒΕΛΤΙΩΜΕΝΗ: deleteEvent function με καλύτερο error handling
 async function deleteEvent(eventId) {
     console.log("🗑️ Deleting event:", eventId);
+    
+    // 🔥 ΠΡΟΣΘΗΚΗ: Έλεγχος αν το event υπάρχει ακόμα στο UI
+    const eventCard = document.querySelector(`.event-card[data-event-id="${eventId}"]`);
+    if (!eventCard) {
+        console.warn("⚠️ Event card not found in UI, already deleted");
+        showNotification("Event already deleted", "info", "Already Deleted");
+        hideAllModals();
+        loadEvents(); // Reload για συγχρονισμό
+        return;
+    }
     
     try {
         const response = await fetch(`/events/${eventId}`, {
@@ -2929,8 +2939,19 @@ async function deleteEvent(eventId) {
             }),
         });
         
+        // 🔥 ΠΡΟΣΘΗΚΗ: Καλύτερος χειρισμός errors
         if (!response.ok) {
             const data = await response.json();
+            
+            // Αν το event δεν βρέθηκε, σημαίνει ότι ήδη διαγράφηκε
+            if (data.error === "Event not found") {
+                console.warn("⚠️ Event not found on server, already deleted");
+                showNotification("Event already deleted", "info", "Already Deleted");
+                hideAllModals();
+                loadEvents(); // Reload για συγχρονισμό
+                return;
+            }
+            
             throw new Error(data.error || "Failed to delete event");
         }
         
@@ -2939,20 +2960,33 @@ async function deleteEvent(eventId) {
         if (data.success) {
             console.log("✅ Event deleted successfully");
             
-            // 🔥 ΚΛΕΙΣΙΜΟ ΟΛΩΝ των modals
-            hideAllModals();
+            // 🔥 ΑΜΕΣΗ αφαίρεση από το UI
+            if (eventCard) {
+                eventCard.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => {
+                    eventCard.remove();
+                }, 300);
+            }
             
-            // 🔥 ΑΜΕΣΗ ενημέρωση UI
+            hideAllModals();
             showNotification("Event deleted successfully", "success", "Event Deleted");
             
-            // 🔥 Reload events με μικρή καθυστέρηση
+            // 🔥 Reload μετά από μικρή καθυστέρηση
             setTimeout(() => {
                 loadEvents();
-            }, 200);
+            }, 400);
         }
     } catch (error) {
         console.error("❌ Error deleting event:", error);
-        showNotification(error.message || "Failed to delete event", "error", "Error");
+        
+        // 🔥 Ειδικός χειρισμός για "Event not found"
+        if (error.message.includes("Event not found")) {
+            hideAllModals();
+            loadEvents(); // Sync το UI με το database
+            showNotification("Event was already deleted", "info", "Already Deleted");
+        } else {
+            showNotification(error.message || "Failed to delete event", "error", "Error");
+        }
     }
 }
 
@@ -4326,26 +4360,45 @@ socket.on("event_update", (data) => {
         case "participant_joined":
         case "participant_left":
             console.log(`👤 ${data.username} ${data.type === "participant_joined" ? "joined" : "left"} event ${data.eventId}`);
-            loadEvents(); // 🔥 Αυτόματη ανανέωση
+            // 🔥 Μόνο αν είμαστε στη σελίδα events
+            if (document.getElementById("rooms-page").classList.contains("active")) {
+                loadEvents();
+            }
             break;
             
         case "event_updated":
             console.log(`✏️ Event ${data.eventId} was updated`);
-            loadEvents();
+            if (document.getElementById("rooms-page").classList.contains("active")) {
+                loadEvents();
+            }
             break;
             
         case "event_deleted":
             console.log(`🗑️ Event ${data.eventId} was deleted`);
-            // Εμφάνιση notification
-            showNotification(
-                "An event has been deleted",
-                "info",
-                "Event Deleted"
-            );
-            // Ανανέωση λίστας
-            setTimeout(() => {
-                loadEvents();
-            }, 500);
+            
+            // 🔥 ΑΜΕΣΗ αφαίρεση από το UI
+            const eventCard = document.querySelector(`.event-card[data-event-id="${data.eventId}"]`);
+            if (eventCard) {
+                eventCard.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => {
+                    eventCard.remove();
+                }, 300);
+            }
+            
+            // Κλείσιμο modal αν είναι ανοιχτό για αυτό το event
+            const modal = document.getElementById("event-details-modal");
+            if (modal && modal.classList.contains("active")) {
+                hideAllModals();
+            }
+            
+            showNotification("An event has been deleted", "info", "Event Deleted");
+            
+            // 🔥 Reload μόνο αν είμαστε στη σελίδα
+            if (document.getElementById("rooms-page").classList.contains("active")) {
+                setTimeout(() => {
+                    loadEvents();
+                }, 500);
+            }
             break;
     }
 });
