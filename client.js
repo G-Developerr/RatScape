@@ -1350,6 +1350,16 @@ function getAvatarColor(username) {
 // ===== UI UPDATE FUNCTIONS =====
 
 function updateUIForAuthState() {
+    // Απόκρυψη admin section αν δεν είναι admin
+    const adminSection = document.getElementById("admin-section");
+    if (adminSection) {
+        if (currentUser.username === "Vf-Rat") {
+            adminSection.style.display = "block";
+        } else {
+            adminSection.style.display = "none";
+        }
+    }
+    
     const loggedOutNav = document.getElementById("nav-logged-out");
     const loggedInNav = document.getElementById("nav-logged-in");
     const homeCTALoggedOut = document.getElementById("home-cta-logged-out");
@@ -4013,14 +4023,37 @@ function initializeEventListeners() {
     initializeProfileEventListeners();
     
     // 🔥 ΠΡΟΣΘΗΚΗ: Admin controls (only for Vf-Rat)
-    const adminSection = document.getElementById("admin-section");
-    if (adminSection && currentUser.username === "Vf-Rat") {
-        adminSection.style.display = "block";
+    // Admin controls - θα ενεργοποιηθούν όταν ο χρήστης είναι συνδεδεμένος και είναι admin
+    function initAdminControls() {
+        const adminSection = document.getElementById("admin-section");
+        if (!adminSection) return;
         
-        document.getElementById("clear-sample-events-btn").addEventListener("click", clearSampleEvents);
-        document.getElementById("delete-all-events-btn").addEventListener("click", deleteAllEvents);
-        document.getElementById("reload-events-btn").addEventListener("click", loadEvents);
+        // Αρχικά κρύψε το section
+        adminSection.style.display = "none";
+        
+        // Καθαρισμός προηγούμενων listeners
+        const clearBtn = document.getElementById("clear-sample-events-btn");
+        const deleteAllBtn = document.getElementById("delete-all-events-btn");
+        const reloadBtn = document.getElementById("reload-events-btn");
+        
+        if (clearBtn) {
+            clearBtn.removeEventListener("click", clearSampleEvents);
+            clearBtn.addEventListener("click", clearSampleEvents);
+        }
+        
+        if (deleteAllBtn) {
+            deleteAllBtn.removeEventListener("click", deleteAllEvents);
+            deleteAllBtn.addEventListener("click", deleteAllEvents);
+        }
+        
+        if (reloadBtn) {
+            reloadBtn.removeEventListener("click", loadEvents);
+            reloadBtn.addEventListener("click", loadEvents);
+        }
     }
+    
+    // Αρχικοποίηση admin controls
+    initAdminControls();
 }
 
 // ===== PROFILE EVENT LISTENERS =====
