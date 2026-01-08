@@ -2074,6 +2074,20 @@ body {
    UNREAD MESSAGES & BADGES SYSTEM
    ======================================== */
 
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+}
+
+.event-card.deleting {
+    animation: fadeOut 0.5s ease forwards;
+}
 
 /* Badge Animations */
 
@@ -4184,4 +4198,5 @@ body::before {
         opacity: 0;
     }
 }
+
 
