@@ -785,17 +785,19 @@ const dbHelpers = {
         return event;
     },
 
-    deleteEvent: async function(eventId, username) {
+   // 🔥 FIXED VERSION - Ελέγχει αν υπάρχει το event ΠΡΙΝ τη διαγραφή
+deleteEvent: async function(eventId, username) {
     console.log("🔥 deleteEvent called:", { eventId, username });
     
-    // Έλεγχος αν το event υπάρχει
+    // 🔥 ΚΡΙΤΙΚΟ: Έλεγχος αν το event υπάρχει ΠΡΙΝ προσπαθήσουμε να το διαγράψουμε
     const event = await Event.findOne({ event_id: eventId });
+    
     if (!event) {
         console.error(`❌ Event not found: ${eventId}`);
         throw new Error("Event not found");
     }
     
-    console.log("📝 Found event:", {
+    console.log("🔍 Found event:", {
         id: event.event_id,
         title: event.title,
         created_by: event.created_by,
@@ -806,7 +808,7 @@ const dbHelpers = {
     const isAdmin = username && username.toLowerCase() === "vf-rat";
     
     if (isAdmin) {
-        // Admin μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
+        // Admin μπορεί να διαγράψει ΟΠΟΙΟΔΗΠΟΤΕ event
         const result = await Event.deleteOne({ event_id: eventId });
         console.log(`✅ Admin "${username}" deleted event: "${event.title}" (${result.deletedCount} deleted)`);
         return true;
@@ -826,6 +828,7 @@ const dbHelpers = {
     
     return true;
 },
+    
     // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Ειδική μέθοδος που χρησιμοποιείται από τον client API
     deleteEventById: async function(eventId, username) {
         console.log("🔥 deleteEventById called:", { eventId, username });
