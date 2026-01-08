@@ -501,7 +501,7 @@ function initializeUploadAndEmojiListeners() {
     initEmojiPickerSystem();
     initEmojiPickerContent();
     
-    // 🔥 Send file button - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
+    // 🔥 Send file button - ΜΟΝΟ ΜΙΑ ΦΟΡΕ
     const sendFileBtn = document.getElementById('send-file-btn');
     if (sendFileBtn) {
         // Αφαίρεση όλων των προηγούμενων listeners
@@ -2913,8 +2913,10 @@ socket.on("messages_cleared", (data) => {
 
 // ===== ADMIN SYSTEM FUNCTIONS =====
 
-// 🔥 ΒΗΜΑ 1: ΕΝΙΑΙΑ deleteEvent που λειτουργεί και για admin και για κανονικούς
+// 🔥 ΒΗΜΑ 2: ΕΝΙΑΙΑ deleteEvent που λειτουργεί και για admin και για κανονικούς
 async function deleteEvent(eventId) {
+    console.log("🗑️ Deleting event:", eventId);
+    
     try {
         const response = await fetch(`/events/${eventId}`, {
             method: "DELETE",
@@ -2935,18 +2937,21 @@ async function deleteEvent(eventId) {
         const data = await response.json();
         
         if (data.success) {
+            console.log("✅ Event deleted successfully");
+            
+            // 🔥 ΚΛΕΙΣΙΜΟ ΟΛΩΝ των modals
+            hideAllModals();
+            
+            // 🔥 ΑΜΕΣΗ ενημέρωση UI
             showNotification("Event deleted successfully", "success", "Event Deleted");
             
-            // 🔥 ΚΛΕΙΣΙΜΟ modal ΠΡΙΝ το reload
-            hideModal("event-details-modal");
-            
-            // 🔥 ΚΑΘΥΣΤΕΡΗΜΕΝΟ reload για να δώσει χρόνο
+            // 🔥 Reload events με μικρή καθυστέρηση
             setTimeout(() => {
                 loadEvents();
-            }, 300);
+            }, 200);
         }
     } catch (error) {
-        console.error("Error deleting event:", error);
+        console.error("❌ Error deleting event:", error);
         showNotification(error.message || "Failed to delete event", "error", "Error");
     }
 }
@@ -2986,7 +2991,7 @@ async function loadEvents() {
     }
 }
 
-// 🔥 ΚΡΙΤΙΚΟ: Αυτή είναι η βελτιωμένη συνάρτηση που ζητήθηκε
+// 🔥 ΒΗΜΑ 4: Αυτή είναι η βελτιωμένη συνάρτηση που ζητήθηκε
 function attachEventCardListeners() {
     const eventsList = document.getElementById("events-list");
     if (!eventsList) return;
@@ -2998,37 +3003,40 @@ function attachEventCardListeners() {
     
     // 🔥 EVENT DELEGATION - ΕΝΑ listener για ΌΛΕΣ τις αλληλεπιδράσεις
     newEventsList.addEventListener('click', function(e) {
-        const target = e.target.closest('button');
-        if (!target) return;
+        const button = e.target.closest('button');
+        if (!button) return;
         
-        const eventCard = target.closest('.event-card');
+        const eventCard = button.closest('.event-card');
         if (!eventCard) return;
         
         const eventId = eventCard.dataset.eventId;
         
         // Details button
-        if (target.classList.contains('details')) {
+        if (button.classList.contains('details')) {
             e.stopPropagation();
+            console.log("🔍 Details button clicked for:", eventId);
             showEventDetails(eventId);
             return;
         }
         
         // Join button
-        if (target.classList.contains('join')) {
+        if (button.classList.contains('join')) {
             e.stopPropagation();
+            console.log("➕ Join button clicked for:", eventId);
             joinEvent(eventId);
             return;
         }
         
         // Leave button
-        if (target.classList.contains('leave')) {
+        if (button.classList.contains('leave')) {
             e.stopPropagation();
+            console.log("➖ Leave button clicked for:", eventId);
             leaveEvent(eventId);
             return;
         }
     });
     
-    console.log("✅ Event card listeners attached via delegation");
+    console.log("✅ Event cards listening via delegation");
 }
 
 // 🔥 ΚΡΙΤΙΚΟ: Επανάθεση admin control listeners
@@ -3567,7 +3575,10 @@ function displayEvents(events) {
     });
 }
 
+// 🔥 ΒΗΜΑ 3: ΒΕΛΤΙΩΣΗ ΤΗΣ showEventDetails()
 async function showEventDetails(eventId) {
+    console.log("👁️ Showing details for event:", eventId);
+    
     try {
         const response = await fetch(`/events/${eventId}`, {
             headers: {
@@ -3582,8 +3593,16 @@ async function showEventDetails(eventId) {
         const data = await response.json();
         
         if (data.success) {
+            // 🔥 ΠΡΩΤΑ κλείσε τυχόν ανοιχτό modal
+            hideAllModals();
+            
+            // 🔥 ΜΕΤΑ ενημέρωσε το modal
             updateEventDetailsModal(data.event);
-            showModal("event-details-modal");
+            
+            // 🔥 ΤΕΛΟΣ άνοιξε το modal
+            setTimeout(() => {
+                showModal("event-details-modal");
+            }, 50);
         }
     } catch (error) {
         console.error("Error loading event details:", error);
@@ -3699,79 +3718,84 @@ function updateEventDetailsModal(event) {
     
     document.getElementById("event-action-buttons").innerHTML = actionButtonsHTML;
     
-    // 🔥 ΒΗΜΑ 2: ΕΝΗΜΕΡΩΣΗ ΤΟΥ addEventActionListeners()
+    // 🔥 ΒΗΜΑ 1: ΕΝΗΜΕΡΩΣΗ ΤΟΥ addEventActionListeners()
     addEventActionListeners(event);
 }
 
-// 🔥 ΒΗΜΑ 2: ΕΝΗΜΕΡΩΣΗ ΤΟΥ addEventActionListeners()
+// 🔥 ΒΗΜΑ 1: ΕΝΗΜΕΡΩΣΗ ΤΟΥ addEventActionListeners()
 function addEventActionListeners(event) {
     console.log("🔔 Setting up action listeners for event:", event.id);
     
-    // Join button
-    const joinBtn = document.getElementById("join-event-btn");
-    if (joinBtn) {
-        // Αφαίρεση παλιών listeners
-        const newJoinBtn = joinBtn.cloneNode(true);
-        joinBtn.parentNode.replaceChild(newJoinBtn, joinBtn);
-        
-        newJoinBtn.addEventListener('click', function() {
-            joinEvent(event.id);
-            hideModal("event-details-modal");
-        });
+    // 🔥 ΚΡΙΤΙΚΟ: Χρήση MutationObserver για να περιμένουμε το DOM
+    const modalButtons = document.getElementById("event-action-buttons");
+    if (!modalButtons) {
+        console.error("❌ Modal buttons container not found!");
+        return;
     }
     
-    // Leave button
-    const leaveBtn = document.getElementById("leave-event-btn");
-    if (leaveBtn) {
-        const newLeaveBtn = leaveBtn.cloneNode(true);
-        leaveBtn.parentNode.replaceChild(newLeaveBtn, leaveBtn);
-        
-        newLeaveBtn.addEventListener('click', function() {
-            leaveEvent(event.id);
-            hideModal("event-details-modal");
-        });
-    }
+    // 🔥 Χρήση event delegation ΣΤΟ MODAL
+    const newModalButtons = modalButtons.cloneNode(false);
+    newModalButtons.innerHTML = modalButtons.innerHTML;
+    modalButtons.parentNode.replaceChild(newModalButtons, modalButtons);
     
-    // Delete button (για δημιουργό)
-    const deleteBtn = document.getElementById("delete-event-btn");
-    if (deleteBtn) {
-        const newDeleteBtn = deleteBtn.cloneNode(true);
-        deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+    // Event delegation για ΟΛΑ τα buttons στο modal
+    newModalButtons.addEventListener('click', function(e) {
+        const button = e.target.closest('button');
+        if (!button) return;
         
-        newDeleteBtn.addEventListener('click', function() {
+        const eventId = button.dataset.eventId || event.id;
+        
+        // Join button
+        if (button.id === 'join-event-btn') {
+            e.stopPropagation();
+            joinEvent(eventId);
+            hideModal("event-details-modal");
+            return;
+        }
+        
+        // Leave button
+        if (button.id === 'leave-event-btn') {
+            e.stopPropagation();
+            leaveEvent(eventId);
+            hideModal("event-details-modal");
+            return;
+        }
+        
+        // Delete button (creator)
+        if (button.id === 'delete-event-btn') {
+            e.stopPropagation();
             showConfirmationModal(
                 "Are you sure you want to delete this event? This action cannot be undone!",
                 "Delete Event",
-                () => deleteEvent(event.id)
+                () => {
+                    deleteEvent(eventId);
+                }
             );
-        });
-    }
-    
-    // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Admin Delete button - ΧΡΗΣΙΜΟΠΟΙΕΙ ΤΗΝ ΙΔΙΑ ΣΥΝΑΡΤΗΣΗ
-    const adminDeleteBtn = document.getElementById("admin-delete-event-btn");
-    if (adminDeleteBtn) {
-        const newAdminBtn = adminDeleteBtn.cloneNode(true);
-        adminDeleteBtn.parentNode.replaceChild(newAdminBtn, adminDeleteBtn);
+            return;
+        }
         
-        newAdminBtn.addEventListener('click', function() {
+        // Admin delete button
+        if (button.id === 'admin-delete-event-btn') {
+            e.stopPropagation();
             showConfirmationModal(
                 "Are you sure you want to delete this event as ADMIN?",
                 "Delete Event (Admin)",
-                () => deleteEvent(event.id) // 🔥 ΧΡΗΣΗ ΤΗΣ ΙΔΙΑΣ ΣΥΝΑΡΤΗΣΗΣ
+                () => {
+                    deleteEvent(eventId);
+                }
             );
-        });
-    }
-    
-    // Edit button
-    const editBtn = document.getElementById("edit-event-btn");
-    if (editBtn) {
-        const newEditBtn = editBtn.cloneNode(true);
-        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+            return;
+        }
         
-        newEditBtn.addEventListener('click', function() {
+        // Edit button
+        if (button.id === 'edit-event-btn') {
+            e.stopPropagation();
             showEditEventModal(event);
-        });
-    }
+            return;
+        }
+    });
+    
+    console.log("✅ Modal listeners attached via delegation");
 }
 
 async function createEvent(eventData) {
@@ -4750,7 +4774,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             text-decoration: none;
             font-size: 0.9rem;
             display: inline-flex;
-            align-items: center;
+            alignItems: center;
             gap: 5px;
         }
         
