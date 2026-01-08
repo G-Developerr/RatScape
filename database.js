@@ -785,33 +785,47 @@ const dbHelpers = {
         return event;
     },
 
-    // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Ο admin μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
     deleteEvent: async function(eventId, username) {
-        console.log("🔥 deleteEvent called:", { eventId, username });
-        
-        const event = await Event.findOne({ event_id: eventId });
-        if (!event) {
-            throw new Error("Event not found");
-        }
-        
-        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Ο admin (Vf-Rat) μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
-        // Χρησιμοποιούμε case insensitive check
-        if (username.toLowerCase() === "vf-rat") {
-            await Event.deleteOne({ event_id: eventId });
-            console.log(`✅ Admin "${username}" deleted event: "${event.title}"`);
-            return true;
-        }
-        
-        // Μόνο ο δημιουργός μπορεί να διαγράψει το event (για άλλους χρήστες)
-        if (event.created_by !== username) {
-            throw new Error("Only the creator can delete this event");
-        }
-        
-        await Event.deleteOne({ event_id: eventId });
-        console.log(`✅ Event deleted: ${event.title} by ${username}`);
+    console.log("🔥 deleteEvent called:", { eventId, username });
+    
+    // Έλεγχος αν το event υπάρχει
+    const event = await Event.findOne({ event_id: eventId });
+    if (!event) {
+        console.error(`❌ Event not found: ${eventId}`);
+        throw new Error("Event not found");
+    }
+    
+    console.log("📝 Found event:", {
+        id: event.event_id,
+        title: event.title,
+        created_by: event.created_by,
+        requesting_user: username
+    });
+    
+    // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Καλύτερος έλεγχος για admin
+    const isAdmin = username && username.toLowerCase() === "vf-rat";
+    
+    if (isAdmin) {
+        // Admin μπορεί να διαγράψει ΟΠΟΙΟΔΉΠΟΤΕ event
+        const result = await Event.deleteOne({ event_id: eventId });
+        console.log(`✅ Admin "${username}" deleted event: "${event.title}" (${result.deletedCount} deleted)`);
         return true;
-    },
-
+    }
+    
+    // Έλεγχος αν ο χρήστης είναι ο δημιουργός
+    const isCreator = event.created_by === username;
+    
+    if (!isCreator) {
+        console.error(`❌ Permission denied: ${username} cannot delete event created by ${event.created_by}`);
+        throw new Error("Only the creator can delete this event");
+    }
+    
+    // Ο δημιουργός διαγράφει το event
+    const result = await Event.deleteOne({ event_id: eventId });
+    console.log(`✅ Event deleted: "${event.title}" by ${username} (${result.deletedCount} deleted)`);
+    
+    return true;
+},
     // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Ειδική μέθοδος που χρησιμοποιείται από τον client API
     deleteEventById: async function(eventId, username) {
         console.log("🔥 deleteEventById called:", { eventId, username });
