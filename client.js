@@ -875,12 +875,12 @@ function addUnreadMessage(type, sender, roomId = null) {
         if (!unreadMessages.private[sender]) {
             unreadMessages.private[sender] = 0;
         }
-        unreadMessages.private[sender]++;
+        unreadMessages.private[sender] += 1;
     } else if (type === 'group') {
         if (!unreadMessages.groups[roomId]) {
             unreadMessages.groups[roomId] = 0;
         }
-        unreadMessages.groups[roomId]++;
+        unreadMessages.groups[roomId] += 1;
     }
     
     updateUnreadBadges();
@@ -2936,12 +2936,14 @@ async function deleteEvent(eventId) {
         
         if (data.success) {
             showNotification("Event deleted successfully", "success", "Event Deleted");
+            
+            // 🔥 ΚΛΕΙΣΙΜΟ modal ΠΡΙΝ το reload
             hideModal("event-details-modal");
             
-            // 🔥 ΚΡΙΤΙΚΗ ΒΕΛΤΙΩΣΗ: Καθυστερημένο reload για να δώσει χρόνο στο database
+            // 🔥 ΚΑΘΥΣΤΕΡΗΜΕΝΟ reload για να δώσει χρόνο
             setTimeout(() => {
                 loadEvents();
-            }, 500);
+            }, 300);
         }
     } catch (error) {
         console.error("Error deleting event:", error);
@@ -2972,9 +2974,10 @@ async function loadEvents() {
             console.log(`✅ Loaded ${data.events.length} events`);
             displayEvents(data.events);
             
-            // 🔥 ΚΡΙΤΙΚΟ: Επανάθεση event listeners για όλα τα events
+            // 🔥 ΚΡΙΤΙΚΟ: Επανάθεση listeners ΜΕΤΑ το display
             setTimeout(() => {
-                attachAllEventListeners();
+                attachEventCardListeners();
+                attachAdminControlListeners();
             }, 100);
         }
     } catch (error) {
@@ -2983,63 +2986,52 @@ async function loadEvents() {
     }
 }
 
-// 🔥 ΝΕΟ: Κεντρική συνάρτηση για επανάθεση όλων των listeners
-function attachAllEventListeners() {
-    console.log("🔄 Re-attaching all event listeners...");
-    
-    // 1. Event card buttons
-    attachEventCardListeners();
-    
-    // 2. Admin controls (αν υπάρχουν)
-    attachAdminControlListeners();
-    
-    console.log("✅ All listeners attached");
-}
-
+// 🔥 ΚΡΙΤΙΚΟ: Αυτή είναι η βελτιωμένη συνάρτηση που ζητήθηκε
 function attachEventCardListeners() {
-    // Χρησιμοποίησε event delegation για να αποφύγεις issues
     const eventsList = document.getElementById("events-list");
     if (!eventsList) return;
     
-    // Αφαίρεση όλων των υπαρχόντων listeners
+    // 🔥 ΚΡΙΤΙΚΟ: Αφαίρεση ΌΛΩΝ των παλιών listeners με event delegation
     const newEventsList = eventsList.cloneNode(false);
     newEventsList.innerHTML = eventsList.innerHTML;
     eventsList.parentNode.replaceChild(newEventsList, eventsList);
     
-    // Event delegation για όλα τα κουμπιά
+    // 🔥 EVENT DELEGATION - ΕΝΑ listener για ΌΛΕΣ τις αλληλεπιδράσεις
     newEventsList.addEventListener('click', function(e) {
-        const target = e.target;
-        const eventCard = target.closest('.event-card');
+        const target = e.target.closest('button');
+        if (!target) return;
         
+        const eventCard = target.closest('.event-card');
         if (!eventCard) return;
         
         const eventId = eventCard.dataset.eventId;
         
         // Details button
-        if (target.classList.contains('btn-event') || target.closest('.btn-event.details')) {
+        if (target.classList.contains('details')) {
+            e.stopPropagation();
             showEventDetails(eventId);
             return;
         }
         
         // Join button
-        if (target.classList.contains('join') || target.closest('.btn-event.join')) {
+        if (target.classList.contains('join')) {
+            e.stopPropagation();
             joinEvent(eventId);
             return;
         }
         
         // Leave button
-        if (target.classList.contains('leave') || target.closest('.btn-event.leave')) {
+        if (target.classList.contains('leave')) {
+            e.stopPropagation();
             leaveEvent(eventId);
             return;
         }
-        
-        // Αν κλικ στο event card αλλά όχι σε κουμπί, ανοίγει details
-        if (!target.classList.contains('btn-event') && !target.closest('.btn-event')) {
-            showEventDetails(eventId);
-        }
     });
+    
+    console.log("✅ Event card listeners attached via delegation");
 }
 
+// 🔥 ΚΡΙΤΙΚΟ: Επανάθεση admin control listeners
 function attachAdminControlListeners() {
     // Clear sample events button
     const clearSamplesBtn = document.getElementById("clear-sample-events-btn");
@@ -3262,11 +3254,7 @@ socket.on("file_upload", (data) => {
         
         // Εμφάνιση notification ΜΟΝΟ αν δεν είμαστε ο αποστολέας
         if (data.sender !== currentUser.username) {
-            showNotification(
-                `${data.sender} sent a file: ${data.fileName}`,
-                "info",
-                "New File"
-            );
+            showNotification(`${data.sender} sent a file: ${data.fileName}`, "info", "New File");
         }
     }
 });
