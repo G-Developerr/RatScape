@@ -594,6 +594,40 @@ app.post("/update-profile", validateSession, async (req, res) => {
     }
 });
 
+// 🔧 ΝΕΟ ENDPOINT: Refresh session after username change
+app.post("/refresh-session", async (req, res) => {
+    try {
+        const { oldSessionId, newSessionId, username, email } = req.body;
+        
+        console.log("🔄 Refreshing session:", { oldSessionId, newSessionId, username });
+        
+        // 1. Διαγραφή παλιού session
+        await dbHelpers.deleteSession(oldSessionId);
+        
+        // 2. Δημιουργία νέου session
+        await dbHelpers.saveSession(newSessionId, {
+            username: username,
+            createdAt: Date.now()
+        });
+        
+        // 3. Ανανέωση user status
+        await dbHelpers.saveUser({ username: username, status: "Online" });
+        
+        res.json({
+            success: true,
+            message: "Session refreshed",
+            newSessionId: newSessionId
+        });
+        
+    } catch (error) {
+        console.error("❌ Error refreshing session:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: "Failed to refresh session" 
+        });
+    }
+});
+
 // Change password endpoint
 app.post("/change-password", validateSession, async (req, res) => {
     try {
