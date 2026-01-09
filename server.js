@@ -551,16 +551,27 @@ app.get("/check-friendship/:username/:friendUsername", async (req, res) => {
   }
 });
 
+// 🔧 Βελτιωμένο endpoint για ενημέρωση προφίλ
 app.post("/update-profile", validateSession, async (req, res) => {
     try {
         const { username, updates } = req.body;
+        const sessionId = req.headers["x-session-id"];
         
-        console.log("📝 Profile update request:", { username, updates });
+        console.log("📝 Profile update request:", { username, updates, sessionId });
         
-        // Έλεγχος αν το νέο username υπάρχει ήδη
-        if (updates.username) {
+        // 1. Έλεγχος αν ο χρήστης υπάρχει
+        const user = await dbHelpers.findUserByUsername(username);
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                error: "User not found" 
+            });
+        }
+        
+        // 2. Έλεγχος αν το νέο username υπάρχει ήδη (αν αλλάζει)
+        if (updates.username && updates.username !== username) {
             const existingUser = await dbHelpers.findUserByUsername(updates.username);
-            if (existingUser && existingUser.username !== username) {
+            if (existingUser) {
                 return res.status(400).json({ 
                     success: false, 
                     error: "Username already taken. Please choose another one." 
@@ -568,10 +579,10 @@ app.post("/update-profile", validateSession, async (req, res) => {
             }
         }
         
-        // Έλεγχος αν το νέο email υπάρχει ήδη
-        if (updates.email) {
+        // 3. Έλεγχος αν το νέο email υπάρχει ήδη (αν αλλάζει)
+        if (updates.email && updates.email !== user.email) {
             const existingEmail = await dbHelpers.findUserByEmail(updates.email);
-            if (existingEmail && existingEmail.username !== username) {
+            if (existingEmail) {
                 return res.status(400).json({ 
                     success: false, 
                     error: "Email already registered. Please use another email." 
@@ -579,17 +590,17 @@ app.post("/update-profile", validateSession, async (req, res) => {
             }
         }
         
-        // Ενημέρωση χρήστη
+        // 4. Ενημέρωση του χρήστη
         const updated = await dbHelpers.updateUser(username, updates);
         
         if (updated) {
-            // 🔧 ΠΡΟΣΘΗΚΗ: Ανανέωση session στο database με το νέο username
-            const sessionId = req.headers["x-session-id"];
+            // 5. Ανάκτηση του ενημερωμένου χρήστη
+            const updatedUser = await dbHelpers.findUserByUsername(updates.username || username);
+            
+            // 6. Ενημέρωση του session αν άλλαξε το username
             if (sessionId && updates.username) {
-                // Βρες το session
                 const session = await dbHelpers.getSession(sessionId);
                 if (session) {
-                    // Ενημέρωση session με το νέο username
                     session.username = updates.username;
                     await session.save();
                 }
@@ -599,8 +610,9 @@ app.post("/update-profile", validateSession, async (req, res) => {
                 success: true,
                 message: "Profile updated successfully!",
                 user: {
-                    username: updates.username || username,
-                    email: updates.email
+                    username: updatedUser.username,
+                    email: updatedUser.email,
+                    profile_picture: updatedUser.profile_picture
                 }
             });
         } else {
@@ -618,6 +630,7 @@ app.post("/update-profile", validateSession, async (req, res) => {
         });
     }
 });
+
 
 // 🔧 ΝΕΟ ENDPOINT: Refresh session after username change
 app.post("/refresh-session", async (req, res) => {
