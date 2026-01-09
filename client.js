@@ -2810,6 +2810,33 @@ async function saveProfileChanges(username, email, profilePicture) {
     }
 }
 
+// 🔧 Βοηθητική συνάρτηση για ανανέωση session μετά από username change
+function refreshUserSession(newUsername, newEmail) {
+    if (currentUser.authenticated) {
+        // Δημιουργία νέου session ID
+        const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
+        
+        // Ανανέωση currentUser
+        currentUser.username = newUsername || currentUser.username;
+        currentUser.email = newEmail || currentUser.email;
+        currentUser.sessionId = newSessionId;
+        
+        // Αποθήκευση στο localStorage
+        saveUserToLocalStorage(currentUser);
+        
+        // Ενημέρωση WebSocket
+        socket.emit("authenticate", {
+            username: currentUser.username,
+            sessionId: currentUser.sessionId,
+        });
+        
+        // Ενημέρωση UI
+        updateUIForAuthState();
+        
+        console.log("✅ Session refreshed for new username:", currentUser.username);
+    }
+}
+
 // Change password
 async function changePassword(currentPassword, newPassword, confirmPassword) {
     if (newPassword !== confirmPassword) {
@@ -5052,5 +5079,6 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
 
 
