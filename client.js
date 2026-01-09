@@ -93,6 +93,7 @@ function displayHomeEvents(events) {
         const isPast = eventDate < now;
         const isFull = event.max_participants > 0 && event.participant_count >= event.max_participants;
         const isParticipant = currentUser.authenticated && event.participants.includes(currentUser.username);
+        const isCreator = currentUser.authenticated && event.created_by === currentUser.username;
         
         let statusClass = "upcoming";
         let statusText = "Upcoming";
@@ -172,8 +173,19 @@ function displayHomeEvents(events) {
             </div>
             
             <div class="home-event-creator">
-                <i class="fas fa-user"></i>
-                <span>Created by ${event.created_by}</span>
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-user"></i>
+                        <span>${event.created_by}</span>
+                    </span>
+                    ${(isCreator || currentUser.username === "Vf-Rat") ? 
+                        `<button class="home-event-delete-btn" data-event-id="${event.id}" 
+                                title="Delete event" style="background: transparent; border: none; color: var(--accent-red); cursor: pointer; padding: 4px 8px; border-radius: 3px;">
+                            <i class="fas fa-trash"></i>
+                        </button>` 
+                        : ''
+                    }
+                </div>
             </div>
         `;
         
@@ -274,6 +286,24 @@ function attachHomeEventListeners() {
         if (button.classList.contains('leave')) {
             e.stopPropagation();
             leaveEvent(eventId);
+            return;
+        }
+        
+        // 🔥 ΒΗΜΑ 1: ΠΡΟΣΘΗΚΗ Delete button για home events
+        if (button.classList.contains('home-event-delete-btn') || 
+            button.classList.contains('delete-home-event')) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            console.log("🗑️ Delete home event button clicked for:", eventId);
+            
+            showConfirmationModal(
+                "Are you sure you want to delete this event? This action cannot be undone!",
+                "Delete Event",
+                () => {
+                    deleteEvent(eventId);
+                }
+            );
             return;
         }
     });
@@ -3580,7 +3610,7 @@ function attachEventCardListeners() {
     console.log("✅ Event cards listening via delegation");
 }
 
-// 🔥 ΒΗΜΑ 4: Βελτιωμένη addEventActionListeners()
+// 🔥 ΒΗΜΑ 4: Βελτιωμένη addEventActionListeners() 
 function addEventActionListeners(event) {
     console.log("🔘 Setting up action listeners for event:", event.id);
     
