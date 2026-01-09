@@ -2734,6 +2734,30 @@ async function uploadProfilePicture(file) {
     }
 }
 
+// Add to client.js
+async function refreshUserSession() {
+    if (currentUser.authenticated) {
+        try {
+            const response = await fetch(`/verify-session/${currentUser.username}`, {
+                headers: {
+                    "X-Session-ID": currentUser.sessionId,
+                },
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    console.log("✅ Session refreshed");
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error("Error refreshing session:", error);
+        }
+    }
+    return false;
+}
+
 // 🔧 ΚΑΙΝΟΥΡΓΙΑ ΣΥΝΑΡΤΗΣΗΣ - ΑΝΤΙΚΑΤΑΣΤΑΣΗ ΤΗΣ ΥΠΑΡΧΟΥΣΑΣ
 async function saveProfileChanges(newUsername, newEmail, profilePicture) {
     try {
@@ -5217,6 +5241,7 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
 
 
 
