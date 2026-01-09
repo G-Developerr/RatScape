@@ -2734,7 +2734,7 @@ async function uploadProfilePicture(file) {
     }
 }
 
-// 🔧 ΔΙΟΡΘΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ (Αντικατάσταση της υπάρχουσας)
+// 🔧 ΚΑΙΝΟΥΡΓΙΑ ΣΥΝΑΡΤΗΣΗΣ - ΑΝΤΙΚΑΤΑΣΤΑΣΗ ΤΗΣ ΥΠΑΡΧΟΥΣΑΣ (γραμμή 2434+)
 async function saveProfileChanges(username, email, profilePicture) {
     try {
         const updateData = {};
@@ -2750,6 +2750,9 @@ async function saveProfileChanges(username, email, profilePicture) {
             return;
         }
         
+        console.log("📝 Sending profile update:", { currentUser: currentUser.username, updates: updateData });
+        
+        // 🔧 ΚΡΙΤΙΚΟ: Αποστολή του ΠΑΛΙΟΥ username στο server
         const response = await fetch("/update-profile", {
             method: "POST",
             headers: {
@@ -2757,60 +2760,137 @@ async function saveProfileChanges(username, email, profilePicture) {
                 "X-Session-ID": currentUser.sessionId,
             },
             body: JSON.stringify({
-                username: currentUser.username,
+                username: currentUser.username, // Παλιό username
                 updates: updateData
             }),
         });
         
         if (response.ok) {
             const data = await response.json();
+            console.log("✅ Profile update response:", data);
+            
             if (data.success) {
-                // 🔧 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Ανανέωση session ID και αποθήκευση
+                // 🔧 ΚΡΙΤΙΚΟ: Κράτα το ΠΑΛΙΟ session ID για τώρα
                 const oldSessionId = currentUser.sessionId;
                 
-                // Update current user
+                // Προσωρινά κρατάμε τα παλιά στοιχεία για WebSocket
+                const oldUsername = currentUser.username;
+                
+                // Update current user object
                 if (data.user) {
-                    currentUser.username = data.user.username;
-                    currentUser.email = data.user.email;
+                    currentUser.username = data.user.username || currentUser.username;
+                    currentUser.email = data.user.email || currentUser.email;
                     
-                    // 🔧 ΑΝΑΝΕΩΣΗ sessionId ΓΙΑ ΤΟ ΝΕΟ USERNAME
-                    const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
-                    currentUser.sessionId = newSessionId;
-                    
-                    // Αποθήκευση νέου sessionId στο localStorage
-                    saveUserToLocalStorage(currentUser);
-                    
-                    // Ενημέρωση WebSocket
+                    // ΔΕΝ αλλάζουμε το sessionId ακόμα!
+                    // Το server πρέπει να το χειριστεί
+                }
+                
+                // 🔧 Δημιουργία ΚΑΙΝΟΥΡΓΙΑΣ ΣΥΝΑΡΤΗΣΗΣ για session refresh
+                await refreshUserSession(oldUsername, oldSessionId, data.user);
+                
+                showNotification("Profile updated successfully!", "success", "Profile Updated");
+                hideAllModals();
+                
+                // Επανάληψη φόρτωσης με μικρή καθυστέρηση
+                setTimeout(() => {
+                    loadUserProfile();
+                    updateUIForAuthState();
+                }, 500);
+                
+            } else {
+                showNotification(data.error || "Failed to update profile", "error", "Update Error");
+            }
+        } else {
+            // 🔧 ΚΑΛΥΤΕΡΟΣ ΧΕΙΡΙΣΜΟΣ ERRORS
+            try {
+                const errorData = await response.json();
+                console.error("❌ Server error response:", errorData);
+                
+                if (response.status === 400) {
+                    if (errorData.error.includes("already taken") || errorData.error.includes("already registered")) {
+                        showNotification(errorData.error, "error", "Already Exists");
+                    } else if (errorData.error.includes("Session") || errorData.error.includes("expired")) {
+                        handleSessionExpired();
+                    } else {
+                        showNotification(errorData.error, "error", "Update Error");
+                    }
+                } else if (response.status === 401) {
+                    handleSessionExpired();
+                } else {
+                    showNotification(errorData.error || `Server error ${response.status}`, "error", "Update Error");
+                }
+            } catch (parseError) {
+                showNotification(`Server error ${response.status}`, "error", "Update Error");
+            }
+        }
+    } catch (error) {
+        console.error("❌ Error updating profile:", error);
+        showNotification("Connection error: " + error.message, "error", "Connection Error");
+    }
+}
+// 🔧 ΚΑΙΝΟΥΡΓΙΑ: Συνάρτηση για ανανέωση session μετά από username change
+async function refreshUserSession(oldUsername, oldSessionId, newUserData) {
+    try {
+        console.log("🔄 Refreshing session...", { oldUsername, newUserData });
+        
+        // 1. Κλείσιμο παλιού WebSocket session
+        socket.emit("session_change", {
+            oldUsername: oldUsername,
+            oldSessionId: oldSessionId
+        });
+        
+        // 2. Δημιουργία νέου session ID
+        const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
+        
+        // 3. Αποστολή στο server για αποθήκευση νέου session
+        const response = await fetch("/refresh-session", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                oldSessionId: oldSessionId,
+                newSessionId: newSessionId,
+                username: newUserData.username || currentUser.username,
+                email: newUserData.email || currentUser.email
+            }),
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (data.success) {
+                // 4. Ανανέωση currentUser με ΝΕΟ sessionId
+                currentUser.sessionId = newSessionId;
+                currentUser.username = newUserData.username || currentUser.username;
+                currentUser.email = newUserData.email || currentUser.email;
+                
+                // 5. Αποθήκευση στο localStorage
+                saveUserToLocalStorage(currentUser);
+                
+                // 6. Επανασύνδεση WebSocket με τα νέα στοιχεία
+                setTimeout(() => {
                     socket.emit("authenticate", {
                         username: currentUser.username,
                         sessionId: currentUser.sessionId,
                     });
-                }
-                
-                showNotification("Profile updated successfully!", "success", "Profile Updated");
-                hideAllModals();
-                loadUserProfile();
-                updateUIForAuthState(); // 🔧 Ανανέωση UI
-            } else {
-                // 🔧 Εμφάνιση σωστού error μηνύματος από τον server
-                showNotification(data.error || "Failed to update profile", "error", "Update Error");
-            }
-        } else {
-            // 🔧 Χειρισμός 400 errors για username πιασμένο κλπ.
-            const errorData = await response.json();
-            const errorMessage = errorData.error || "Failed to update profile";
-            
-            if (response.status === 400 && errorMessage.includes("already")) {
-                showNotification(errorMessage, "error", "Username/Email Taken");
-            } else {
-                showNotification(errorMessage, "error", "Update Error");
+                    
+                    console.log("✅ Session refreshed successfully:", {
+                        newUsername: currentUser.username,
+                        newSessionId: currentUser.sessionId.substring(0, 20) + "..."
+                    });
+                }, 300);
             }
         }
     } catch (error) {
-        console.error("Error updating profile:", error);
-        showNotification("Failed to update profile", "error", "Update Error");
+        console.error("❌ Error refreshing session:", error);
+        // Επανάληψη login με τα νέα στοιχεία
+        setTimeout(() => {
+            handleLogin(currentUser.email, "YOUR_PASSWORD_HERE"); // Θα χρειαστείς password!
+        }, 1000);
     }
 }
+
 
 // 🔧 Βοηθητική συνάρτηση για ανανέωση session μετά από username change
 function refreshUserSession(newUsername, newEmail) {
@@ -5081,6 +5161,7 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
 
 
 
