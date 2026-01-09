@@ -2921,7 +2921,7 @@ async function deleteEvent(eventId) {
     const eventCard = document.querySelector(`.event-card[data-event-id="${eventId}"]`);
     if (!eventCard) {
         console.warn("⚠️ Event card not found in UI, already deleted");
-        showNotification("Event already deleted", "info", "Already Deleted");
+        showNotification("Refresh please to delete this event", "info", "Refresh The Page please");
         hideAllModals();
         
         // 🔥 ΝΕΟ: Επαναφόρτωση events ΚΑΙ listeners μετά το modal close
@@ -5023,3 +5023,4 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
