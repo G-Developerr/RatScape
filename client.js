@@ -1299,6 +1299,8 @@ function saveUserToLocalStorage(user) {
             authenticated: user.authenticated,
             sessionId: user.sessionId,
             timestamp: Date.now(),
+            // 🔧 ΠΡΟΣΘΗΚΗ: Αποθήκευση και του παλιού username για αναφορές
+            previousUsername: user.previousUsername || null
         })
     );
 }
@@ -5079,6 +5081,7 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
 
 
 
