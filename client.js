@@ -2732,7 +2732,7 @@ async function uploadProfilePicture(file) {
     }
 }
 
-// Edit profile
+// 🔧 ΔΙΟΡΘΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ (Αντικατάσταση της υπάρχουσας)
 async function saveProfileChanges(username, email, profilePicture) {
     try {
         const updateData = {};
@@ -2763,16 +2763,45 @@ async function saveProfileChanges(username, email, profilePicture) {
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
-                // Update current user if username changed
+                // 🔧 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Ανανέωση session ID και αποθήκευση
+                const oldSessionId = currentUser.sessionId;
+                
+                // Update current user
                 if (data.user) {
                     currentUser.username = data.user.username;
                     currentUser.email = data.user.email;
-                    updateUIForAuthState();
+                    
+                    // 🔧 ΑΝΑΝΕΩΣΗ sessionId ΓΙΑ ΤΟ ΝΕΟ USERNAME
+                    const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
+                    currentUser.sessionId = newSessionId;
+                    
+                    // Αποθήκευση νέου sessionId στο localStorage
+                    saveUserToLocalStorage(currentUser);
+                    
+                    // Ενημέρωση WebSocket
+                    socket.emit("authenticate", {
+                        username: currentUser.username,
+                        sessionId: currentUser.sessionId,
+                    });
                 }
                 
                 showNotification("Profile updated successfully!", "success", "Profile Updated");
                 hideAllModals();
                 loadUserProfile();
+                updateUIForAuthState(); // 🔧 Ανανέωση UI
+            } else {
+                // 🔧 Εμφάνιση σωστού error μηνύματος από τον server
+                showNotification(data.error || "Failed to update profile", "error", "Update Error");
+            }
+        } else {
+            // 🔧 Χειρισμός 400 errors για username πιασμένο κλπ.
+            const errorData = await response.json();
+            const errorMessage = errorData.error || "Failed to update profile";
+            
+            if (response.status === 400 && errorMessage.includes("already")) {
+                showNotification(errorMessage, "error", "Username/Email Taken");
+            } else {
+                showNotification(errorMessage, "error", "Update Error");
             }
         }
     } catch (error) {
@@ -5023,4 +5052,5 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
+
 
