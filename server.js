@@ -551,46 +551,71 @@ app.get("/check-friendship/:username/:friendUsername", async (req, res) => {
   }
 });
 
-// Update profile endpoint
 app.post("/update-profile", validateSession, async (req, res) => {
     try {
         const { username, updates } = req.body;
         
-        // Check if new username is taken
+        console.log("📝 Profile update request:", { username, updates });
+        
+        // Έλεγχος αν το νέο username υπάρχει ήδη
         if (updates.username) {
             const existingUser = await dbHelpers.findUserByUsername(updates.username);
             if (existingUser && existingUser.username !== username) {
-                return res.status(400).json({ success: false, error: "Username already taken" });
+                return res.status(400).json({ 
+                    success: false, 
+                    error: "Username already taken. Please choose another one." 
+                });
             }
         }
         
-        // Check if new email is taken
+        // Έλεγχος αν το νέο email υπάρχει ήδη
         if (updates.email) {
             const existingEmail = await dbHelpers.findUserByEmail(updates.email);
             if (existingEmail && existingEmail.username !== username) {
-                return res.status(400).json({ success: false, error: "Email already registered" });
+                return res.status(400).json({ 
+                    success: false, 
+                    error: "Email already registered. Please use another email." 
+                });
             }
         }
         
-        // Update user in database
+        // Ενημέρωση χρήστη
         const updated = await dbHelpers.updateUser(username, updates);
         
         if (updated) {
+            // 🔧 ΠΡΟΣΘΗΚΗ: Ανανέωση session στο database με το νέο username
+            const sessionId = req.headers["x-session-id"];
+            if (sessionId && updates.username) {
+                // Βρες το session
+                const session = await dbHelpers.getSession(sessionId);
+                if (session) {
+                    // Ενημέρωση session με το νέο username
+                    session.username = updates.username;
+                    await session.save();
+                }
+            }
+            
             res.json({
                 success: true,
-                message: "Profile updated successfully",
+                message: "Profile updated successfully!",
                 user: {
                     username: updates.username || username,
                     email: updates.email
                 }
             });
         } else {
-            res.status(500).json({ success: false, error: "Failed to update profile" });
+            res.status(500).json({ 
+                success: false, 
+                error: "Failed to update profile. Please try again." 
+            });
         }
         
     } catch (error) {
-        console.error("Error updating profile:", error);
-        res.status(500).json({ success: false, error: getErrorMessage(error) });
+        console.error("❌ Error updating profile:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: getErrorMessage(error) 
+        });
     }
 });
 
