@@ -1,4 +1,4 @@
-// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER & EVENTS & ADMIN SYSTEM
+// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER & EVENTS & ADMIN SYSTEM & HOME EVENTS
 const socket = io();
 
 // Current user state
@@ -16,6 +16,268 @@ let currentRoom = {
     inviteCode: null,
     isPrivate: false,
 };
+
+// ===== FUNCTIONS FOR HOME PAGE EVENTS =====
+
+// Φόρτωση events για την αρχική σελίδα
+async function loadHomeEvents() {
+    const homeEventsSection = document.getElementById('home-events-section');
+    const homeEventsList = document.getElementById('home-events-list');
+    
+    if (!homeEventsSection || !homeEventsList) return;
+    
+    try {
+        // Μόνο εάν ο χρήστης είναι συνδεδεμένος
+        if (currentUser.authenticated) {
+            const response = await fetch(`/events?username=${currentUser.username}`, {
+                headers: {
+                    "X-Session-ID": currentUser.sessionId,
+                },
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (data.success && data.events.length > 0) {
+                    // Εμφάνιση της ενότητας events
+                    homeEventsSection.style.display = 'block';
+                    displayHomeEvents(data.events.slice(0, 3)); // Πρώτα 3 events
+                } else {
+                    showNoEventsOnHome();
+                }
+            }
+        } else {
+            // Για μη συνδεδεμένους χρήστες, δείξε μόνο public events
+            const response = await fetch('/events');
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (data.success && data.events.length > 0) {
+                    // Φίλτραρε μόνο τα public events
+                    const publicEvents = data.events.filter(event => event.is_public);
+                    
+                    if (publicEvents.length > 0) {
+                        homeEventsSection.style.display = 'block';
+                        displayHomeEvents(publicEvents.slice(0, 3));
+                    } else {
+                        showNoEventsOnHome();
+                    }
+                } else {
+                    showNoEventsOnHome();
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error loading home events:", error);
+        showNoEventsOnHome();
+    }
+}
+
+// Εμφάνιση events στην αρχική σελίδα
+function displayHomeEvents(events) {
+    const homeEventsList = document.getElementById('home-events-list');
+    if (!homeEventsList) return;
+    
+    const now = new Date();
+    
+    if (events.length === 0) {
+        showNoEventsOnHome();
+        return;
+    }
+    
+    homeEventsList.innerHTML = '';
+    
+    events.forEach(event => {
+        const eventDate = new Date(event.date);
+        const isPast = eventDate < now;
+        const isFull = event.max_participants > 0 && event.participant_count >= event.max_participants;
+        const isParticipant = currentUser.authenticated && event.participants.includes(currentUser.username);
+        
+        let statusClass = "upcoming";
+        let statusText = "Upcoming";
+        
+        if (isPast) {
+            statusClass = "past";
+            statusText = "Past";
+        } else if (isFull) {
+            statusClass = "full";
+            statusText = "Full";
+        }
+        
+        // Format date
+        const formattedDate = eventDate.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const eventCard = document.createElement('div');
+        eventCard.className = `home-event-card ${statusClass}`;
+        eventCard.dataset.eventId = event.id;
+        
+        // Προσθήκη buttons based on status και authentication
+        let actionButton = '';
+        
+        if (currentUser.authenticated && !isPast) {
+            if (isParticipant) {
+                actionButton = `
+                    <button class="home-event-btn leave" data-event-id="${event.id}">
+                        <i class="fas fa-sign-out-alt"></i> Leave
+                    </button>
+                `;
+            } else if (!isFull) {
+                actionButton = `
+                    <button class="home-event-btn join" data-event-id="${event.id}">
+                        <i class="fas fa-plus"></i> Join
+                    </button>
+                `;
+            }
+        } else if (!currentUser.authenticated && !isPast) {
+            actionButton = `
+                <button class="home-event-btn join login-required" data-event-id="${event.id}">
+                    <i class="fas fa-sign-in-alt"></i> Login to Join
+                </button>
+            `;
+        }
+        
+        eventCard.innerHTML = `
+            <div class="home-event-card-header">
+                <h3>${event.title}</h3>
+                <span class="home-event-badge ${statusClass}">${statusText}</span>
+            </div>
+            
+            <div class="home-event-details">
+                <div class="home-event-detail">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>${formattedDate}</span>
+                </div>
+                <div class="home-event-detail">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>${event.location}</span>
+                </div>
+                <div class="home-event-detail">
+                    <i class="fas fa-users"></i>
+                    <span>${event.participant_count} participants${event.max_participants > 0 ? ` / ${event.max_participants}` : ''}</span>
+                </div>
+            </div>
+            
+            <div class="home-event-actions">
+                <button class="home-event-btn details" data-event-id="${event.id}">
+                    <i class="fas fa-info-circle"></i> Details
+                </button>
+                ${actionButton}
+            </div>
+            
+            <div class="home-event-creator">
+                <i class="fas fa-user"></i>
+                <span>Created by ${event.created_by}</span>
+            </div>
+        `;
+        
+        homeEventsList.appendChild(eventCard);
+    });
+    
+    // Προσθήκη event listeners για τα buttons
+    attachHomeEventListeners();
+}
+
+// Εμφάνιση μηνύματος όταν δεν υπάρχουν events
+function showNoEventsOnHome() {
+    const homeEventsSection = document.getElementById('home-events-section');
+    const homeEventsList = document.getElementById('home-events-list');
+    
+    if (!homeEventsSection || !homeEventsList) return;
+    
+    homeEventsSection.style.display = 'block';
+    
+    if (currentUser.authenticated) {
+        homeEventsList.innerHTML = `
+            <div class="no-events-home">
+                <i class="fas fa-calendar-times"></i>
+                <h3>No upcoming events</h3>
+                <p>Be the first to create an event!</p>
+                <button id="create-first-event-btn" class="btn btn-primary">
+                    <i class="fas fa-plus-circle"></i> Create Your First Event
+                </button>
+            </div>
+        `;
+    } else {
+        homeEventsList.innerHTML = `
+            <div class="no-events-home">
+                <i class="fas fa-calendar-times"></i>
+                <h3>No events available</h3>
+                <p>Login to view and create events!</p>
+                <button id="login-to-view-events-btn" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Login to View Events
+                </button>
+            </div>
+        `;
+    }
+    
+    // Προσθήκη listeners για τα κουμπιά
+    const createFirstEventBtn = document.getElementById('create-first-event-btn');
+    if (createFirstEventBtn) {
+        createFirstEventBtn.addEventListener('click', () => {
+            showModal("create-event-modal");
+        });
+    }
+    
+    const loginToViewEventsBtn = document.getElementById('login-to-view-events-btn');
+    if (loginToViewEventsBtn) {
+        loginToViewEventsBtn.addEventListener('click', () => {
+            showModal("login-modal");
+        });
+    }
+}
+
+// Προσθήκη event listeners για τα home events
+function attachHomeEventListeners() {
+    const homeEventsList = document.getElementById('home-events-list');
+    if (!homeEventsList) return;
+    
+    // Χρήση event delegation για ΟΛΑ τα buttons
+    homeEventsList.addEventListener('click', function(e) {
+        const button = e.target.closest('button');
+        if (!button) return;
+        
+        const eventCard = button.closest('.home-event-card');
+        if (!eventCard) return;
+        
+        const eventId = eventCard.dataset.eventId;
+        
+        // Details button
+        if (button.classList.contains('details')) {
+            e.stopPropagation();
+            showEventDetails(eventId);
+            return;
+        }
+        
+        // Join button
+        if (button.classList.contains('join')) {
+            e.stopPropagation();
+            
+            if (button.classList.contains('login-required')) {
+                // Αν χρειάζεται login
+                showNotification("Please login to join events", "info", "Login Required");
+                showModal("login-modal");
+            } else {
+                // Join event
+                joinEvent(eventId);
+            }
+            return;
+        }
+        
+        // Leave button
+        if (button.classList.contains('leave')) {
+            e.stopPropagation();
+            leaveEvent(eventId);
+            return;
+        }
+    });
+}
 
 // ===== FILE UPLOAD SYSTEM =====
 let fileUploadInProgress = false;
@@ -1376,6 +1638,11 @@ function updateUIForAuthState() {
         // Φόρτωση avatar του χρήστη
         loadCurrentUserAvatar();
         
+        // 🔥 ΠΡΟΣΘΗΚΗ: Φόρτωση events στην αρχική όταν συνδέεται ο χρήστης
+        setTimeout(() => {
+            loadHomeEvents();
+        }, 1500);
+        
         // Φόρτωση offline notifications όταν συνδέεται
         setTimeout(() => {
             loadOfflineNotifications();
@@ -1387,6 +1654,11 @@ function updateUIForAuthState() {
         homeCTALoggedOut.style.display = "block";
         homeCTALoggedIn.style.display = "none";
         localStorage.removeItem("ratroom_last_page");
+        
+        // 🔥 ΠΡΟΣΘΗΚΗ: Φόρτωση public events για μη συνδεδεμένους
+        setTimeout(() => {
+            loadHomeEvents();
+        }, 1500);
     }
 }
 
@@ -4092,6 +4364,7 @@ async function createEvent(eventData) {
             
             // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
             loadEvents();
+            loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Επαναφόρτωση και home events
             return data.event;
         } else {
             showNotification(data.error || "Failed to create event", "error", "Event Error");
@@ -4127,6 +4400,7 @@ async function joinEvent(eventId) {
             
             // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
             loadEvents();
+            loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Επαναφόρτωση και home events
         }
     } catch (error) {
         console.error("Error joining event:", error);
@@ -4159,6 +4433,7 @@ async function leaveEvent(eventId) {
             
             // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
             loadEvents();
+            loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Επαναφόρτωση και home events
         }
     } catch (error) {
         console.error("Error leaving event:", error);
@@ -4240,6 +4515,7 @@ async function saveEditedEvent() {
             
             // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
             loadEvents();
+            loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Επαναφόρτωση και home events
         }
     } catch (error) {
         console.error("Error updating event:", error);
@@ -4454,6 +4730,32 @@ function initializeEventListeners() {
         document.getElementById("delete-all-events-btn").addEventListener("click", deleteAllEvents);
         document.getElementById("reload-events-btn").addEventListener("click", loadEvents);
     }
+    
+    // 🔥 ΠΡΟΣΘΗΚΗ: Home events listeners
+    document.getElementById("view-all-events-btn")?.addEventListener("click", () => {
+        if (currentUser.authenticated) {
+            loadUserRooms();
+            showPage("rooms-page");
+        } else {
+            showNotification("Please login to view all events", "info", "Login Required");
+            showModal("login-modal");
+        }
+    });
+    
+    document.getElementById("create-event-from-home-btn")?.addEventListener("click", () => {
+        if (currentUser.authenticated) {
+            showModal("create-event-modal");
+            const now = new Date();
+            const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                .toISOString()
+                .slice(0, 16);
+            document.getElementById("event-date-input").min = localDateTime;
+            document.getElementById("event-date-input").value = localDateTime;
+        } else {
+            showNotification("Please login to create events", "info", "Login Required");
+            showModal("login-modal");
+        }
+    });
 }
 
 // ===== PROFILE EVENT LISTENERS =====
@@ -4598,12 +4900,20 @@ socket.on("event_update", (data) => {
             if (document.getElementById("rooms-page").classList.contains("active")) {
                 loadEvents();
             }
+            // 🔥 ΠΡΟΣΘΗΚΗ: Επαναφόρτωση home events αν είμαστε στην αρχική
+            if (document.getElementById("home-page").classList.contains("active")) {
+                loadHomeEvents();
+            }
             break;
             
         case "event_updated":
             console.log(`✏️ Event ${data.eventId} was updated`);
             if (document.getElementById("rooms-page").classList.contains("active")) {
                 loadEvents();
+            }
+            // 🔥 ΠΡΟΣΘΗΚΗ: Επαναφόρτωση home events αν είμαστε στην αρχική
+            if (document.getElementById("home-page").classList.contains("active")) {
+                loadHomeEvents();
             }
             break;
             
@@ -4619,6 +4929,15 @@ socket.on("event_update", (data) => {
                 }, 300);
             }
             
+            // 🔥 Αφαίρεση από home events αν υπάρχει
+            const homeEventCard = document.querySelector(`.home-event-card[data-event-id="${data.eventId}"]`);
+            if (homeEventCard) {
+                homeEventCard.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => {
+                    homeEventCard.remove();
+                }, 300);
+            }
+            
             // Κλείσιμο modal αν είναι ανοιχτό για αυτό το event
             const modal = document.getElementById("event-details-modal");
             if (modal && modal.classList.contains("active")) {
@@ -4631,6 +4950,12 @@ socket.on("event_update", (data) => {
             if (document.getElementById("rooms-page").classList.contains("active")) {
                 setTimeout(() => {
                     loadEvents();
+                }, 500);
+            }
+            // 🔥 Επαναφόρτωση home events αν είμαστε στην αρχική
+            if (document.getElementById("home-page").classList.contains("active")) {
+                setTimeout(() => {
+                    loadHomeEvents();
                 }, 500);
             }
             break;
@@ -5232,6 +5557,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("ℹ️ No saved user, staying on current page");
     }
 
+    // 🔥 ΠΡΟΣΘΗΚΗ: Φόρτωση home events με καθυστέρηση
+    setTimeout(() => {
+        if (document.getElementById("home-page").classList.contains("active")) {
+            loadHomeEvents();
+        }
+    }, 2000);
+
     console.log("✅ Ready to chat!");
 });
 
@@ -5241,10 +5573,3 @@ window.addEventListener('beforeunload', function() {
         saveChatState();
     }
 });
-
-
-
-
-
-
-
