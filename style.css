@@ -563,6 +563,7 @@ body {
     font-size: 0.9rem;
 }
 
+
 /* ========================================
    EVENTS STYLES
    ======================================== */
@@ -751,7 +752,9 @@ body {
     background: rgba(51, 51, 51, 0.5);
 }
 
+
 /* Event Details Modal */
+
 #event-details-content {
     padding: 10px 0;
 }
@@ -823,33 +826,33 @@ body {
     color: var(--text);
 }
 
+
 /* Responsive Events */
+
 @media (max-width: 768px) {
     .events-list {
         grid-template-columns: 1fr;
         gap: 15px;
     }
-    
     .event-card {
         padding: 15px;
     }
-    
     .event-card-header h3 {
         font-size: 1.1rem;
     }
-    
     .event-actions {
         flex-direction: column;
         width: 100%;
     }
-    
     .btn-event {
         width: 100%;
         justify-content: center;
     }
 }
 
+
 /* No events message */
+
 .no-events {
     text-align: center;
     padding: 40px 20px;
@@ -2090,6 +2093,7 @@ body {
     animation: fadeOut 0.5s ease forwards;
 }
 
+
 /* Badge Animations */
 
 @keyframes badgePop {
@@ -2262,7 +2266,7 @@ body {
     bottom: 30px;
     right: 30px;
     z-index: 9999;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%);
     color: white;
     border: none;
     padding: 16px 24px;
@@ -3439,7 +3443,9 @@ body.pwa-mode .pwa-floating-install-button {
    ANIMATION STYLES
    ======================================== */
 
+
 /* Προσθήκη animation για fade out */
+
 @keyframes fadeOut {
     from {
         opacity: 1;
@@ -3451,7 +3457,9 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
+
 /* Προσθήκη animation για fade in */
+
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -3463,34 +3471,30 @@ body.pwa-mode .pwa-floating-install-button {
     }
 }
 
+
 /* Responsive για home events */
+
 @media (max-width: 768px) {
     .home-events-section {
         padding: 30px 15px;
         margin: 40px auto;
     }
-    
     .events-container {
         padding: 20px;
     }
-    
     .section-header h2 {
         font-size: 1.6rem;
     }
-    
     .home-events-list {
         grid-template-columns: 1fr;
         gap: 15px;
     }
-    
     .home-event-card {
         padding: 15px;
     }
-    
     .events-actions {
         flex-direction: column;
     }
-    
     .events-actions .btn {
         width: 100%;
     }
@@ -3500,12 +3504,10 @@ body.pwa-mode .pwa-floating-install-button {
     .home-events-section {
         padding: 20px 10px;
     }
-    
     .home-event-actions {
         flex-direction: column;
         gap: 8px;
     }
-    
     .home-event-btn {
         width: 100%;
     }
