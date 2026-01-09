@@ -4544,3 +4544,64 @@ body::before {
         opacity: 0;
     }
 }
+
+/* ========================================
+   HOME EVENT DELETE BUTTON STYLING
+   ======================================== */
+
+.home-event-delete-btn {
+    background: rgba(255, 0, 0, 0.1) !important;
+    border: 1px solid rgba(255, 0, 0, 0.3) !important;
+    color: var(--accent-red) !important;
+    padding: 6px 10px !important;
+    border-radius: 4px !important;
+    font-size: 0.75rem !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+}
+
+.home-event-delete-btn:hover {
+    background: rgba(255, 0, 0, 0.2) !important;
+    border-color: var(--accent-red) !important;
+    transform: scale(1.1) !important;
+    box-shadow: 0 2px 8px rgba(255, 0, 0, 0.3) !important;
+}
+
+.home-event-delete-btn i {
+    font-size: 0.8rem !important;
+}
+
+.home-event-creator {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    padding-top: 10px !important;
+    border-top: 1px solid rgba(51, 51, 51, 0.2) !important;
+    margin-top: 10px !important;
+}
+
+.home-event-creator > div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+}
+
+@media (max-width: 768px) {
+    .home-event-delete-btn {
+        padding: 4px 8px !important;
+        min-width: 26px !important;
+        min-height: 26px !important;
+    }
+    
+    .home-event-delete-btn i {
+        font-size: 0.7rem !important;
+    }
+}
