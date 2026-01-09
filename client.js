@@ -2913,17 +2913,21 @@ socket.on("messages_cleared", (data) => {
 
 // ===== ADMIN SYSTEM FUNCTIONS =====
 
-// 🔥 ΒΕΛΤΙΩΜΕΝΗ: deleteEvent function με καλύτερο error handling
+// 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Delete Event Function
 async function deleteEvent(eventId) {
-    console.log("🗑️ Deleting event:", eventId);
+    console.log("🗑️ deleteEvent called:", eventId);
     
-    // 🔥 ΠΡΟΣΘΗΚΗ: Έλεγχος αν το event υπάρχει ακόμα στο UI
+    // 🔥 ΚΡΙΤΙΚΟ: Έλεγχος αν το event υπάρχει ακόμα στο UI
     const eventCard = document.querySelector(`.event-card[data-event-id="${eventId}"]`);
     if (!eventCard) {
         console.warn("⚠️ Event card not found in UI, already deleted");
         showNotification("Event already deleted", "info", "Already Deleted");
         hideAllModals();
-        loadEvents(); // Reload για συγχρονισμό
+        
+        // 🔥 ΝΕΟ: Επαναφόρτωση events ΚΑΙ listeners μετά το modal close
+        setTimeout(() => {
+            loadEvents();
+        }, 100);
         return;
     }
     
@@ -2947,8 +2951,14 @@ async function deleteEvent(eventId) {
             if (data.error === "Event not found") {
                 console.warn("⚠️ Event not found on server, already deleted");
                 showNotification("Event already deleted", "info", "Already Deleted");
+                
+                // 🔥 ΚΡΙΤΙΚΟ: Κλείσιμο modal ΠΡΙΝ το reload
                 hideAllModals();
-                loadEvents(); // Reload για συγχρονισμό
+                
+                // 🔥 Επαναφόρτωση με μικρή καθυστέρηση
+                setTimeout(() => {
+                    loadEvents();
+                }, 100);
                 return;
             }
             
@@ -2960,7 +2970,10 @@ async function deleteEvent(eventId) {
         if (data.success) {
             console.log("✅ Event deleted successfully");
             
-            // 🔥 ΑΜΕΣΗ αφαίρεση από το UI
+            // 🔥 ΚΡΙΤΙΚΟ: Πρώτα κλείνουμε το modal
+            hideAllModals();
+            
+            // 🔥 Μετά κάνουμε fadeOut animation
             if (eventCard) {
                 eventCard.style.animation = 'fadeOut 0.3s ease';
                 setTimeout(() => {
@@ -2968,12 +2981,11 @@ async function deleteEvent(eventId) {
                 }, 300);
             }
             
-            hideAllModals();
             showNotification("Event deleted successfully", "success", "Event Deleted");
             
-            // 🔥 Reload μετά από μικρή καθυστέρηση
+            // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Reload με μικρή καθυστέρηση ΚΑΙ επαναφόρτωση listeners
             setTimeout(() => {
-                loadEvents();
+                loadEvents(); // Αυτό θα καλέσει και το attachEventCardListeners() αυτόματα
             }, 400);
         }
     } catch (error) {
@@ -2982,7 +2994,12 @@ async function deleteEvent(eventId) {
         // 🔥 Ειδικός χειρισμός για "Event not found"
         if (error.message.includes("Event not found")) {
             hideAllModals();
-            loadEvents(); // Sync το UI με το database
+            
+            // 🔥 ΚΡΙΤΙΚΟ: Επαναφόρτωση για sync
+            setTimeout(() => {
+                loadEvents();
+            }, 100);
+            
             showNotification("Event was already deleted", "info", "Already Deleted");
         } else {
             showNotification(error.message || "Failed to delete event", "error", "Error");
@@ -2990,7 +3007,7 @@ async function deleteEvent(eventId) {
     }
 }
 
-// 🔥 ΝΕΟ: ΒΕΛΤΙΩΜΕΝΗ VERSION ΤΗΣ loadEvents()
+// 🔥 ΒΗΜΑ 2: Βελτιωμένη loadEvents() function
 async function loadEvents() {
     if (!currentUser.authenticated) return;
     
@@ -3025,17 +3042,17 @@ async function loadEvents() {
     }
 }
 
-// 🔥 ΒΗΜΑ 4: Αυτή είναι η βελτιωμένη συνάρτηση που ζητήθηκε
+// 🔥 ΒΗΜΑ 3: Βελτιωμένη attachEventCardListeners() με event delegation
 function attachEventCardListeners() {
     const eventsList = document.getElementById("events-list");
     if (!eventsList) return;
     
-    // 🔥 ΚΡΙΤΙΚΟ: Αφαίρεση ΌΛΩΝ των παλιών listeners με event delegation
+    // 🔥 ΚΡΙΤΙΚΟ: Αφαίρεση ΟΛΩΝ των παλιών listeners με event delegation
     const newEventsList = eventsList.cloneNode(false);
     newEventsList.innerHTML = eventsList.innerHTML;
     eventsList.parentNode.replaceChild(newEventsList, eventsList);
     
-    // 🔥 EVENT DELEGATION - ΕΝΑ listener για ΌΛΕΣ τις αλληλεπιδράσεις
+    // 🔥 EVENT DELEGATION - ΕΝΑ listener για ΟΛΕΣ τις αλληλεπιδράσεις
     newEventsList.addEventListener('click', function(e) {
         const button = e.target.closest('button');
         if (!button) return;
@@ -3048,7 +3065,7 @@ function attachEventCardListeners() {
         // Details button
         if (button.classList.contains('details')) {
             e.stopPropagation();
-            console.log("🔍 Details button clicked for:", eventId);
+            console.log("👁 Details button clicked for:", eventId);
             showEventDetails(eventId);
             return;
         }
@@ -3073,7 +3090,82 @@ function attachEventCardListeners() {
     console.log("✅ Event cards listening via delegation");
 }
 
-// 🔥 ΚΡΙΤΙΚΟ: Επανάθεση admin control listeners
+// 🔥 ΒΗΜΑ 4: Βελτιωμένη addEventActionListeners()
+function addEventActionListeners(event) {
+    console.log("🔘 Setting up action listeners for event:", event.id);
+    
+    const modalButtons = document.getElementById("event-action-buttons");
+    if (!modalButtons) {
+        console.error("❌ Modal buttons container not found!");
+        return;
+    }
+    
+    // 🔥 Χρήση event delegation ΣΤΟ MODAL
+    const newModalButtons = modalButtons.cloneNode(false);
+    newModalButtons.innerHTML = modalButtons.innerHTML;
+    modalButtons.parentNode.replaceChild(newModalButtons, modalButtons);
+    
+    // Event delegation για ΟΛΑ τα buttons στο modal
+    newModalButtons.addEventListener('click', function(e) {
+        const button = e.target.closest('button');
+        if (!button) return;
+        
+        const eventId = button.dataset.eventId || event.id;
+        
+        // Join button
+        if (button.id === 'join-event-btn') {
+            e.stopPropagation();
+            joinEvent(eventId);
+            hideModal("event-details-modal");
+            return;
+        }
+        
+        // Leave button
+        if (button.id === 'leave-event-btn') {
+            e.stopPropagation();
+            leaveEvent(eventId);
+            hideModal("event-details-modal");
+            return;
+        }
+        
+        // Delete button (creator)
+        if (button.id === 'delete-event-btn') {
+            e.stopPropagation();
+            showConfirmationModal(
+                "Are you sure you want to delete this event? This action cannot be undone!",
+                "Delete Event",
+                () => {
+                    deleteEvent(eventId);
+                }
+            );
+            return;
+        }
+        
+        // Admin delete button
+        if (button.id === 'admin-delete-event-btn') {
+            e.stopPropagation();
+            showConfirmationModal(
+                "Are you sure you want to delete this event as ADMIN?",
+                "Delete Event (Admin)",
+                () => {
+                    deleteEvent(eventId);
+                }
+            );
+            return;
+        }
+        
+        // Edit button
+        if (button.id === 'edit-event-btn') {
+            e.stopPropagation();
+            showEditEventModal(event);
+            return;
+        }
+    });
+    
+    console.log("✅ Modal listeners attached via delegation");
+}
+
+// 🔥 ΒΗΜΑ 5: Επαναφόρτωση admin control listeners
 function attachAdminControlListeners() {
     // Clear sample events button
     const clearSamplesBtn = document.getElementById("clear-sample-events-btn");
@@ -3103,7 +3195,7 @@ function attachAdminControlListeners() {
     }
 }
 
-// 🔥 ΒΗΜΑ 5: ΕΝΗΜΕΡΩΣΗ ΤΩΝ ADMIN FUNCTIONS
+// 🔥 ΒΗΜΑ 6: Ενημέρωση των admin functions
 async function clearSampleEvents() {
     if (currentUser.username !== "Vf-Rat") {
         showNotification("Only admin can clear sample events", "error", "Admin Only");
@@ -3754,82 +3846,6 @@ function updateEventDetailsModal(event) {
     
     // 🔥 ΒΗΜΑ 1: ΕΝΗΜΕΡΩΣΗ ΤΟΥ addEventActionListeners()
     addEventActionListeners(event);
-}
-
-// 🔥 ΒΗΜΑ 1: ΕΝΗΜΕΡΩΣΗ ΤΟΥ addEventActionListeners()
-function addEventActionListeners(event) {
-    console.log("🔔 Setting up action listeners for event:", event.id);
-    
-    // 🔥 ΚΡΙΤΙΚΟ: Χρήση MutationObserver για να περιμένουμε το DOM
-    const modalButtons = document.getElementById("event-action-buttons");
-    if (!modalButtons) {
-        console.error("❌ Modal buttons container not found!");
-        return;
-    }
-    
-    // 🔥 Χρήση event delegation ΣΤΟ MODAL
-    const newModalButtons = modalButtons.cloneNode(false);
-    newModalButtons.innerHTML = modalButtons.innerHTML;
-    modalButtons.parentNode.replaceChild(newModalButtons, modalButtons);
-    
-    // Event delegation για ΟΛΑ τα buttons στο modal
-    newModalButtons.addEventListener('click', function(e) {
-        const button = e.target.closest('button');
-        if (!button) return;
-        
-        const eventId = button.dataset.eventId || event.id;
-        
-        // Join button
-        if (button.id === 'join-event-btn') {
-            e.stopPropagation();
-            joinEvent(eventId);
-            hideModal("event-details-modal");
-            return;
-        }
-        
-        // Leave button
-        if (button.id === 'leave-event-btn') {
-            e.stopPropagation();
-            leaveEvent(eventId);
-            hideModal("event-details-modal");
-            return;
-        }
-        
-        // Delete button (creator)
-        if (button.id === 'delete-event-btn') {
-            e.stopPropagation();
-            showConfirmationModal(
-                "Are you sure you want to delete this event? This action cannot be undone!",
-                "Delete Event",
-                () => {
-                    deleteEvent(eventId);
-                }
-            );
-            return;
-        }
-        
-        // Admin delete button
-        if (button.id === 'admin-delete-event-btn') {
-            e.stopPropagation();
-            showConfirmationModal(
-                "Are you sure you want to delete this event as ADMIN?",
-                "Delete Event (Admin)",
-                () => {
-                    deleteEvent(eventId);
-                }
-            );
-            return;
-        }
-        
-        // Edit button
-        if (button.id === 'edit-event-btn') {
-            e.stopPropagation();
-            showEditEventModal(event);
-            return;
-        }
-    });
-    
-    console.log("✅ Modal listeners attached via delegation");
 }
 
 async function createEvent(eventData) {
