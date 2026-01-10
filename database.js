@@ -114,7 +114,9 @@ const eventSchema = new mongoose.Schema({
     max_participants: { type: Number, default: 0 }, // 0 = unlimited
     participants: [{ type: String }], // Array of usernames
     is_public: { type: Boolean, default: true },
-    created_at: { type: Date, default: Date.now }
+    created_at: { type: Date, default: Date.now },
+    // 🔥 ΝΕΟ: Προσθήκη πεδίου για φωτογραφία event
+    photo: { type: String, default: null } // Base64 string
 });
 
 // ===== MODELS =====
@@ -676,7 +678,9 @@ const dbHelpers = {
             max_participants: eventData.max_participants || 0,
             participants: [eventData.created_by], // Creator is automatically a participant
             is_public: eventData.is_public !== false, // Default to true
-            created_at: new Date()
+            created_at: new Date(),
+            // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας αν υπάρχει
+            photo: eventData.photo || null
         });
         
         await event.save();
@@ -715,7 +719,9 @@ const dbHelpers = {
                 participants: event.participants,
                 is_public: event.is_public,
                 created_at: event.created_at,
-                participant_count: event.participants.length
+                participant_count: event.participants.length,
+                // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
+                photo: event.photo || null
             };
         }
         return null;
@@ -736,7 +742,9 @@ const dbHelpers = {
                 participants: event.participants,
                 is_public: event.is_public,
                 created_at: event.created_at,
-                participant_count: event.participants.length
+                participant_count: event.participants.length,
+                // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
+                photo: event.photo || null
             };
         }
         return null;
@@ -908,7 +916,9 @@ const dbHelpers = {
                         max_participants: 50,
                         participants: ["admin", "demo"],
                         is_public: true,
-                        created_at: new Date()
+                        created_at: new Date(),
+                        // 🔥 ΝΕΟ: Δεν προσθέτουμε φωτογραφία στα sample events
+                        photo: null
                     },
                     {
                         event_id: `event_sample_${Date.now()}_2`,
@@ -920,7 +930,9 @@ const dbHelpers = {
                         max_participants: 30,
                         participants: ["demo", "admin"],
                         is_public: true,
-                        created_at: new Date()
+                        created_at: new Date(),
+                        // 🔥 ΝΕΟ: Δεν προσθέτουμε φωτογραφία στα sample events
+                        photo: null
                     }
                 ];
                 
