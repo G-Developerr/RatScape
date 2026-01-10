@@ -252,6 +252,74 @@ app.post("/upload-file", upload.single('file'), async (req, res) => {
     }
 });
 
+// ===== 🔥 ΝΕΟ ENDPOINT: UPLOAD EVENT PHOTO =====
+app.post("/upload-event-photo", upload.single('photo'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, error: "No photo uploaded" });
+        }
+        
+        const { eventId, username } = req.body;
+        const sessionId = req.headers["x-session-id"];
+        
+        if (!eventId || !username) {
+            return res.status(400).json({ success: false, error: "Missing required fields" });
+        }
+        
+        console.log("📸 Event photo upload:", {
+            originalName: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+            eventId: eventId,
+            username: username
+        });
+        
+        // Validate session
+        let session;
+        if (sessionId) {
+            session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
+        }
+        
+        if (!session || session.username !== username) {
+            return res.status(401).json({ success: false, error: "Invalid session" });
+        }
+        
+        // Validate that user can modify this event
+        const event = await dbHelpers.getEventById(eventId);
+        if (!event) {
+            return res.status(404).json({ success: false, error: "Event not found" });
+        }
+        
+        if (event.created_by !== username && username !== "Vf-Rat") {
+            return res.status(403).json({ 
+                success: false, 
+                error: "Only the event creator or admin can upload photos" 
+            });
+        }
+        
+        // Convert to Base64
+        const base64Photo = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+        
+        // Update event with photo
+        await dbHelpers.updateEvent(eventId, username, { photo: base64Photo });
+        
+        console.log(`✅ Event photo uploaded for event: ${event.title}`);
+        
+        res.json({
+            success: true,
+            photoUrl: base64Photo,
+            message: "Event photo uploaded successfully"
+        });
+        
+    } catch (error) {
+        console.error("❌ Error uploading event photo:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || "Failed to upload event photo" 
+        });
+    }
+});
+
 // Βοηθητική συνάρτηση για μορφοποίηση μεγέθους αρχείου
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
@@ -814,7 +882,7 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
 // Create event
 app.post("/create-event", validateSession, async (req, res) => {
     try {
-        const { title, description, date, location, max_participants, is_public } = req.body;
+        const { title, description, date, location, max_participants, is_public, photo } = req.body;
         const username = req.body.username || req.user?.username;
 
         if (!title || !description || !date || !location || !username) {
@@ -828,7 +896,8 @@ app.post("/create-event", validateSession, async (req, res) => {
             location,
             created_by: username,
             max_participants: parseInt(max_participants) || 0,
-            is_public: is_public !== false
+            is_public: is_public !== false,
+            photo: photo || null // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
         });
 
         res.json({
@@ -843,7 +912,8 @@ app.post("/create-event", validateSession, async (req, res) => {
                 max_participants: event.max_participants,
                 participants: event.participants,
                 is_public: event.is_public,
-                created_at: event.created_at
+                created_at: event.created_at,
+                photo: event.photo || null // 🔥 ΝΕΟ
             },
             message: "Event created successfully"
         });
@@ -873,7 +943,8 @@ app.get("/events", validateSession, async (req, res) => {
             created_at: event.created_at,
             is_full: event.max_participants > 0 && event.participants.length >= event.max_participants,
             is_creator: event.created_by === username,
-            is_participant: event.participants.includes(username)
+            is_participant: event.participants.includes(username),
+            photo: event.photo || null // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
         }));
         
         res.json({
@@ -2139,6 +2210,7 @@ async function startServer() {
       console.log(`🎯 EVENT CAPACITY: UNLIMITED`);
       console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
       console.log(`👑 ADMIN SYSTEM: ENABLED (Vf-Rat can delete any event)`);
+      console.log(`📸 EVENT PHOTO UPLOAD: ENABLED`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
