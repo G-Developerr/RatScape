@@ -263,37 +263,14 @@ function displayHomeEvents(events) {
         eventCard.className = `home-event-card ${statusClass} ${event.photo ? 'has-photo' : ''}`;
         eventCard.dataset.eventId = event.id;
         
-        // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
-        const photoHTML = event.photo ? 
-            `<div class="event-photo-thumbnail" style="height: 150px; background-image: url('${event.photo}'); background-size: cover; background-position: center; border-radius: var(--radius) var(--radius) 0 0; margin: -20px -20px 15px -20px;"></div>` : '';
-        
-        // Προσθήκη buttons based on status και authentication
-        let actionButton = '';
-        
-        if (currentUser.authenticated && !isPast) {
-            if (isParticipant) {
-                actionButton = `
-                    <button class="home-event-btn leave" data-event-id="${event.id}">
-                        <i class="fas fa-sign-out-alt"></i> Leave
-                    </button>
-                `;
-            } else if (!isFull) {
-                actionButton = `
-                    <button class="home-event-btn join" data-event-id="${event.id}">
-                        <i class="fas fa-plus"></i> Join
-                    </button>
-                `;
-            }
-        } else if (!currentUser.authenticated && !isPast) {
-            actionButton = `
-                <button class="home-event-btn join login-required" data-event-id="${event.id}">
-                    <i class="fas fa-sign-in-alt"></i> Login to Join
-                </button>
-            `;
+        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη inline style για background image
+        if (event.photo) {
+            eventCard.style.backgroundImage = `url('${event.photo}')`;
+            eventCard.style.backgroundSize = 'cover';
+            eventCard.style.backgroundPosition = 'center';
         }
         
         eventCard.innerHTML = `
-            ${photoHTML}
             <div class="home-event-card-header">
                 <h3>${event.title}</h3>
                 <span class="home-event-badge ${statusClass}">${statusText}</span>
@@ -318,7 +295,22 @@ function displayHomeEvents(events) {
                 <button class="home-event-btn details" data-event-id="${event.id}">
                     <i class="fas fa-info-circle"></i> Details
                 </button>
-                ${actionButton}
+                ${!isPast ? (
+                    currentUser.authenticated ? (
+                        isParticipant ? 
+                            `<button class="home-event-btn leave" data-event-id="${event.id}">
+                                <i class="fas fa-sign-out-alt"></i> Leave
+                            </button>` :
+                            (!isFull ? 
+                                `<button class="home-event-btn join" data-event-id="${event.id}">
+                                    <i class="fas fa-plus"></i> Join
+                                </button>` : '')
+                    ) : (
+                        `<button class="home-event-btn join login-required" data-event-id="${event.id}">
+                            <i class="fas fa-sign-in-alt"></i> Login to Join
+                        </button>`
+                    )
+                ) : ''}
             </div>
             
             <div class="home-event-creator">
@@ -4293,19 +4285,12 @@ function displayEvents(events) {
         eventCard.className = `event-card ${statusClass} ${event.photo ? 'has-photo' : ''}`;
         eventCard.dataset.eventId = event.id;
         
-        // 🔥 ΝΕΟ: Προσθήκη background image αν υπάρχει φωτογραφία
+        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη inline style για background image
         if (event.photo) {
-            eventCard.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9)), url(${event.photo})`;
+            eventCard.style.backgroundImage = `url('${event.photo}')`;
             eventCard.style.backgroundSize = 'cover';
             eventCard.style.backgroundPosition = 'center';
         }
-        
-        // 🔥 ΠΡΟΣΘΗΚΗ: data attributes για καλύτερο event delegation
-        eventCard.dataset.eventId = event.id;
-        eventCard.dataset.isPast = isPast;
-        eventCard.dataset.isFull = isFull;
-        eventCard.dataset.isParticipant = isParticipant;
-        eventCard.dataset.isCreator = isCreator;
         
         // Format date
         const formattedDate = eventDate.toLocaleDateString('en-US', {
@@ -5229,6 +5214,43 @@ function updateMobileUI() {
     }
 }
 
+// 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη event listener για φόρτωση events όταν γίνεται refresh
+function initEventAutoRefresh() {
+    // Φόρτωση events όταν ο χρήστης επιστρέφει στην καρτέλα
+    document.addEventListener("visibilitychange", function() {
+        if (!document.hidden) {
+            // Ο χρήστης επέστρεψε στην καρτέλα
+            if (document.getElementById("rooms-page").classList.contains("active")) {
+                console.log("🔄 User returned to rooms page, refreshing events");
+                setTimeout(() => {
+                    loadEvents();
+                }, 500);
+            }
+            if (document.getElementById("home-page").classList.contains("active")) {
+                console.log("🔄 User returned to home page, refreshing home events");
+                setTimeout(() => {
+                    loadHomeEvents();
+                }, 500);
+            }
+        }
+    });
+    
+    // Επαναφόρτωση όταν γίνεται focus στο παράθυρο
+    window.addEventListener("focus", function() {
+        console.log("🔄 Window focused, refreshing events");
+        if (document.getElementById("rooms-page").classList.contains("active")) {
+            setTimeout(() => {
+                loadEvents();
+            }, 300);
+        }
+        if (document.getElementById("home-page").classList.contains("active")) {
+            setTimeout(() => {
+                loadHomeEvents();
+            }, 300);
+        }
+    });
+}
+
 // ===== INITIALIZATION =====
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -5258,39 +5280,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Επαναφόρτωση events όταν επιστρέφεις στη σελίδα
-    document.addEventListener("visibilitychange", function() {
-        if (!document.hidden) {
-            // Ο χρήστης επέστρεψε στην καρτέλα
-            if (document.getElementById("rooms-page").classList.contains("active")) {
-                console.log("🔄 User returned to rooms page, refreshing events");
-                setTimeout(() => {
-                    loadEvents();
-                }, 500);
-            }
-            if (document.getElementById("home-page").classList.contains("active")) {
-                console.log("🔄 User returned to home page, refreshing events");
-                setTimeout(() => {
-                    loadHomeEvents();
-                }, 500);
-            }
-        }
-    });
-    
-    // 🔥 ΠΡΟΣΘΗΚΗ: Ανανέωση όταν γίνεται focus στο παράθυρο
-    window.addEventListener("focus", function() {
-        console.log("🔄 Window focused, refreshing events");
-        if (document.getElementById("rooms-page").classList.contains("active")) {
-            setTimeout(() => {
-                loadEvents();
-            }, 300);
-        }
-        if (document.getElementById("home-page").classList.contains("active")) {
-            setTimeout(() => {
-                loadHomeEvents();
-            }, 300);
-        }
-    });
+    initEventAutoRefresh();
 
+    // 🔥 ΠΡΟΣΘΗΚΗ: Αυτόματη φόρτωση events
+    initEventAutoRefresh();
+    
     // 🔥 ΠΡΟΣΘΗΚΗ: Φόρτωση home events με καθυστέρηση
     setTimeout(() => {
         if (document.getElementById("home-page").classList.contains("active")) {
