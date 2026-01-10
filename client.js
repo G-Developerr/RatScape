@@ -21,6 +21,146 @@ let currentRoom = {
 let eventPhotoFile = null;
 let eventPhotoBase64 = null;
 
+// ===== SESSION MANAGEMENT ENHANCEMENTS =====
+
+// ΛΥΣΗ 1: Βελτίωση session επικύρωσης - Προσθήκη στο client.js
+async function restoreSessionOnRefresh() {
+    console.log("🔄 Restoring session after refresh...");
+    
+    const savedUser = getUserFromLocalStorage();
+    if (!savedUser) {
+        console.log("❌ No saved user found");
+        return false;
+    }
+    
+    try {
+        // Πρώτα ελέγχουμε το session με το server
+        const response = await fetch(`/verify-session/${savedUser.username}`, {
+            headers: {
+                "X-Session-ID": savedUser.sessionId,
+            },
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                console.log("✅ Session restored from localStorage");
+                currentUser = {
+                    username: savedUser.username,
+                    email: savedUser.email,
+                    authenticated: true,
+                    sessionId: savedUser.sessionId,
+                };
+                
+                // Ενημέρωση UI
+                updateUIForAuthState();
+                
+                // Επανασύνδεση WebSocket
+                socket.emit("authenticate", {
+                    username: currentUser.username,
+                    sessionId: currentUser.sessionId,
+                });
+                
+                return true;
+            }
+        }
+    } catch (error) {
+        console.error("Error restoring session:", error);
+    }
+    
+    // Αν φτάσουμε εδώ, το session δεν είναι έγκυρο
+    clearUserFromLocalStorage();
+    return false;
+}
+
+// ΛΥΣΗ 3: Βελτίωση localStorage management
+// Ανανεωμένη saveUserToLocalStorage
+function saveUserToLocalStorage(user) {
+    localStorage.setItem(
+        "ratroom_user",
+        JSON.stringify({
+            username: user.username,
+            email: user.email,
+            authenticated: user.authenticated,
+            sessionId: user.sessionId,
+            timestamp: Date.now(),
+            version: "2.0" // Προσθήκη έκδοσης για συμβατότητα
+        })
+    );
+    
+    // Αποθήκευση και σε backup key
+    localStorage.setItem(
+        "ratscape_backup_user",
+        JSON.stringify({
+            username: user.username,
+            sessionId: user.sessionId,
+            timestamp: Date.now()
+        })
+    );
+}
+
+// Βελτιωμένη getUserFromLocalStorage με fallback
+function getUserFromLocalStorage() {
+    let userData = localStorage.getItem("ratroom_user");
+    
+    // Fallback σε backup αν το κύριο λείπει
+    if (!userData) {
+        userData = localStorage.getItem("ratscape_backup_user");
+    }
+    
+    if (!userData) return null;
+
+    try {
+        const user = JSON.parse(userData);
+        
+        // 🔥 ΑΛΛΑΓΗ: Αύξηση του expiry time
+        const twoWeeks = 14 * 24 * 60 * 60 * 1000; // 2 εβδομάδες αντί για 1
+        if (Date.now() - user.timestamp > twoWeeks) {
+            clearUserFromLocalStorage();
+            return null;
+        }
+        return user;
+    } catch (error) {
+        clearUserFromLocalStorage();
+        return null;
+    }
+}
+
+function clearUserFromLocalStorage() {
+    localStorage.removeItem("ratroom_user");
+    localStorage.removeItem("ratscape_backup_user");
+    localStorage.removeItem("ratroom_last_page");
+}
+
+// Client-side session refresh πριν το refresh
+async function refreshUserSession() {
+    if (currentUser.authenticated && currentUser.sessionId) {
+        try {
+            const response = await fetch('/refresh-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-ID': currentUser.sessionId
+                },
+                body: JSON.stringify({
+                    username: currentUser.username
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    console.log("✅ Session refreshed");
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error("Error refreshing session:", error);
+        }
+    }
+    return false;
+}
+
 // ===== FUNCTIONS FOR HOME PAGE EVENTS =====
 
 // Φόρτωση events για την αρχική σελίδα
@@ -1724,44 +1864,6 @@ function getCurrentTime() {
     });
 }
 
-function saveUserToLocalStorage(user) {
-    localStorage.setItem(
-        "ratroom_user",
-        JSON.stringify({
-            username: user.username,
-            email: user.email,
-            authenticated: user.authenticated,
-            sessionId: user.sessionId,
-            timestamp: Date.now(),
-            // 🔧 ΠΡΟΣΘΗΚΗ: Αποθήκευση και του παλιού username για αναφορές
-            previousUsername: user.previousUsername || null
-        })
-    );
-}
-
-function getUserFromLocalStorage() {
-    const userData = localStorage.getItem("ratroom_user");
-    if (!userData) return null;
-
-    try {
-        const user = JSON.parse(userData);
-        const oneWeek = 7 * 24 * 60 * 60 * 1000;
-        if (Date.now() - user.timestamp > oneWeek) {
-            clearUserFromLocalStorage();
-            return null;
-        }
-        return user;
-    } catch (error) {
-        clearUserFromLocalStorage();
-        return null;
-    }
-}
-
-function clearUserFromLocalStorage() {
-    localStorage.removeItem("ratroom_user");
-    localStorage.removeItem("ratroom_last_page");
-}
-
 function saveCurrentPage(pageId) {
     localStorage.setItem("ratroom_last_page", pageId);
 }
@@ -3178,30 +3280,6 @@ async function uploadProfilePicture(file) {
     }
 }
 
-// Add to client.js
-async function refreshUserSession() {
-    if (currentUser.authenticated) {
-        try {
-            const response = await fetch(`/verify-session/${currentUser.username}`, {
-                headers: {
-                    "X-Session-ID": currentUser.sessionId,
-                },
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    console.log("✅ Session refreshed");
-                    return true;
-                }
-            }
-        } catch (error) {
-            console.error("Error refreshing session:", error);
-        }
-    }
-    return false;
-}
-
 // 🔧 ΚΑΙΝΟΥΡΓΙΑ ΣΥΝΑΡΤΗΣΗΣ - ΑΝΤΙΚΑΤΑΣΤΑΣΗ ΤΗΣ ΥΠΑΡΧΟΥΣΑΣ
 async function saveProfileChanges(newUsername, newEmail, profilePicture) {
     try {
@@ -3315,131 +3393,6 @@ async function handleProfileUpdateSuccess(oldUsername, data) {
         setTimeout(() => {
             location.reload();
         }, 1000);
-    }
-}
-
-// 🔧 ΚΑΙΝΟΥΡΓΙΑ: Συνάρτηση για ασφαλή ανανέωση μετά από επιτυχημένη ενημέρωση προφίλ
-async function handleProfileUpdateSuccess(oldUsername, data) {
-    try {
-        console.log("🔄 Handling profile update success:", { oldUsername, newUserData: data.user });
-        
-        // 1. Ενημέρωση του currentUser αντικειμένου
-        if (data.user) {
-            currentUser.username = data.user.username || currentUser.username;
-            currentUser.email = data.user.email || currentUser.email;
-            // Η sessionId παραμένει η ίδια - το server θα το ενημερώσει
-        }
-        
-        // 2. Αποθήκευση των νέων στοιχείων στο localStorage
-        saveUserToLocalStorage(currentUser);
-        
-        // 3. Επαναπροσθήκη WebSocket listeners με τα νέα στοιχεία
-        setTimeout(() => {
-            socket.emit("authenticate", {
-                username: currentUser.username,
-                sessionId: currentUser.sessionId,
-            });
-            
-            console.log("✅ Re-authenticated WebSocket with new username:", currentUser.username);
-        }, 300);
-        
-    } catch (error) {
-        console.error("❌ Error in profile update success handler:", error);
-        // Fallback: Reload the page
-        setTimeout(() => {
-            location.reload();
-        }, 1000);
-    }
-}
-
-// 🔧 ΚΑΙΝΟΥΡΓΙΑ: Συνάρτηση για ανανέωση session μετά από username change
-async function refreshUserSession(oldUsername, oldSessionId, newUserData) {
-    try {
-        console.log("🔄 Refreshing session...", { oldUsername, newUserData });
-        
-        // 1. Κλείσιμο παλιού WebSocket session
-        socket.emit("session_change", {
-            oldUsername: oldUsername,
-            oldSessionId: oldSessionId
-        });
-        
-        // 2. Δημιουργία νέου session ID
-        const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
-        
-        // 3. Αποστολή στο server για αποθήκευση νέου session
-        const response = await fetch("/refresh-session", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                oldSessionId: oldSessionId,
-                newSessionId: newSessionId,
-                username: newUserData.username || currentUser.username,
-                email: newUserData.email || currentUser.email
-            }),
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            
-            if (data.success) {
-                // 4. Ανανέωση currentUser με ΝΕΟ sessionId
-                currentUser.sessionId = newSessionId;
-                currentUser.username = newUserData.username || currentUser.username;
-                currentUser.email = newUserData.email || currentUser.email;
-                
-                // 5. Αποθήκευση στο localStorage
-                saveUserToLocalStorage(currentUser);
-                
-                // 6. Επανασύνδεση WebSocket με τα νέα στοιχεία
-                setTimeout(() => {
-                    socket.emit("authenticate", {
-                        username: currentUser.username,
-                        sessionId: currentUser.sessionId,
-                    });
-                    
-                    console.log("✅ Session refreshed successfully:", {
-                        newUsername: currentUser.username,
-                        newSessionId: currentUser.sessionId.substring(0, 20) + "..."
-                    });
-                }, 300);
-            }
-        }
-    } catch (error) {
-        console.error("❌ Error refreshing session:", error);
-        // Επανάληψη login με τα νέα στοιχεία
-        setTimeout(() => {
-            handleLogin(currentUser.email, "YOUR_PASSWORD_HERE"); // Θα χρειαστείς password!
-        }, 1000);
-    }
-}
-
-
-// 🔧 Βοηθητική συνάρτηση για ανανέωση session μετά από username change
-function refreshUserSession(newUsername, newEmail) {
-    if (currentUser.authenticated) {
-        // Δημιουργία νέου session ID
-        const newSessionId = "session_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
-        
-        // Ανανέωση currentUser
-        currentUser.username = newUsername || currentUser.username;
-        currentUser.email = newEmail || currentUser.email;
-        currentUser.sessionId = newSessionId;
-        
-        // Αποθήκευση στο localStorage
-        saveUserToLocalStorage(currentUser);
-        
-        // Ενημέρωση WebSocket
-        socket.emit("authenticate", {
-            username: currentUser.username,
-            sessionId: currentUser.sessionId,
-        });
-        
-        // Ενημέρωση UI
-        updateUIForAuthState();
-        
-        console.log("✅ Session refreshed for new username:", currentUser.username);
     }
 }
 
@@ -3978,14 +3931,40 @@ async function deleteAllEvents() {
 
 // ===== SOCKET EVENT HANDLERS =====
 
-socket.on("connect", () => {
+// ΛΥΣΗ 2: Καλύτερη διαχείριση WebSocket επανασύνδεσης
+socket.on("connect", async () => {
     console.log("🔗 Connected to server");
-    if (currentUser.authenticated) {
-        socket.emit("authenticate", {
-            username: currentUser.username,
-            sessionId: currentUser.sessionId,
-        });
+    
+    // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: ΜΟΝΟ ΕΝΑ event listener
+    if (currentUser.authenticated && currentUser.sessionId) {
+        console.log("🔄 Re-authenticating WebSocket...");
+        
+        // Προσθήκη timeout για να αποφύγουμε race conditions
+        setTimeout(() => {
+            socket.emit("authenticate", {
+                username: currentUser.username,
+                sessionId: currentUser.sessionId,
+            });
+        }, 1000);
     }
+});
+
+// Χειρισμός session expiry - Βελτιωμένη έκδοση
+socket.on("session_expired", () => {
+    console.log("⚠️ WebSocket session expired");
+    
+    // Προσπάθεια ανανέωσης session
+    setTimeout(async () => {
+        const refreshed = await refreshUserSession();
+        if (refreshed) {
+            socket.emit("authenticate", {
+                username: currentUser.username,
+                sessionId: currentUser.sessionId,
+            });
+        } else {
+            handleSessionExpired();
+        }
+    }, 500);
 });
 
 socket.on("load messages", (messages) => {
@@ -4254,10 +4233,6 @@ socket.on("user_disconnected", (data) => {
 socket.on("leave_room_success", (data) => {
     console.log("✅ Successfully left room:", data.roomId);
     showNotification("Left room successfully", "info", "Room Left");
-});
-
-socket.on("session_expired", () => {
-    handleSessionExpired();
 });
 
 socket.on("error", (data) => {
@@ -5259,6 +5234,17 @@ function updateMobileUI() {
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("🐀 RatScape client initialized");
 
+    // ΛΥΣΗ 1: Αυτόματη επαναφορά session
+    const sessionRestored = await restoreSessionOnRefresh();
+    if (sessionRestored) {
+        console.log("✅ Session restored successfully");
+        // Φόρτωση δεδομένων μετά την επαναφορά
+        setTimeout(() => {
+            loadUserRooms();
+            loadUserFriends();
+        }, 500);
+    }
+
     // Create notification container first
     createNotificationContainer();
     initializeEventListeners();
@@ -5315,8 +5301,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("✅ Ready to chat!");
 });
 
-// Αποθήκευση κατάστασης πριν το refresh
-window.addEventListener('beforeunload', function() {
+// ΛΥΣΗ 3: Αποθήκευση κατάστασης πριν το refresh
+window.addEventListener('beforeunload', async function() {
+    if (currentUser.authenticated && currentUser.sessionId) {
+        // Αποστολή keep-alive πριν το refresh
+        try {
+            await fetch('/keep-alive', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-ID': currentUser.sessionId
+                },
+                body: JSON.stringify({
+                    username: currentUser.username
+                })
+            });
+        } catch (error) {
+            console.log("Keep-alive failed (normal during page refresh)");
+        }
+    }
+    
+    // Αποθήκευση κατάστασης chat
     if (currentRoom.id) {
         saveChatState();
     }
