@@ -786,48 +786,63 @@ const dbHelpers = {
     },
 
    // 🔥 FIXED VERSION - Ελέγχει αν υπάρχει το event ΠΡΙΝ τη διαγραφή
-deleteEvent: async function(eventId, username) {
-    console.log("🔥 deleteEvent called:", { eventId, username });
-    
-    // 🔥 ΚΡΙΤΙΚΟ: Έλεγχος αν το event υπάρχει ΠΡΙΝ προσπαθήσουμε να το διαγράψουμε
-    const event = await Event.findOne({ event_id: eventId });
-    
-    if (!event) {
-        console.error(`❌ Event not found: ${eventId}`);
-        throw new Error("Event not found");
-    }
-    
-    console.log("🔍 Found event:", {
-        id: event.event_id,
-        title: event.title,
-        created_by: event.created_by,
-        requesting_user: username
-    });
-    
-    // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Καλύτερος έλεγχος για admin
-    const isAdmin = username && username.toLowerCase() === "vf-rat";
-    
-    if (isAdmin) {
-        // Admin μπορεί να διαγράψει ΟΠΟΙΟΔΗΠΟΤΕ event
+    deleteEvent: async function(eventId, username) {
+        console.log("🔥 deleteEvent called:", { eventId, username });
+        
+        // 🔥 ΚΡΙΤΙΚΟ: Έλεγχος αν το event υπάρχει ΠΡΙΝ προσπαθήσουμε να το διαγράψουμε
+        const event = await Event.findOne({ event_id: eventId });
+        
+        if (!event) {
+            console.error(`❌ Event not found: ${eventId}`);
+            throw new Error("Event not found");
+        }
+        
+        console.log("🔍 Found event:", {
+            id: event.event_id,
+            title: event.title,
+            created_by: event.created_by,
+            requesting_user: username
+        });
+        
+        // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Καλύτερος έλεγχος για admin
+        const isAdmin = username && username.toLowerCase() === "vf-rat";
+        
+        if (isAdmin) {
+            // Admin μπορεί να διαγράψει ΟΠΟΙΟΔΗΠΟΤΕ event
+            const result = await Event.deleteOne({ event_id: eventId });
+            console.log(`✅ Admin "${username}" deleted event: "${event.title}" (${result.deletedCount} deleted)`);
+            
+            // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Επιστροφή του αποτελέσματος αντί για πάντα true
+            if (result.deletedCount === 1) {
+                console.log(`✅ SUCCESS: Event "${event.title}" deleted from database`);
+                return true;
+            } else {
+                console.error(`❌ FAILED: Event "${event.title}" NOT deleted from database`);
+                throw new Error("Failed to delete event from database");
+            }
+        }
+        
+        // Έλεγχος αν ο χρήστης είναι ο δημιουργός
+        const isCreator = event.created_by === username;
+        
+        if (!isCreator) {
+            console.error(`❌ Permission denied: ${username} cannot delete event created by ${event.created_by}`);
+            throw new Error("Only the creator can delete this event");
+        }
+        
+        // Ο δημιουργός διαγράφει το event
         const result = await Event.deleteOne({ event_id: eventId });
-        console.log(`✅ Admin "${username}" deleted event: "${event.title}" (${result.deletedCount} deleted)`);
-        return true;
-    }
-    
-    // Έλεγχος αν ο χρήστης είναι ο δημιουργός
-    const isCreator = event.created_by === username;
-    
-    if (!isCreator) {
-        console.error(`❌ Permission denied: ${username} cannot delete event created by ${event.created_by}`);
-        throw new Error("Only the creator can delete this event");
-    }
-    
-    // Ο δημιουργός διαγράφει το event
-    const result = await Event.deleteOne({ event_id: eventId });
-    console.log(`✅ Event deleted: "${event.title}" by ${username} (${result.deletedCount} deleted)`);
-    
-    return true;
-},
+        console.log(`✅ Event deleted: "${event.title}" by ${username} (${result.deletedCount} deleted)`);
+        
+        // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Επιστροφή του αποτελέσματος αντί για πάντα true
+        if (result.deletedCount === 1) {
+            console.log(`✅ SUCCESS: Event "${event.title}" deleted from database`);
+            return true;
+        } else {
+            console.error(`❌ FAILED: Event "${event.title}" NOT deleted from database`);
+            throw new Error("Failed to delete event from database");
+        }
+    },
     
     // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Ειδική μέθοδος που χρησιμοποιείται από τον client API
     deleteEventById: async function(eventId, username) {
