@@ -694,6 +694,22 @@ const dbHelpers = {
             
             console.log(`✅ Auto-created room for event "${eventData.title}": ${roomId}`);
             
+            // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Αποστολή welcome message στο room
+            setTimeout(() => {
+                // Αποστολή welcome message στο room
+                this.saveMessage({
+                    room_id: roomId,
+                    sender: "System",
+                    text: `🎉 Welcome to the "${eventData.title}" event group chat!\n\nCreated by: ${username}\n\nUse this chat to coordinate with other event participants!`,
+                    time: new Date().toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                    }),
+                    isFile: false
+                });
+            }, 1000);
+            
             return {
                 roomId: roomId,
                 inviteCode: inviteCode,
@@ -969,7 +985,7 @@ const dbHelpers = {
             
             // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Επιστροφή του αποτελέσματος αντί για πάντα true
             if (result.deletedCount === 1) {
-                console.log(`✅ SUCCESS: Event "${event.title}" deleted from database`);
+                console.log(`✅ SUCCESS: Event "${event.title}" deleted from database");
                 return true;
             } else {
                 console.error(`❌ FAILED: Event "${event.title}" NOT deleted from database`);
