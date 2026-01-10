@@ -1287,6 +1287,141 @@ app.delete("/events/admin/clear-samples", validateSession, async (req, res) => {
     }
 });
 
+// ===== 🔥 ΝΕΟ ENDPOINT: GET EVENT ROOM INFO =====
+app.get("/events/:eventId/room-info", validateSession, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const username = req.query.username || req.user?.username;
+        
+        if (!username) {
+            return res.status(400).json({ success: false, error: "Username required" });
+        }
+        
+        // Βρείτε το event
+        const event = await dbHelpers.getEventById(eventId);
+        if (!event) {
+            return res.status(404).json({ success: false, error: "Event not found" });
+        }
+        
+        // Βρείτε το room ID από το event
+        const roomId = await dbHelpers.getEventRoomId(eventId);
+        if (!roomId) {
+            return res.status(404).json({ 
+                success: false, 
+                error: "No room exists for this event",
+                hasRoom: false
+            });
+        }
+        
+        // Βρείτε τα room details
+        const room = await dbHelpers.getRoomById(roomId);
+        if (!room) {
+            return res.status(404).json({ 
+                success: false, 
+                error: "Room not found",
+                hasRoom: false
+            });
+        }
+        
+        // Έλεγχος αν ο χρήστης είναι μέλος του room
+        const isMember = await dbHelpers.isUserInRoom(roomId, username);
+        
+        res.json({
+            success: true,
+            hasRoom: true,
+            room: {
+                id: roomId,
+                name: room.name,
+                invite_code: room.invite_code,
+                isMember: isMember,
+                canJoin: !isMember && event.participants.includes(username)
+            },
+            event: {
+                id: event.id,
+                title: event.title,
+                isParticipant: event.participants.includes(username)
+            }
+        });
+        
+    } catch (error) {
+        console.error("❌ Error getting event room info:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
+// ===== 🔥 ΝΕΟ ENDPOINT: JOIN EVENT ROOM =====
+app.post("/events/:eventId/join-room", validateSession, async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const username = req.body.username || req.user?.username;
+        
+        if (!username) {
+            return res.status(400).json({ success: false, error: "Username required" });
+        }
+        
+        // Βρείτε το event
+        const event = await dbHelpers.getEventById(eventId);
+        if (!event) {
+            return res.status(404).json({ success: false, error: "Event not found" });
+        }
+        
+        // Έλεγχος αν ο χρήστης συμμετέχει στο event
+        if (!event.participants.includes(username)) {
+            return res.status(403).json({ 
+                success: false, 
+                error: "You must join the event first to access the group chat" 
+            });
+        }
+        
+        // Βρείτε το room ID από το event
+        let roomId = await dbHelpers.getEventRoomId(eventId);
+        if (!roomId) {
+            // Αν δεν υπάρχει room, δημιουργήστε ένα
+            const roomInfo = await dbHelpers.autoCreateEventRoom({
+                event_id: eventId,
+                title: event.title,
+                created_by: event.created_by
+            }, event.created_by);
+            
+            if (!roomInfo) {
+                return res.status(500).json({ success: false, error: "Failed to create event room" });
+            }
+            
+            roomId = roomInfo.roomId;
+            
+            // Ενημέρωση του event με το room ID
+            await dbHelpers.updateEvent(eventId, event.created_by, { room_id: roomId });
+        }
+        
+        // Προσθήκη χρήστη στο room
+        await dbHelpers.addUserToRoom(roomId, username);
+        
+        // Βρείτε τα room details
+        const room = await dbHelpers.getRoomById(roomId);
+        
+        res.json({
+            success: true,
+            message: "Joined event group chat successfully",
+            room: {
+                id: roomId,
+                name: room.name,
+                invite_code: room.invite_code
+            }
+        });
+        
+        // Ενημέρωση μέσω WebSocket για νέο μέλος
+        io.to(roomId).emit("user_joined_event_room", {
+            eventId: eventId,
+            username: username,
+            roomId: roomId
+        });
+        
+    } catch (error) {
+        console.error("❌ Error joining event room:", error);
+        res.status(500).json({ success: false, error: getErrorMessage(error) });
+    }
+});
+
 // ===== ΥΠΑΡΧΟΝΤΑ ENDPOINTS (ΜΕΝΟΥΝ ΑΚΛΑΔΑ) =====
 
 // Authentication routes
@@ -2246,7 +2381,8 @@ async function startServer() {
       console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
       console.log(`👑 ADMIN SYSTEM: ENABLED (Vf-Rat can delete any event)`);
       console.log(`📸 EVENT PHOTO UPLOAD: ENABLED`);
-      console.log(`🔄 SESSION KEEP-ALIVE: ENABLED`); // 🔥 ΝΕΑ ΔΙΕΥΚΡΙΝΙΣΗ
+      console.log(`🔄 SESSION KEEP-ALIVE: ENABLED`);
+      console.log(`💬 EVENT GROUP CHAT SYSTEM: ENABLED`); // 🔥 ΝΕΑ ΔΙΕΥΚΡΙΝΙΣΗ
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
