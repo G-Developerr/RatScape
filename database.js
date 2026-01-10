@@ -103,7 +103,7 @@ const fileSchema = new mongoose.Schema({
     created_at: { type: Date, default: Date.now }
 });
 
-// 🔥 ΝΕΟ: EVENTS SCHEMA - ΕΝΗΜΕΡΩΜΕΝΗ ΜΕ ΑΝΤΊΣΤΟΙΧΟ ΠΕΔΙΟ ID
+// 🔥 ΝΕΟ: EVENTS SCHEMA - ΕΝΗΜΕΡΩΜΕΝΗ ΜΕ ΑΝΤΊΣΤΟΙΧΟ ΠΕΔΙΟ ID ΚΑΙ ROOM_ID
 const eventSchema = new mongoose.Schema({
     event_id: { type: String, required: true, unique: true },
     title: { type: String, required: true },
@@ -116,7 +116,9 @@ const eventSchema = new mongoose.Schema({
     is_public: { type: Boolean, default: true },
     created_at: { type: Date, default: Date.now },
     // 🔥 ΝΕΟ: Προσθήκη πεδίου για φωτογραφία event
-    photo: { type: String, default: null } // Base64 string
+    photo: { type: String, default: null }, // Base64 string
+    // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Προσθήκη πεδίου για room ID
+    room_id: { type: String, default: null } // Αναφορά στο αντίστοιχο room
 });
 
 // ===== MODELS =====
@@ -664,7 +666,46 @@ const dbHelpers = {
         return File;
     },
 
-    // 🔥 ΝΕΟ: Event methods
+    // 🔥 ΝΕΟ: Event methods - ΕΝΗΜΕΡΩΜΕΝΕΣ ΜΕ ROOM FUNCTIONALITY
+
+    // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Αυτόματη δημιουργία room για event
+    autoCreateEventRoom: async function(eventData, username) {
+        try {
+            // Δημιουργία μοναδικού κωδικού για το room
+            const inviteCode = `EVENT_${Date.now().toString(36).toUpperCase()}_${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+            const roomId = `event_room_${eventData.event_id}`;
+            
+            // Δημιουργία room για το event
+            const room = new Room({
+                room_id: roomId,
+                name: `📅 ${eventData.title}`,
+                invite_code: inviteCode,
+                created_by: username,
+                created_at: new Date()
+            });
+            await room.save();
+            
+            // Προσθήκη του δημιουργού στο room
+            await RoomMember.create({
+                room_id: roomId,
+                username: username,
+                joined_at: new Date()
+            });
+            
+            console.log(`✅ Auto-created room for event "${eventData.title}": ${roomId}`);
+            
+            return {
+                roomId: roomId,
+                inviteCode: inviteCode,
+                roomName: room.name
+            };
+        } catch (error) {
+            console.error("❌ Error creating event room:", error);
+            return null;
+        }
+    },
+
+    // 🔥 ΕΝΗΜΕΡΩΜΕΝΗ ΜΕΘΟΔΟΣ: Δημιουργία event με αυτόματη δημιουργία room
     createEvent: async function(eventData) {
         const eventId = `event_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         
@@ -680,12 +721,97 @@ const dbHelpers = {
             is_public: eventData.is_public !== false, // Default to true
             created_at: new Date(),
             // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας αν υπάρχει
-            photo: eventData.photo || null
+            photo: eventData.photo || null,
+            room_id: null // Θα συμπληρωθεί παρακάτω
         });
         
         await event.save();
         console.log(`✅ Event created: ${eventData.title} by ${eventData.created_by}`);
+        
+        // 🔥 ΚΡΙΤΙΚΟ: Αυτόματη δημιουργία room για το event
+        try {
+            const roomInfo = await this.autoCreateEventRoom({
+                ...event.toObject(),
+                event_id: eventId
+            }, eventData.created_by);
+            
+            if (roomInfo) {
+                // Αποθήκευση του room ID στο event για μελλοντική αναφορά
+                event.room_id = roomInfo.roomId;
+                await event.save();
+                console.log(`✅ Room ${roomInfo.roomId} linked to event ${eventId}`);
+            }
+        } catch (roomError) {
+            console.error("⚠️ Could not create room for event, but event was created:", roomError);
+            // Συνεχίζουμε ακόμα κι αν αποτύχει η δημιουργία room
+        }
+        
         return event;
+    },
+
+    // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Μέθοδος για να βρίσκει το room ID από event ID
+    getEventRoomId: async function(eventId) {
+        const event = await Event.findOne({ event_id: eventId });
+        if (event && event.room_id) {
+            return event.room_id;
+        }
+        return null;
+    },
+
+    // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Μέθοδος για αυτόματη προσθήκη συμμετεχόντων στο room όταν γίνονται join στο event
+    addParticipantToEventRoom: async function(eventId, username) {
+        try {
+            const event = await Event.findOne({ event_id: eventId });
+            if (!event || !event.room_id) {
+                console.log(`ℹ️ No room found for event ${eventId}`);
+                return false;
+            }
+            
+            // Έλεγχος αν ο χρήστης είναι ήδη στο room
+            const isAlreadyMember = await RoomMember.findOne({
+                room_id: event.room_id,
+                username: username
+            });
+            
+            if (!isAlreadyMember) {
+                // Προσθήκη χρήστη στο room
+                await RoomMember.create({
+                    room_id: event.room_id,
+                    username: username,
+                    joined_at: new Date()
+                });
+                console.log(`✅ Added ${username} to event room ${event.room_id}`);
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error("❌ Error adding participant to event room:", error);
+            return false;
+        }
+    },
+
+    // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Μέθοδος για να βρίσκει event από room ID
+    getEventByRoomId: async function(roomId) {
+        const event = await Event.findOne({ room_id: roomId });
+        if (event) {
+            return {
+                id: event.event_id,
+                title: event.title,
+                description: event.description,
+                date: event.date,
+                location: event.location,
+                created_by: event.created_by,
+                max_participants: event.max_participants,
+                participants: event.participants,
+                is_public: event.is_public,
+                created_at: event.created_at,
+                participant_count: event.participants.length,
+                photo: event.photo || null,
+                room_id: event.room_id
+            };
+        }
+        return null;
     },
 
     getAllEvents: async function(username = null) {
@@ -720,8 +846,9 @@ const dbHelpers = {
                 is_public: event.is_public,
                 created_at: event.created_at,
                 participant_count: event.participants.length,
-                // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
-                photo: event.photo || null
+                // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας και room_id
+                photo: event.photo || null,
+                room_id: event.room_id || null
             };
         }
         return null;
@@ -743,8 +870,9 @@ const dbHelpers = {
                 is_public: event.is_public,
                 created_at: event.created_at,
                 participant_count: event.participants.length,
-                // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
-                photo: event.photo || null
+                // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας και room_id
+                photo: event.photo || null,
+                room_id: event.room_id || null
             };
         }
         return null;
@@ -768,6 +896,12 @@ const dbHelpers = {
         
         event.participants.push(username);
         await event.save();
+        
+        // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Προσθήκη χρήστη στο event room
+        if (event.room_id) {
+            await this.addParticipantToEventRoom(eventId, username);
+        }
+        
         console.log(`✅ ${username} joined event: ${event.title}`);
         return event;
     },
@@ -787,6 +921,12 @@ const dbHelpers = {
         if (participantIndex > -1) {
             event.participants.splice(participantIndex, 1);
             await event.save();
+            
+            // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Αφαίρεση χρήστη από το event room
+            if (event.room_id) {
+                await this.removeUserFromRoom(event.room_id, username);
+            }
+            
             console.log(`✅ ${username} left event: ${event.title}`);
         }
         
@@ -820,6 +960,13 @@ const dbHelpers = {
             const result = await Event.deleteOne({ event_id: eventId });
             console.log(`✅ Admin "${username}" deleted event: "${event.title}" (${result.deletedCount} deleted)`);
             
+            // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Διαγραφή του αντίστοιχου room
+            if (event.room_id) {
+                await Room.deleteOne({ room_id: event.room_id });
+                await RoomMember.deleteMany({ room_id: event.room_id });
+                console.log(`✅ Deleted associated room: ${event.room_id}`);
+            }
+            
             // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Επιστροφή του αποτελέσματος αντί για πάντα true
             if (result.deletedCount === 1) {
                 console.log(`✅ SUCCESS: Event "${event.title}" deleted from database`);
@@ -841,6 +988,13 @@ const dbHelpers = {
         // Ο δημιουργός διαγράφει το event
         const result = await Event.deleteOne({ event_id: eventId });
         console.log(`✅ Event deleted: "${event.title}" by ${username} (${result.deletedCount} deleted)`);
+        
+        // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Διαγραφή του αντίστοιχου room
+        if (event.room_id) {
+            await Room.deleteOne({ room_id: event.room_id });
+            await RoomMember.deleteMany({ room_id: event.room_id });
+            console.log(`✅ Deleted associated room: ${event.room_id}`);
+        }
         
         // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Επιστροφή του αποτελέσματος αντί για πάντα true
         if (result.deletedCount === 1) {
@@ -873,7 +1027,7 @@ const dbHelpers = {
         
         // Ενημέρωση πεδίων
         Object.keys(updates).forEach(key => {
-            if (updates[key] !== undefined && key !== 'participants') {
+            if (updates[key] !== undefined && key !== 'participants' && key !== 'room_id') {
                 event[key] = updates[key];
             }
         });
@@ -918,7 +1072,8 @@ const dbHelpers = {
                         is_public: true,
                         created_at: new Date(),
                         // 🔥 ΝΕΟ: Δεν προσθέτουμε φωτογραφία στα sample events
-                        photo: null
+                        photo: null,
+                        room_id: null // Θα δημιουργηθεί όταν πραγματικά δημιουργηθεί
                     },
                     {
                         event_id: `event_sample_${Date.now()}_2`,
@@ -932,7 +1087,8 @@ const dbHelpers = {
                         is_public: true,
                         created_at: new Date(),
                         // 🔥 ΝΕΟ: Δεν προσθέτουμε φωτογραφία στα sample events
-                        photo: null
+                        photo: null,
+                        room_id: null // Θα δημιουργηθεί όταν πραγματικά δημιουργηθεί
                     }
                 ];
                 
@@ -1102,10 +1258,12 @@ async function initializeDatabase() {
         await File.createIndexes();
         await UnreadMessage.createIndexes();
         await Event.createIndexes();
+        await Room.createIndexes();
         
         console.log('📈 Database indexes created successfully');
         console.log('💾 File storage system: ENABLED');
         console.log('📅 Events system: ENABLED');
+        console.log('🏠 Event Rooms system: ENABLED');
         console.log('📊 File schema: READY');
         console.log('📅 Event schema: READY');
 
