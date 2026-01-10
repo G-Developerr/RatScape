@@ -23,7 +23,7 @@ let eventPhotoBase64 = null;
 
 // ===== SESSION MANAGEMENT ENHANCEMENTS =====
 
-// ΛΥΣΗ 1: Βελτίωση session επικύρωσης - Προσθήκη στο client.js
+// ΛΥΣΗ 1: Βελτιωμένη session επικύρωσης - Προσθήκη στο client.js
 async function restoreSessionOnRefresh() {
     console.log("🔄 Restoring session after refresh...");
     
@@ -167,9 +167,9 @@ async function refreshUserSession() {
 let homeEventsLoading = false;
 let homeEventsTimeout = null;
 
-// Φόρτωση events για την αρχική σελίδα
+// 🔥 ΒΗΜΑ 4: Ενημέρωση της loadHomeEvents() για να καλείτε τους listeners
 async function loadHomeEvents() {
-  // 🔥 Debounce: Μόνο μία φορά κάθε 2 δευτερόλεπτα
+  // Debounce: Μόνο μία φορά κάθε 2 δευτερόλεπτα
   if (homeEventsLoading) {
     console.log('⏳ Home events already loading, skipping...');
     return;
@@ -203,6 +203,11 @@ async function loadHomeEvents() {
           // Εμφάνιση της ενότητας events
           homeEventsSection.style.display = 'block';
           displayHomeEvents(data.events.slice(0, 3)); // Πρώτα 3 events
+          
+          // 🔥 ΚΑΙΝΟΥΡΓΙΑ: Αμέσως προσθήκη listeners
+          setTimeout(() => {
+            attachHomeEventListeners();
+          }, 100);
         } else {
           showNoEventsOnHome();
         }
@@ -221,6 +226,11 @@ async function loadHomeEvents() {
           if (publicEvents.length > 0) {
             homeEventsSection.style.display = 'block';
             displayHomeEvents(publicEvents.slice(0, 3));
+            
+            // 🔥 ΚΑΙΝΟΥΡΓΙΑ: Αμέσως προσθήκη listeners
+            setTimeout(() => {
+              attachHomeEventListeners();
+            }, 100);
           } else {
             showNoEventsOnHome();
           }
@@ -238,6 +248,329 @@ async function loadHomeEvents() {
       homeEventsLoading = false;
     }, 2000);
   }
+}
+
+// 🔥 ΒΗΜΑ 1: Βελτιωμένη attachHomeEventListeners()
+function attachHomeEventListeners() {
+    const homeEventsList = document.getElementById('home-events-list');
+    if (!homeEventsList) return;
+    
+    // Χρήση event delegation για ΟΛΑ τα buttons
+    homeEventsList.addEventListener('click', function(e) {
+        const button = e.target.closest('button');
+        if (!button) return;
+        
+        const eventCard = button.closest('.home-event-card');
+        if (!eventCard) return;
+        
+        const eventId = eventCard.dataset.eventId;
+        
+        // Details button
+        if (button.classList.contains('details')) {
+            e.stopPropagation();
+            console.log("👁 Home event details clicked:", eventId);
+            showEventDetails(eventId);
+            return;
+        }
+        
+        // Join button
+        if (button.classList.contains('join')) {
+            e.stopPropagation();
+            
+            if (button.classList.contains('login-required')) {
+                // Αν χρειάζεται login
+                showNotification("Please login to join events", "info", "Login Required");
+                showModal("login-modal");
+            } else {
+                // Join event
+                joinEvent(eventId);
+            }
+            return;
+        }
+        
+        // Leave button
+        if (button.classList.contains('leave')) {
+            e.stopPropagation();
+            leaveEvent(eventId);
+            return;
+        }
+        
+        // Delete button για home events
+        if (button.classList.contains('home-event-delete-btn')) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            console.log("🗑️ Delete home event button clicked for:", eventId);
+            
+            showConfirmationModal(
+                "Are you sure you want to delete this event? This action cannot be undone!",
+                "Delete Event",
+                () => {
+                    deleteEvent(eventId);
+                }
+            );
+            return;
+        }
+        
+        // Group Chat button για home events
+        if (button.classList.contains('group-chat')) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            const isParticipant = button.dataset.isParticipant === 'true';
+            if (!isParticipant) {
+                showNotification("You must join the event first to access the group chat", "info", "Join Required");
+                return;
+            }
+            
+            joinEventRoom(eventId);
+            return;
+        }
+    });
+}
+
+// 🔥 ΒΗΜΑ 2: Ενημέρωση της showEventDetails()
+async function showEventDetails(eventId) {
+    console.log("🔍 Showing event details for:", eventId);
+    
+    try {
+        const response = await fetch(`/events/${eventId}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to load event details");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const event = data.event;
+            const modal = document.getElementById("event-details-modal");
+            const content = document.getElementById("event-details-content");
+            const buttons = document.getElementById("event-action-buttons");
+            
+            if (!modal || !content) {
+                console.error("❌ Event details modal elements not found!");
+                showNotification("Could not open event details", "error", "Error");
+                return;
+            }
+            
+            const eventDate = new Date(event.date);
+            const now = new Date();
+            const isPast = eventDate < now;
+            const isFull = event.max_participants > 0 && event.participants.length >= event.max_participants;
+            const isParticipant = event.participants.includes(currentUser.username);
+            const isCreator = event.created_by === currentUser.username;
+            const isAdmin = currentUser.username === "Vf-Rat";
+            
+            // Format date
+            const formattedDate = eventDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            // Δημιουργία HTML content
+            let html = `
+                <div class="event-detail-item">
+                    <h4>Description</h4>
+                    <p>${event.description}</p>
+                </div>
+                
+                <div class="event-detail-item">
+                    <h4>Date & Time</h4>
+                    <p>${formattedDate}</p>
+                </div>
+                
+                <div class="event-detail-item">
+                    <h4>Location</h4>
+                    <p>${event.location}</p>
+                </div>
+                
+                <div class="event-detail-item">
+                    <h4>Participants (${event.participants.length}${event.max_participants > 0 ? ` / ${event.max_participants}` : ''})</h4>
+                    <div class="event-participants-list">
+            `;
+            
+            // Λίστα συμμετεχόντων
+            if (event.participants.length > 0) {
+                for (const participant of event.participants) {
+                    const isCreatorClass = participant === event.created_by ? 'creator' : '';
+                    html += `
+                        <div class="participant-item ${isCreatorClass}">
+                            <div class="participant-avatar">${participant.substring(0, 2).toUpperCase()}</div>
+                            <div class="participant-name">${participant} ${participant === event.created_by ? '(Creator)' : ''}</div>
+                        </div>
+                    `;
+                }
+            } else {
+                html += `<p style="color: var(--text-light); font-style: italic;">No participants yet</p>`;
+            }
+            
+            html += `
+                    </div>
+                </div>
+                
+                <div class="event-detail-item">
+                    <h4>Event Information</h4>
+                    <p>Created by: <strong>${event.created_by}</strong></p>
+                    <p>Status: <strong>${isPast ? 'Past Event' : isFull ? 'Full' : 'Open'}</strong></p>
+                    <p>Visibility: <strong>${event.is_public ? 'Public' : 'Private'}</strong></p>
+                </div>
+            `;
+            
+            content.innerHTML = html;
+            
+            // Δημιουργία κουμπιών
+            let buttonsHtml = '';
+            
+            if (!isPast) {
+                if (isParticipant) {
+                    buttonsHtml += `<button class="btn btn-primary" id="leave-event-btn" data-event-id="${eventId}">
+                        <i class="fas fa-sign-out-alt"></i> Leave Event
+                    </button>`;
+                } else if (!isFull) {
+                    buttonsHtml += `<button class="btn btn-primary" id="join-event-btn" data-event-id="${eventId}">
+                        <i class="fas fa-plus"></i> Join Event
+                    </button>`;
+                }
+                
+                // Group chat button για συμμετέχοντες ή δημιουργούς
+                if (isParticipant || isCreator) {
+                    buttonsHtml += `<button class="btn btn-secondary" id="group-chat-btn" data-event-id="${eventId}">
+                        <i class="fas fa-comments"></i> Group Chat
+                    </button>`;
+                }
+            }
+            
+            // Edit button μόνο για τον δημιουργό
+            if (isCreator && !isPast) {
+                buttonsHtml += `<button class="btn btn-secondary" id="edit-event-btn" data-event-id="${eventId}">
+                    <i class="fas fa-edit"></i> Edit
+                </button>`;
+            }
+            
+            // Delete button για δημιουργό ή admin
+            if (isCreator || isAdmin) {
+                buttonsHtml += `<button class="btn btn-danger" id="delete-event-btn" data-event-id="${eventId}">
+                    <i class="fas fa-trash"></i> Delete
+                </button>`;
+            }
+            
+            buttons.innerHTML = buttonsHtml;
+            
+            // Ενεργοποίηση listeners για τα κουμπιά
+            addEventActionListeners(event);
+            
+            // Εμφάνιση modal
+            modal.classList.add('active');
+            
+        } else {
+            showNotification(data.error || "Failed to load event details", "error", "Error");
+        }
+    } catch (error) {
+        console.error("❌ Error showing event details:", error);
+        showNotification(error.message || "Failed to load event details", "error", "Error");
+    }
+}
+
+// 🔥 ΒΗΜΑ 3: Ενημέρωση της addEventActionListeners()
+function addEventActionListeners(event) {
+    const joinBtn = document.getElementById('join-event-btn');
+    const leaveBtn = document.getElementById('leave-event-btn');
+    const deleteBtn = document.getElementById('delete-event-btn');
+    const editBtn = document.getElementById('edit-event-btn');
+    const groupChatBtn = document.getElementById('group-chat-btn');
+    
+    if (joinBtn) {
+        joinBtn.addEventListener('click', function() {
+            joinEvent(event.id);
+            hideModal("event-details-modal");
+        });
+    }
+    
+    if (leaveBtn) {
+        leaveBtn.addEventListener('click', function() {
+            leaveEvent(event.id);
+            hideModal("event-details-modal");
+        });
+    }
+    
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            hideModal("event-details-modal");
+            showConfirmationModal(
+                "Are you sure you want to delete this event? This action cannot be undone!",
+                "Delete Event",
+                () => {
+                    deleteEvent(event.id);
+                }
+            );
+        });
+    }
+    
+    if (editBtn) {
+        editBtn.addEventListener('click', function() {
+            hideModal("event-details-modal");
+            showEditEventModal(event);
+        });
+    }
+    
+    if (groupChatBtn) {
+        groupChatBtn.addEventListener('click', async function() {
+            try {
+                await joinEventRoom(event.id);
+                hideModal("event-details-modal");
+            } catch (error) {
+                console.error("Error joining event room:", error);
+            }
+        });
+    }
+}
+
+// 🔥 ΒΗΜΑ 5: Ενημέρωση της joinEventRoom() να δουλεύει για events
+async function joinEventRoom(eventId) {
+    try {
+        const response = await fetch(`/events/${eventId}/join-room`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to join event room");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.isAlreadyMember) {
+                showNotification("You're already in the group chat", "info", "Already Member");
+                // Μπες στο room
+                enterRoom(data.room.id, data.room.name, data.room.invite_code);
+            } else {
+                showNotification("Joined event group chat successfully!", "success", "Group Chat");
+                // Μπες στο room
+                enterRoom(data.room.id, data.room.name, data.room.invite_code);
+            }
+        }
+    } catch (error) {
+        console.error("Error joining event room:", error);
+        showNotification(error.message || "Failed to join event room", "error", "Error");
+    }
 }
 
 // 🔥 Βελτιωμένη displayHomeEvents() με deduplication και event rooms
@@ -433,85 +766,6 @@ function showNoEventsOnHome() {
             showModal("login-modal");
         });
     }
-}
-
-// Προσθήκη event listeners για τα home events
-function attachHomeEventListeners() {
-    const homeEventsList = document.getElementById('home-events-list');
-    if (!homeEventsList) return;
-    
-    // Χρήση event delegation για ΟΛΑ τα buttons
-    homeEventsList.addEventListener('click', function(e) {
-        const button = e.target.closest('button');
-        if (!button) return;
-        
-        const eventCard = button.closest('.home-event-card');
-        if (!eventCard) return;
-        
-        const eventId = eventCard.dataset.eventId;
-        
-        // Details button
-        if (button.classList.contains('details')) {
-            e.stopPropagation();
-            showEventDetails(eventId);
-            return;
-        }
-        
-        // Join button
-        if (button.classList.contains('join')) {
-            e.stopPropagation();
-            
-            if (button.classList.contains('login-required')) {
-                // Αν χρειάζεται login
-                showNotification("Please login to join events", "info", "Login Required");
-                showModal("login-modal");
-            } else {
-                // Join event
-                joinEvent(eventId);
-            }
-            return;
-        }
-        
-        // Leave button
-        if (button.classList.contains('leave')) {
-            e.stopPropagation();
-            leaveEvent(eventId);
-            return;
-        }
-        
-        // 🔥 ΒΗΜΑ 1: ΠΡΟΣΘΗΚΗ Delete button για home events
-        if (button.classList.contains('home-event-delete-btn') || 
-            button.classList.contains('delete-home-event')) {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            console.log("🗑️ Delete home event button clicked for:", eventId);
-            
-            showConfirmationModal(
-                "Are you sure you want to delete this event? This action cannot be undone!",
-                "Delete Event",
-                () => {
-                    deleteEvent(eventId);
-                }
-            );
-            return;
-        }
-        
-        // 🔥 ΠΡΟΣΘΗΚΗ: Group Chat button για home events
-        if (button.classList.contains('group-chat')) {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            const isParticipant = button.dataset.isParticipant === 'true';
-            if (!isParticipant) {
-                showNotification("You must join the event first to access the group chat", "info", "Join Required");
-                return;
-            }
-            
-            joinEventRoom(eventId);
-            return;
-        }
-    });
 }
 
 // ===== FILE UPLOAD SYSTEM =====
@@ -5476,4 +5730,14 @@ socket.on("disconnect", (reason) => {
 
 socket.on("connect_error", (error) => {
     console.error("🔌 Connection error:", error);
+});
+
+// 🔥 ΤΕΛΙΚΟ ΒΗΜΑ: Προσθήκη αυτής της γραμμής στο τέλος του client.js για να ενεργοποιήσετε τους listeners κατά την αρχικοποίηση:
+document.addEventListener("DOMContentLoaded", async () => {
+  // ... υπάρχων κώδικας ...
+  
+  // 🔥 ΠΡΟΣΘΗΚΗ: Αμέσως αρχικοποίηση των home event listeners
+  setTimeout(() => {
+    attachHomeEventListeners();
+  }, 2000);
 });
