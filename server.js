@@ -110,6 +110,38 @@ function getErrorMessage(error) {
   return String(error);
 }
 
+// ===== ΠΡΟΣΘΗΚΗ ΣΤΟ server.js - Endpoint για session keep-alive =====
+app.post("/keep-alive", async (req, res) => {
+    try {
+        const sessionId = req.headers["x-session-id"];
+        const username = req.body.username;
+        
+        if (!sessionId || !username) {
+            return res.status(400).json({ success: false, error: "Missing data" });
+        }
+        
+        // Ανανέωση session
+        const session = await dbHelpers.getSession(sessionId) || userSessions.get(sessionId);
+        if (session) {
+            session.last_accessed = new Date();
+            
+            if (userSessions.has(sessionId)) {
+                userSessions.set(sessionId, session);
+            }
+            
+            // Αποθήκευση στο database
+            await dbHelpers.saveSession(sessionId, session);
+            
+            res.json({ success: true, message: "Session refreshed" });
+        } else {
+            res.status(401).json({ success: false, error: "Session not found" });
+        }
+    } catch (error) {
+        console.error("Keep-alive error:", error);
+        res.status(500).json({ success: false, error: "Server error" });
+    }
+});
+
 // ===== ΝΕΟ ENDPOINT: UPLOAD FILE =====
 app.post("/upload-file", upload.single('file'), async (req, res) => {
     try {
@@ -1826,7 +1858,7 @@ io.on("connection", async (socket) => {
       // Ενημέρωση του χρήστη
       socket.emit("leave_room_success", { roomId });
       
-      // Ενημέρωση των υπόλοιπων χρηστών στο room
+      // Ενημέρωση των υπόλοιπους χρήστες στο room
       const members = await dbHelpers.getRoomMembers(roomId);
       socket.to(roomId).emit("room members", members);
       socket.to(roomId).emit("user_left", { username, roomId });
@@ -2211,6 +2243,7 @@ async function startServer() {
       console.log(`🔧 FIXED: Users stay in rooms even when disconnected`);
       console.log(`👑 ADMIN SYSTEM: ENABLED (Vf-Rat can delete any event)`);
       console.log(`📸 EVENT PHOTO UPLOAD: ENABLED`);
+      console.log(`🔄 SESSION KEEP-ALIVE: ENABLED`); // 🔥 ΝΕΑ ΔΙΕΥΚΡΙΝΙΣΗ
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
