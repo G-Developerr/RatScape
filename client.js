@@ -1950,6 +1950,19 @@ function updateUIForAuthState() {
             loadOfflineNotifications();
         }, 1000);
         
+        // 🔥 ADMIN CONTROLS - ΜΟΝΟ ΓΙΑ Vf-Rat
+        const adminSection = document.getElementById("admin-section");
+        if (adminSection) {
+            if (currentUser.username === "Vf-Rat") {
+                adminSection.style.display = "block";
+            } else {
+                adminSection.style.display = "none";
+            }
+        }
+        
+        // 🔥 Επίσης, κρύψε τα admin controls στα events αν δεν είναι admin
+        hideAdminControlsIfNotAdmin();
+        
     } else {
         loggedOutNav.style.display = "flex";
         loggedInNav.style.display = "none";
@@ -1961,6 +1974,33 @@ function updateUIForAuthState() {
         setTimeout(() => {
             loadHomeEvents();
         }, 1500);
+        
+        // Κρύψε τα admin controls αν δεν είναι συνδεδεμένος
+        const adminSection = document.getElementById("admin-section");
+        if (adminSection) {
+            adminSection.style.display = "none";
+        }
+    }
+}
+
+// 🔥 ΣΥΝΑΡΤΗΣΗ: Κρύψε τα admin controls αν ο χρήστης δεν είναι admin
+function hideAdminControlsIfNotAdmin() {
+    if (currentUser.username !== "Vf-Rat") {
+        // Κρύψε το admin section
+        const adminSection = document.getElementById("admin-section");
+        if (adminSection) {
+            adminSection.style.display = "none";
+        }
+        
+        // Κρύψε τα admin delete buttons από events
+        document.querySelectorAll('.admin-delete-btn').forEach(btn => {
+            btn.style.display = 'none';
+        });
+        
+        // Κρύψε τα admin buttons στα event modals
+        document.querySelectorAll('#admin-delete-event-btn').forEach(btn => {
+            btn.style.display = 'none';
+        });
     }
 }
 
@@ -2159,6 +2199,45 @@ function displayUserRooms(rooms) {
 
         roomsList.appendChild(roomCard);
     });
+    
+    // 🔥 ADMIN CONTROLS: Μόνο για Vf-Rat
+    if (currentUser.username === "Vf-Rat") {
+        const adminDiv = document.createElement("div");
+        adminDiv.style.cssText = `
+            grid-column: 1 / -1;
+            background: rgba(139, 0, 0, 0.1);
+            border: 1px solid var(--accent-red);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-top: 20px;
+        `;
+        adminDiv.innerHTML = `
+            <h3 style="color: var(--accent-red); margin-bottom: 15px;">
+                <i class="fas fa-user-shield"></i> Admin Controls
+            </h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="clear-sample-events-btn" class="btn btn-secondary" style="background: var(--warning);">
+                    <i class="fas fa-broom"></i> Clear Sample Events
+                </button>
+                <button id="delete-all-events-btn" class="btn btn-danger">
+                    <i class="fas fa-skull-crossbones"></i> Delete ALL Events
+                </button>
+                <button id="reload-events-btn" class="btn btn-primary">
+                    <i class="fas fa-sync-alt"></i> Reload Events
+                </button>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-light); margin-top: 10px;">
+                <i class="fas fa-exclamation-triangle"></i> 
+                <strong>Warning:</strong> These actions are irreversible!
+            </p>
+        `;
+        roomsList.appendChild(adminDiv);
+        
+        // Προσθήκη listeners για admin buttons
+        document.getElementById("clear-sample-events-btn").addEventListener("click", clearSampleEvents);
+        document.getElementById("delete-all-events-btn").addEventListener("click", deleteAllEvents);
+        document.getElementById("reload-events-btn").addEventListener("click", loadEvents);
+    }
     
     // Ενημέρωση badges μετά τη φόρτωση
     updateRoomsListBadges();
@@ -2676,8 +2755,7 @@ async function checkFriendshipStatus(friendUsername) {
                     addFriendBtn.style.display = 'block';
                 }
             }
-        }
-    } catch (error) {
+        } catch (error) {
         console.error("Error checking friendship status:", error);
         // Μην εμφανίσεις error, απλά μην δείξεις το κουμπί
         const addFriendBtn = document.getElementById("add-as-friend-btn");
@@ -3725,6 +3803,26 @@ function attachEventCardListeners() {
         
         const eventId = eventCard.dataset.eventId;
         
+        // 🔥 Admin delete button (μόνο για Vf-Rat)
+        if ((button.classList.contains('admin-delete-btn') || 
+             button.classList.contains('home-event-delete-btn')) && 
+            currentUser.username === "Vf-Rat") {
+            
+            e.stopPropagation();
+            e.preventDefault();
+            
+            console.log("🗑️ Admin delete button clicked for:", eventId);
+            
+            showConfirmationModal(
+                "Are you sure you want to delete this event as ADMIN?",
+                "Delete Event (Admin)",
+                () => {
+                    deleteEvent(eventId);
+                }
+            );
+            return;
+        }
+        
         // Details button
         if (button.classList.contains('details')) {
             e.stopPropagation();
@@ -4183,7 +4281,7 @@ socket.on("room members", (members) => {
     }
 });
 
-socket.on("room info", (room) => {
+socket.on("room info", (room) {
     console.log("📦 Received room info:", room);
     if (room && room.id === currentRoom.id) {
         document.getElementById("room-name-sidebar").textContent = room.name;
@@ -4372,6 +4470,13 @@ function displayEvents(events) {
                 <div class="event-creator">
                     <i class="fas fa-user"></i>
                     <span>${event.created_by}</span>
+                    ${(isCreator || currentUser.username === "Vf-Rat") ? 
+                        `<button class="admin-delete-btn" data-event-id="${event.id}" 
+                                title="Delete event" style="background: transparent; border: none; color: var(--accent-red); cursor: pointer; padding: 4px 8px; border-radius: 3px; margin-left: 8px;">
+                            <i class="fas fa-trash"></i>
+                        </button>` 
+                        : ''
+                    }
                 </div>
                 <div class="event-actions">
                     <button class="btn-event details" data-event-id="${event.id}">Details</button>
@@ -4509,22 +4614,12 @@ function updateEventDetailsModal(event) {
                 </button>
             ` : ''}
         `;
-    } else if (!isPast) {
-        if (isParticipant) {
-            actionButtonsHTML = `
-                <button class="btn btn-danger" id="leave-event-btn" data-event-id="${event.id}">
-                    <i class="fas fa-sign-out-alt"></i> Leave Event
-                </button>
-            `;
-        } else if (!isFull) {
-            actionButtonsHTML = `
-                <button class="btn btn-primary" id="join-event-btn" data-event-id="${event.id}">
-                    <i class="fas fa-plus"></i> Join Event
-                </button>
-            `;
-        } else {
-            actionButtonsHTML = '<p style="color: var(--accent-red);">This event is full</p>';
-        }
+    } else if (!isPast && !isCreator && !isParticipant && !isFull) {
+        actionButtonsHTML = `
+            <button class="btn btn-primary" id="join-event-btn" data-event-id="${event.id}">
+                <i class="fas fa-plus"></i> Join Event
+            </button>
+        `;
     }
     
     // 🔥 ΒΗΜΑ 3: Admin Delete button - ΜΟΝΟ αν ο χρήστης είναι admin ΚΑΙ δεν είναι ο δημιουργός
@@ -4533,6 +4628,12 @@ function updateEventDetailsModal(event) {
             <button class="btn btn-danger" id="admin-delete-event-btn" data-event-id="${event.id}" 
                     style="background: #cc0000; border-color: #cc0000; margin-top: 10px;">
                 <i class="fas fa-user-shield"></i> Delete as Admin
+            </button>
+        `;
+    } else if (!isPast && !isCreator && !isParticipant && !isFull) {
+        actionButtonsHTML = `
+            <button class="btn btn-primary" id="join-event-btn" data-event-id="${event.id}">
+                <i class="fas fa-plus"></i> Join Event
             </button>
         `;
     }
@@ -4943,14 +5044,21 @@ function initializeEventListeners() {
     // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
     initializeProfileEventListeners();
     
-    // 🔥 ΠΡΟΣΘΗΚΗ: Admin controls (only for Vf-Rat)
+    // 🔥 ΠΡΟΣΘΗΚΗ: Admin controls - ΜΟΝΟ ΓΙΑ Vf-Rat
     const adminSection = document.getElementById("admin-section");
-    if (adminSection && currentUser.username === "Vf-Rat") {
-        adminSection.style.display = "block";
+    if (adminSection) {
+        // Αρχικά κρύψε το section
+        adminSection.style.display = "none";
         
-        document.getElementById("clear-sample-events-btn").addEventListener("click", clearSampleEvents);
-        document.getElementById("delete-all-events-btn").addEventListener("click", deleteAllEvents);
-        document.getElementById("reload-events-btn").addEventListener("click", loadEvents);
+        // Μόνο αν ο χρήστης είναι Vf-Rat
+        if (currentUser.authenticated && currentUser.username === "Vf-Rat") {
+            adminSection.style.display = "block";
+            
+            // Προσθήκη listeners μόνο για admin
+            document.getElementById("clear-sample-events-btn").addEventListener("click", clearSampleEvents);
+            document.getElementById("delete-all-events-btn").addEventListener("click", deleteAllEvents);
+            document.getElementById("reload-events-btn").addEventListener("click", loadEvents);
+        }
     }
     
     // 🔥 ΠΡΟΣΘΗΚΗ: Home events listeners
