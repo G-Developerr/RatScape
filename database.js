@@ -893,77 +893,7 @@ const dbHelpers = {
         }).sort({ date: 1 });
     },
 
-    // 🔥 ΒΟΗΘΗΤΙΚΗ: Δημιουργία sample events αν δεν υπάρχουν - ΔΙΟΡΘΩΜΕΝΗ
-    createSampleEvents: async function() {
-        try {
-            // Έλεγχος αν υπάρχουν sample events
-            const existingEvents = await Event.find({ 
-                created_by: { $in: ["admin", "demo"] }
-            });
-            
-            // Αν δεν υπάρχουν sample events, δημιουργήστε τα
-            if (existingEvents.length === 0) {
-                console.log("📅 Creating sample events...");
-                
-                const sampleEvents = [
-                    {
-                        event_id: `event_sample_${Date.now()}_1`,
-                        title: "Car Meet & Coffee",
-                        description: "Weekly car meet for all enthusiasts. Bring your car, share stories, and enjoy coffee together!",
-                        date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-                        location: "Downtown Parking Lot",
-                        created_by: "admin",
-                        max_participants: 50,
-                        participants: ["admin", "demo"],
-                        is_public: true,
-                        created_at: new Date(),
-                        // 🔥 ΝΕΟ: Δεν προσθέτουμε φωτογραφία στα sample events
-                        photo: null
-                    },
-                    {
-                        event_id: `event_sample_${Date.now()}_2`,
-                        title: "Mountain Drive",
-                        description: "Scenic drive through mountain roads. Perfect for sports cars and photography enthusiasts.",
-                        date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-                        location: "Mountain Road Starting Point",
-                        created_by: "demo",
-                        max_participants: 30,
-                        participants: ["demo", "admin"],
-                        is_public: true,
-                        created_at: new Date(),
-                        // 🔥 ΝΕΟ: Δεν προσθέτουμε φωτογραφία στα sample events
-                        photo: null
-                    }
-                ];
-                
-                // Δημιουργία sample events
-                for (const sampleEvent of sampleEvents) {
-                    await Event.create(sampleEvent);
-                    console.log(`✅ Created sample event: ${sampleEvent.title}`);
-                }
-                console.log("✅ Sample events created");
-            } else {
-                console.log("📅 Sample events already exist, skipping...");
-            }
-        } catch (error) {
-            console.error("❌ Error creating sample events:", error);
-        }
-    },
-
-    // 🔥 ΝΕΟ: Διαγραφή όλων των sample events (για admin) - ΕΝΗΜΕΡΩΜΕΝΗ
-    clearSampleEvents: async function(username) {
-        if (username.toLowerCase() !== "vf-rat") {
-            throw new Error("Only admin can clear sample events");
-        }
-        
-        // Διαγραφή ΟΛΩΝ των events που είναι από admin ή demo
-        const result = await Event.deleteMany({ 
-            created_by: { $in: ["admin", "demo"] }
-        });
-        
-        console.log(`🧹 Admin cleared ${result.deletedCount} sample events`);
-        return result.deletedCount;
-    },
+    
 
     // 🔥 ΝΕΟ: Delete all events (μόνο για admin)
     deleteAllEvents: async function(username) {
