@@ -1,4 +1,4 @@
-// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER & EVENTS & ADMIN SYSTEM & HOME EVENTS
+// client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER & EVENTS & ADMIN SYSTEM & HOME EVENTS & EVENT PHOTOS
 const socket = io();
 
 // Current user state
@@ -16,6 +16,10 @@ let currentRoom = {
     inviteCode: null,
     isPrivate: false,
 };
+
+// ===== EVENT PHOTO SYSTEM =====
+let eventPhotoFile = null;
+let eventPhotoBase64 = null;
 
 // ===== FUNCTIONS FOR HOME PAGE EVENTS =====
 
@@ -116,8 +120,12 @@ function displayHomeEvents(events) {
         });
         
         const eventCard = document.createElement('div');
-        eventCard.className = `home-event-card ${statusClass}`;
+        eventCard.className = `home-event-card ${statusClass} ${event.photo ? 'has-photo' : ''}`;
         eventCard.dataset.eventId = event.id;
+        
+        // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
+        const photoHTML = event.photo ? 
+            `<div class="event-photo-thumbnail" style="height: 150px; background-image: url('${event.photo}'); background-size: cover; background-position: center; border-radius: var(--radius) var(--radius) 0 0; margin: -20px -20px 15px -20px;"></div>` : '';
         
         // Προσθήκη buttons based on status και authentication
         let actionButton = '';
@@ -145,6 +153,7 @@ function displayHomeEvents(events) {
         }
         
         eventCard.innerHTML = `
+            ${photoHTML}
             <div class="home-event-card-header">
                 <h3>${event.title}</h3>
                 <span class="home-event-badge ${statusClass}">${statusText}</span>
@@ -826,6 +835,139 @@ function initializeUploadAndEmojiListeners() {
             e.stopPropagation();
             cancelFileUpload();
         });
+    }
+}
+
+// ===== EVENT PHOTO FUNCTIONS =====
+
+function initEventPhotoSystem() {
+    const browseBtn = document.getElementById('browse-event-photo-btn');
+    const removeBtn = document.getElementById('remove-event-photo-btn');
+    const photoInput = document.getElementById('event-photo-input');
+    const preview = document.getElementById('event-photo-preview');
+    const placeholder = document.getElementById('event-photo-placeholder');
+    
+    if (browseBtn && photoInput) {
+        browseBtn.addEventListener('click', () => {
+            photoInput.click();
+        });
+    }
+    
+    if (photoInput) {
+        photoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleEventPhotoSelection(file);
+            }
+        });
+    }
+    
+    if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+            removeEventPhoto();
+        });
+    }
+}
+
+function handleEventPhotoSelection(file) {
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+        showNotification('Only image files are allowed!', 'error', 'Invalid File');
+        return;
+    }
+    
+    // Check file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        showNotification('Image is too large! Maximum size: 5MB', 'error', 'File Too Large');
+        return;
+    }
+    
+    eventPhotoFile = file;
+    
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        eventPhotoBase64 = e.target.result;
+        const preview = document.getElementById('event-photo-preview');
+        const placeholder = document.getElementById('event-photo-placeholder');
+        const removeBtn = document.getElementById('remove-event-photo-btn');
+        
+        if (preview) {
+            preview.src = eventPhotoBase64;
+            preview.style.display = 'block';
+        }
+        if (placeholder) {
+            placeholder.style.display = 'none';
+        }
+        if (removeBtn) {
+            removeBtn.style.display = 'block';
+        }
+        
+        // Store in hidden input
+        const base64Input = document.getElementById('event-photo-base64');
+        if (base64Input) {
+            base64Input.value = eventPhotoBase64;
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeEventPhoto() {
+    eventPhotoFile = null;
+    eventPhotoBase64 = null;
+    
+    const preview = document.getElementById('event-photo-preview');
+    const placeholder = document.getElementById('event-photo-placeholder');
+    const removeBtn = document.getElementById('remove-event-photo-btn');
+    const photoInput = document.getElementById('event-photo-input');
+    const base64Input = document.getElementById('event-photo-base64');
+    
+    if (preview) {
+        preview.src = '';
+        preview.style.display = 'none';
+    }
+    if (placeholder) {
+        placeholder.style.display = 'flex';
+    }
+    if (removeBtn) {
+        removeBtn.style.display = 'none';
+    }
+    if (photoInput) {
+        photoInput.value = '';
+    }
+    if (base64Input) {
+        base64Input.value = '';
+    }
+}
+
+// Function to upload event photo separately (for existing events)
+async function uploadEventPhoto(eventId, username) {
+    if (!eventPhotoFile) {
+        return null;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('photo', eventPhotoFile);
+        formData.append('eventId', eventId);
+        formData.append('username', username);
+        
+        const response = await fetch('/upload-event-photo', {
+            method: 'POST',
+            headers: {
+                'X-Session-ID': currentUser.sessionId
+            },
+            body: formData
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            return data.photoUrl;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error uploading event photo:', error);
+        return null;
     }
 }
 
@@ -4173,8 +4315,15 @@ function displayEvents(events) {
         }
         
         const eventCard = document.createElement("div");
-        eventCard.className = `event-card ${statusClass}`;
+        eventCard.className = `event-card ${statusClass} ${event.photo ? 'has-photo' : ''}`;
         eventCard.dataset.eventId = event.id;
+        
+        // 🔥 ΝΕΟ: Προσθήκη background image αν υπάρχει φωτογραφία
+        if (event.photo) {
+            eventCard.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9)), url(${event.photo})`;
+            eventCard.style.backgroundSize = 'cover';
+            eventCard.style.backgroundPosition = 'center';
+        }
         
         // 🔥 ΠΡΟΣΘΗΚΗ: data attributes για καλύτερο event delegation
         eventCard.dataset.eventId = event.id;
@@ -4296,7 +4445,15 @@ function updateEventDetailsModal(event) {
     const isParticipant = event.participants.includes(currentUser.username);
     const isCreator = event.created_by === currentUser.username;
     
+    // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
+    const photoHTML = event.photo ? 
+        `<div class="event-photo-display" style="margin-bottom: 20px; text-align: center;">
+            <img src="${event.photo}" alt="${event.title}" 
+                 style="max-width: 100%; max-height: 300px; border-radius: var(--radius); border: 1px solid var(--border-color);">
+        </div>` : '';
+    
     let detailsHTML = `
+        ${photoHTML}
         <div class="event-detail-item">
             <h4>Description</h4>
             <p>${event.description || 'No description provided.'}</p>
@@ -4392,6 +4549,7 @@ function updateEventDetailsModal(event) {
 
 async function createEvent(eventData) {
     try {
+        // First create the event
         const response = await fetch("/create-event", {
             method: "POST",
             headers: {
@@ -4411,12 +4569,28 @@ async function createEvent(eventData) {
         const data = await response.json();
         
         if (data.success) {
+            // If there's a photo, upload it separately
+            if (eventPhotoBase64) {
+                try {
+                    const photoUrl = await uploadEventPhoto(data.event.id, currentUser.username);
+                    if (photoUrl) {
+                        data.event.photo = photoUrl;
+                    }
+                } catch (photoError) {
+                    console.error("Error uploading event photo:", photoError);
+                    // Continue even if photo upload fails
+                }
+            }
+            
             showNotification("Event created successfully!", "success", "Event Created");
             hideAllModals();
             
+            // Reset photo
+            removeEventPhoto();
+            
             // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
             loadEvents();
-            loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Επαναφόρτωση και home events
+            loadHomeEvents();
             return data.event;
         } else {
             showNotification(data.error || "Failed to create event", "error", "Event Error");
@@ -4808,6 +4982,9 @@ function initializeEventListeners() {
             showModal("login-modal");
         }
     });
+    
+    // 🔥 ΠΡΟΣΘΗΚΗ: Initialize event photo system
+    initEventPhotoSystem();
 }
 
 // ===== PROFILE EVENT LISTENERS =====
@@ -5127,521 +5304,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             }, 300);
         }
     });
-
-    // Προσθήκη CSS animations για unread system, file upload, και emoji picker
-    const unreadStyle = document.createElement('style');
-    unreadStyle.textContent = `
-        @keyframes highlightPulse {
-            0%, 100% { 
-                box-shadow: 0 0 0 0 rgba(139, 0, 0, 0.7);
-                transform: scale(1);
-            }
-            50% { 
-                box-shadow: 0 0 0 15px rgba(139, 0, 0, 0);
-                transform: scale(1.02);
-            }
-        }
-        
-        @keyframes badgePop {
-            0% { transform: scale(0); opacity: 0; }
-            70% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        
-        .notification-count-badge {
-            position: absolute;
-            top: 10px;
-            right: 35px;
-            background: var(--primary);
-            color: white;
-            border-radius: 10px;
-            min-width: 22px;
-            height: 22px;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 6px;
-            font-weight: bold;
-            animation: badgePop 0.3s ease-out;
-        }
-        
-        /* CSS για disabled copy button */
-        #copy-invite-btn:disabled {
-            opacity: 0.5 !important;
-            cursor: not-allowed !important;
-        }
-        #copy-invite-btn:disabled:hover {
-            background: transparent !important;
-            transform: none !important;
-        }
-        
-        /* Avatar styling */
-        .member-avatar, #sidebar-avatar, .friend-avatar {
-            overflow: hidden;
-        }
-        
-        .member-avatar img, #sidebar-avatar img, .friend-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 50%;
-        }
-        
-        /* Message text better wrapping */
-        .message-text {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            word-break: break-word;
-        }
-        
-        /* File upload preview styling */
-        .file-preview-container {
-            margin: 10px 0;
-            padding: 10px;
-            background: rgba(26, 26, 26, 0.7);
-            border-radius: var(--radius);
-            border: 1px solid var(--border-color);
-        }
-        
-        .file-preview {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .file-image-preview {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: var(--radius);
-            cursor: pointer;
-        }
-        
-        .file-info {
-            flex: 1;
-        }
-        
-        .file-name {
-            display: block;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 5px;
-        }
-        
-        .file-size {
-            font-size: 0.8rem;
-            color: var(--text-light);
-        }
-        
-        .file-upload-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        .file-download-btn {
-            background: var(--primary);
-            color: white;
-            padding: 8px 16px;
-            border-radius: var(--radius);
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.9rem;
-        }
-        
-        .file-download-btn:hover {
-            background: var(--accent-red);
-        }
-        
-        /* Image preview modal */
-        .image-preview-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .image-preview-content {
-            position: relative;
-            max-width: 90%;
-            max-height: 90%;
-        }
-        
-        .full-size-image {
-            max-width: 100%;
-            max-height: 80vh;
-            border-radius: var(--radius);
-        }
-        
-        .close-image-preview {
-            position: absolute;
-            top: -40px;
-            right: 0;
-            background: none;
-            border: none;
-            color: white;
-            font-size: 2rem;
-            cursor: pointer;
-        }
-        
-        .image-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            justify-content: center;
-        }
-        
-        /* Emoji picker styling */
-        .emoji-picker-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 10000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .emoji-picker-modal.active {
-            display: flex;
-        }
-        
-        .emoji-picker-content {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            width: 90%;
-            max-width: 400px;
-            max-height: 80vh;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-        }
-        
-        .emoji-categories {
-            display: flex;
-            gap: 5px;
-            padding: 10px;
-            background: rgba(38, 38, 38, 0.9);
-            border-bottom: 1px solid var(--border-color);
-        }
-        
-        .emoji-category-btn {
-            background: transparent;
-            border: none;
-            padding: 8px 12px;
-            border-radius: var(--radius);
-            cursor: pointer;
-            font-size: 1.2rem;
-            transition: all 0.2s ease;
-        }
-        
-        .emoji-category-btn.active {
-            background: var(--primary);
-            color: white;
-        }
-        
-        .emoji-category-btn:hover:not(.active) {
-            background: rgba(139, 0, 0, 0.2);
-        }
-        
-        .emoji-grid {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 5px;
-            padding: 15px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
-        .emoji-item {
-            background: transparent;
-            border: none;
-            padding: 8px;
-            border-radius: var(--radius);
-            cursor: pointer;
-            font-size: 1.5rem;
-            transition: all 0.2s ease;
-        }
-        
-        .emoji-item:hover {
-            background: rgba(139, 0, 0, 0.2);
-            transform: scale(1.1);
-        }
-        
-        /* Social media footer */
-        .social-media-footer {
-            margin-top: 40px;
-            padding: 20px;
-            text-align: center;
-            border-top: 1px solid var(--border-color);
-        }
-        
-        .social-media-footer h3 {
-            color: var(--text);
-            margin-bottom: 15px;
-            font-size: 1.1rem;
-        }
-        
-        .social-icons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .social-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.5rem;
-            text-decoration: none;
-            transition: all 0.3s ease;
-        }
-        
-        .social-icon:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-        
-        .social-icon.instagram {
-            background: linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D);
-        }
-        
-        .social-icon.facebook {
-            background: #1877F2;
-        }
-        
-        .social-icon.twitter {
-            background: #1DA1F2;
-        }
-        
-        .social-icon.youtube {
-            background: #FF0000;
-        }
-        
-        .social-icon.tiktok {
-            background: #000000;
-        }
-        
-        .social-icon.discord {
-            background: #5865F2;
-        }
-        
-        /* File item in chat */
-        .message-file {
-            margin-top: 5px;
-        }
-        
-        .file-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: rgba(38, 38, 38, 0.7);
-            border-radius: var(--radius);
-            border: 1px solid var(--border-color);
-        }
-        
-        .file-item i {
-            font-size: 1.5rem;
-            color: var(--accent-red);
-        }
-        
-        .file-details {
-            flex: 1;
-        }
-        
-        .file-download-link {
-            color: var(--accent-red);
-            text-decoration: none;
-            font-size: 0.9rem;
-            display: inline-flex;
-            alignItems: center;
-            gap: 5px;
-        }
-        
-        .file-download-link:hover {
-            text-decoration: underline;
-        }
-    `;
-    document.head.appendChild(unreadStyle);
-
-    const savedUser = getUserFromLocalStorage();
-    
-    // 🔥 ΕΙΔΙΚΗ ΕΠΕΞΕΡΓΑΣΙΑ: Έλεγχος αν πρέπει να επαναφέρουμε chat
-    const chatState = loadChatState();
-    const lastPageId = localStorage.getItem('ratscape_last_page') || 'home-page';
-    
-    if (chatState && lastPageId === 'chat-page') {
-        console.log('🔄 Προσπάθεια επαναφοράς chat:', chatState);
-        
-        // Δείξε το chat page αμέσως (αλλά χωρίς περιεχόμενο ακόμα)
-        showPage('chat-page');
-    }
-
-    if (savedUser && savedUser.authenticated) {
-        try {
-            const response = await fetch(`/verify-session/${savedUser.username}`, {
-                headers: {
-                    "X-Session-ID": savedUser.sessionId,
-                },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    currentUser = {
-                        username: data.user.username,
-                        email: data.user.email,
-                        authenticated: true,
-                        sessionId: savedUser.sessionId,
-                    };
-                    updateUIForAuthState();
-
-                    // 🔥 ΕΙΔΙΚΟ: Αν έχουμε αποθηκευμένο chat state, επαναφέρουμε το chat
-                    if (chatState && lastPageId === 'chat-page') {
-                        console.log('🚀 Επαναφορά chat από saved state...');
-                        
-                        // Ενημέρωση του currentRoom
-                        currentRoom = {
-                            id: chatState.roomId,
-                            name: chatState.roomName,
-                            inviteCode: chatState.inviteCode,
-                            isPrivate: chatState.isPrivate
-                        };
-                        
-                        // Ενημέρωση UI
-                        document.getElementById("room-name-sidebar").textContent = chatState.roomName;
-                        document.getElementById("room-name-header").textContent = chatState.roomName;
-                        
-                        if (chatState.isPrivate) {
-                            // Private chat
-                            document.getElementById("room-description").textContent = `Private conversation with ${chatState.roomName}`;
-                            document.getElementById("room-status").textContent = "Private chat";
-                            document.getElementById("room-status").classList.add("private-chat");
-                            document.getElementById("room-invite-code").textContent = "";
-                            document.getElementById("invite-code-container").classList.add("hide-for-private");
-                            document.getElementById("copy-invite-btn").style.display = "none";
-                            
-                            // Φόρτωση του avatar του χρήστη
-                            const sidebarAvatar = document.getElementById("sidebar-avatar");
-                            if (sidebarAvatar) {
-                                loadUserAvatar(currentUser.username, sidebarAvatar, true);
-                            }
-                            
-                            // Φόρτωση private messages
-                            loadPrivateMessages(chatState.roomName);
-                            
-                            // Εμφάνιση μελών
-                            document.getElementById("room-members-list").innerHTML = `
-                                <div class="member-item" data-username="${currentUser.username}">
-                                    <div class="member-avatar"></div>
-                                    <div class="member-info">
-                                        <span class="member-name">${currentUser.username}</span>
-                                        <span class="member-joined">You</span>
-                                    </div>
-                                </div>
-                                <div class="member-item" data-username="${chatState.roomName}">
-                                    <div class="member-avatar"></div>
-                                    <div class="member-info">
-                                        <span class="member-name">${chatState.roomName}</span>
-                                        <span class="member-joined">Friend</span>
-                                    </div>
-                                </div>
-                            `;
-                            
-                            // Φόρτωση avatars για τα μέλη
-                            setTimeout(() => {
-                                loadMemberAvatars();
-                                makeMemberItemsClickable();
-                            }, 100);
-                            
-                        } else {
-                            // Group room
-                            document.getElementById("room-invite-code").textContent = chatState.inviteCode || "------";
-                            document.getElementById("invite-code-container").classList.remove("hide-for-private");
-                            document.getElementById("copy-invite-btn").style.display = "flex";
-                            document.getElementById("copy-invite-btn").disabled = false;
-                            
-                            // Join στο room μέσω WebSocket
-                            socket.emit("join room", {
-                                roomId: chatState.roomId,
-                                username: currentUser.username,
-                                sessionId: currentUser.sessionId,
-                            });
-                        }
-                        
-                        showPage('chat-page');
-                        
-                    } else {
-                        // Κανονική ροή - χωρίς chat επαναφορά
-                        const lastPage = getLastPage();
-                        showPage(lastPage);
-                    }
-
-                    socket.emit("authenticate", {
-                        username: currentUser.username,
-                        sessionId: currentUser.sessionId,
-                    });
-
-                    // 🔥 Φόρτωση avatar του χρήστη
-                    loadCurrentUserAvatar();
-                    
-                    // 🔥 Φόρτωση offline notifications
-                    await loadOfflineNotifications();
-
-                    if (lastPageId === "rooms-page") {
-                        setTimeout(() => {
-                            loadUserRooms();
-                        }, 500);
-                    } else if (lastPageId === "friends-page") {
-                        setTimeout(() => {
-                            loadUserFriends();
-                        }, 500);
-                    }
-
-                    console.log("✅ User session restored");
-                } else {
-                    clearUserFromLocalStorage();
-                    clearChatState();
-                    showPage("home-page");
-                    console.log("❌ Session verification failed");
-                }
-            } else {
-                clearUserFromLocalStorage();
-                clearChatState();
-                showPage("home-page");
-                console.log("❌ Session verification failed - server error");
-            }
-        } catch (error) {
-            console.error("Error verifying user session:", error);
-            clearUserFromLocalStorage();
-            clearChatState();
-            showPage("home-page");
-        }
-    } else {
-        // 🔥 Αν δεν υπάρχει συνδεδεμένος χρήστης, αλλά έχουμε chat state, το καθαρίζουμε
-        if (chatState) {
-            clearChatState();
-        }
-        console.log("ℹ️ No saved user, staying on current page");
-    }
 
     // 🔥 ΠΡΟΣΘΗΚΗ: Φόρτωση home events με καθυστέρηση
     setTimeout(() => {
