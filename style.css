@@ -2266,7 +2266,7 @@ body {
     bottom: 30px;
     right: 30px;
     z-index: 9999;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%;
     color: white;
     border: none;
     padding: 16px 24px;
@@ -3250,6 +3250,14 @@ body.pwa-mode .pwa-floating-install-button {
 
 .home-event-card.upcoming::before {
     background: var(--success);
+}
+
+.home-event-card.past::before {
+    background: var(--text-light);
+}
+
+.home-event-card.full::before {
+    background: var(--accent-red);
 }
 
 .home-event-card:hover {
@@ -4865,3 +4873,59 @@ body::before {
     font-weight: bold;
 }
 
+/* ========================================
+   EVENT DETAILS MODAL FIX - ADD SCROLLBAR
+   ======================================== */
+
+#event-details-content {
+    max-height: 400px; /* Ορίζουμε μέγιστο ύψος */
+    overflow-y: auto; /* Ενεργοποιούμε το κάθετο σκρολάρισμα */
+    padding-right: 10px; /* Χώρος για το scrollbar */
+    margin-bottom: 20px;
+}
+
+/* Καλύτερο styling για το event details modal */
+#event-details-content .event-detail-item {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Participants list scrolling */
+.event-participants-list {
+    max-height: 200px;
+    overflow-y: auto;
+    background: rgba(26, 26, 26, 0.5);
+    border-radius: var(--radius);
+    padding: 10px;
+    border: 1px solid var(--border-color);
+}
+
+/* Εφαρμογή scrollbar styling */
+#event-details-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+#event-details-content::-webkit-scrollbar-track {
+    background: rgba(26, 26, 26, 0.3);
+}
+
+#event-details-content::-webkit-scrollbar-thumb {
+    background: rgba(139, 0, 0, 0.6);
+    border-radius: 3px;
+}
+
+#event-details-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 0, 0, 0.8);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #event-details-content {
+        max-height: 350px; /* Μικρότερο ύψος για mobile */
+    }
+    
+    .event-participants-list {
+        max-height: 150px;
+    }
+}
