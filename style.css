@@ -2266,7 +2266,7 @@ body {
     bottom: 30px;
     right: 30px;
     z-index: 9999;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-red) 100%);
     color: white;
     border: none;
     padding: 16px 24px;
@@ -4553,6 +4553,7 @@ body::before {
     }
 }
 
+
 /* ========================================
    HOME EVENT DELETE BUTTON STYLING
    ======================================== */
@@ -4595,7 +4596,7 @@ body::before {
     margin-top: 10px !important;
 }
 
-.home-event-creator > div {
+.home-event-creator>div {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
@@ -4608,11 +4609,11 @@ body::before {
         min-width: 26px !important;
         min-height: 26px !important;
     }
-    
     .home-event-delete-btn i {
         font-size: 0.7rem !important;
     }
 }
+
 
 /* ========================================
    EVENT PHOTO STYLES
@@ -4666,7 +4667,9 @@ body::before {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
+
 /* Event card with photo */
+
 .event-card.has-photo {
     position: relative;
     overflow: hidden;
@@ -4693,7 +4696,9 @@ body::before {
     z-index: 1;
 }
 
+
 /* Home event card with photo */
+
 .home-event-card.has-photo {
     position: relative;
     overflow: hidden;
@@ -4720,17 +4725,22 @@ body::before {
     z-index: 1;
 }
 
+
 /* ========================================
    HOME EVENT PHOTO FIX - ΝΕΕΣ ΚΛΑΣΕΙΣ
    ======================================== */
 
+
 /* Βελτιωμένη επικάλυψη φωτογραφίας για home events */
+
 .home-event-card.has-photo {
     position: relative;
     overflow: hidden;
 }
 
+
 /* 🔥 ΑΛΛΑΓΗ: Αυτό είναι το κύριο fix - Πλήρης επικάλυψη */
+
 .home-event-card.has-photo::before {
     content: '';
     position: absolute;
@@ -4743,11 +4753,14 @@ body::before {
     background-size: cover !important;
     background-position: center !important;
     background-repeat: no-repeat !important;
-    opacity: 0.2; /* Διαφάνεια για καλύτερη ανάγνωση κειμένου */
+    opacity: 0.2;
+    /* Διαφάνεια για καλύτερη ανάγνωση κειμένου */
     z-index: 0;
 }
 
+
 /* Βελτιωμένο φίλτρο για καλύτερη ανάγνωση */
+
 .home-event-card.has-photo::after {
     content: '';
     position: absolute;
@@ -4755,17 +4768,13 @@ body::before {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(
-        to bottom,
-        rgba(0, 0, 0, 0.7) 0%,
-        rgba(0, 0, 0, 0.4) 30%,
-        rgba(0, 0, 0, 0.3) 70%,
-        rgba(0, 0, 0, 0.8) 100%
-    );
+    background: linear-gradient( to bottom, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.4) 30%, rgba(0, 0, 0, 0.3) 70%, rgba(0, 0, 0, 0.8) 100%);
     z-index: 0;
 }
 
+
 /* Για να μπεί το περιεχόμενο ΜΠΡΟΣΤΑ από το background */
+
 .home-event-card.has-photo .home-event-card-header,
 .home-event-card.has-photo .home-event-details,
 .home-event-card.has-photo .home-event-actions,
@@ -4774,7 +4783,9 @@ body::before {
     z-index: 1;
 }
 
+
 /* Βελτίωση χρωμάτων για καλύτερη ανάγνωση πάνω σε φωτογραφία */
+
 .home-event-card.has-photo .home-event-card-header h3 {
     color: #ffffff;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
@@ -4785,7 +4796,9 @@ body::before {
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
 }
 
+
 /* Βελτίωση του κουμπιού */
+
 .home-event-card.has-photo .home-event-btn {
     background: var(--primary);
     border: 2px solid rgba(255, 255, 255, 0.3);
@@ -4800,19 +4813,21 @@ body::before {
     transform: translateY(-2px);
 }
 
+
 /* ========================================
    ΒΕΛΤΙΩΣΗ ΓΙΑ RESPONSIVE
    ======================================== */
 
 @media (max-width: 768px) {
     .home-event-card.has-photo::before {
-        opacity: 0.15; /* Λίγο πιο ανοιχτό για mobile */
+        opacity: 0.15;
+        /* Λίγο πιο ανοιχτό για mobile */
     }
-    
     .home-event-card.has-photo .home-event-card-header h3 {
         font-size: 1.1rem;
     }
 }
+
 
 /* ========================================
    FIX ΓΙΑ REGULAR EVENT CARDS ΣΤΟ ROOMS PAGE
@@ -4846,13 +4861,7 @@ body::before {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(
-        to bottom,
-        rgba(0, 0, 0, 0.8) 0%,
-        rgba(0, 0, 0, 0.5) 30%,
-        rgba(0, 0, 0, 0.4) 70%,
-        rgba(0, 0, 0, 0.9) 100%
-    );
+    background: linear-gradient( to bottom, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.5) 30%, rgba(0, 0, 0, 0.4) 70%, rgba(0, 0, 0, 0.9) 100%);
     z-index: 0;
 }
 
@@ -4873,25 +4882,33 @@ body::before {
     font-weight: bold;
 }
 
+
 /* ========================================
    EVENT DETAILS MODAL FIX - ADD SCROLLBAR
    ======================================== */
 
 #event-details-content {
-    max-height: 400px; /* Ορίζουμε μέγιστο ύψος */
-    overflow-y: auto; /* Ενεργοποιούμε το κάθετο σκρολάρισμα */
-    padding-right: 10px; /* Χώρος για το scrollbar */
+    max-height: 400px;
+    /* Ορίζουμε μέγιστο ύψος */
+    overflow-y: auto;
+    /* Ενεργοποιούμε το κάθετο σκρολάρισμα */
+    padding-right: 10px;
+    /* Χώρος για το scrollbar */
     margin-bottom: 20px;
 }
 
+
 /* Καλύτερο styling για το event details modal */
+
 #event-details-content .event-detail-item {
     margin-bottom: 15px;
     padding-bottom: 15px;
     border-bottom: 1px solid var(--border-color);
 }
 
+
 /* Participants list scrolling */
+
 .event-participants-list {
     max-height: 200px;
     overflow-y: auto;
@@ -4901,7 +4918,9 @@ body::before {
     border: 1px solid var(--border-color);
 }
 
+
 /* Εφαρμογή scrollbar styling */
+
 #event-details-content::-webkit-scrollbar {
     width: 6px;
 }
@@ -4919,12 +4938,14 @@ body::before {
     background: rgba(255, 0, 0, 0.8);
 }
 
+
 /* Responsive adjustments */
+
 @media (max-width: 768px) {
     #event-details-content {
-        max-height: 350px; /* Μικρότερο ύψος για mobile */
+        max-height: 350px;
+        /* Μικρότερο ύψος για mobile */
     }
-    
     .event-participants-list {
         max-height: 150px;
     }
