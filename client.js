@@ -4944,15 +4944,7 @@ function initializeEventListeners() {
     // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
     initializeProfileEventListeners();
     
-    // 🔥 ΠΡΟΣΘΗΚΗ: Admin controls (only for Vf-Rat)
-    const adminSection = document.getElementById("admin-section");
-    if (adminSection && currentUser.username === "Vf-Rat") {
-        adminSection.style.display = "block";
-        
-        document.getElementById("clear-sample-events-btn").addEventListener("click", clearSampleEvents);
-        document.getElementById("delete-all-events-btn").addEventListener("click", deleteAllEvents);
-        document.getElementById("reload-events-btn").addEventListener("click", loadEvents);
-    }
+    
     
     // 🔥 ΠΡΟΣΘΗΚΗ: Home events listeners
     document.getElementById("view-all-events-btn")?.addEventListener("click", () => {
@@ -5351,3 +5343,4 @@ window.addEventListener('beforeunload', async function() {
         saveChatState();
     }
 });
+
