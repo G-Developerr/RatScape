@@ -1393,7 +1393,7 @@ app.get("/events/:eventId/room-info", validateSession, async (req, res) => {
     }
 });
 
-// ===== 🔥 ΝΕΟ ENDPOINT: JOIN EVENT ROOM =====
+// ===== 🔥 ΔΙΟΡΘΩΜΕΝΟ ENDPOINT ΣΤΟ server.js =====
 app.post("/events/:eventId/join-room", validateSession, async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -1418,7 +1418,7 @@ app.post("/events/:eventId/join-room", validateSession, async (req, res) => {
         }
         
         // Βρείτε το room ID από το event
-        let roomId = await dbHelpers.getEventRoomId(eventId);
+        let roomId = event.room_id;
         if (!roomId) {
             // Αν δεν υπάρχει room, δημιουργήστε ένα
             const roomInfo = await dbHelpers.autoCreateEventRoom({
@@ -1440,28 +1440,36 @@ app.post("/events/:eventId/join-room", validateSession, async (req, res) => {
             await sendEventRoomWelcomeMessage(roomId, event.title, event.created_by);
         }
         
-        // Προσθήκη χρήστη στο room
-        await dbHelpers.addUserToRoom(roomId, username);
+        // Έλεγχος αν ο χρήστης είναι ήδη στο room
+        const isAlreadyMember = await dbHelpers.isUserInRoom(roomId, username);
+        
+        if (!isAlreadyMember) {
+            // Προσθήκη χρήστη στο room
+            await dbHelpers.addUserToRoom(roomId, username);
+        }
         
         // Βρείτε τα room details
         const room = await dbHelpers.getRoomById(roomId);
         
         res.json({
             success: true,
-            message: "Joined event group chat successfully",
+            message: isAlreadyMember ? "Already in group chat" : "Joined event group chat successfully",
             room: {
                 id: roomId,
                 name: room.name,
                 invite_code: room.invite_code
-            }
+            },
+            isAlreadyMember: isAlreadyMember
         });
         
         // Ενημέρωση μέσω WebSocket για νέο μέλος
-        io.to(roomId).emit("user_joined_event_room", {
-            eventId: eventId,
-            username: username,
-            roomId: roomId
-        });
+        if (!isAlreadyMember) {
+            io.to(roomId).emit("user_joined_event_room", {
+                eventId: eventId,
+                username: username,
+                roomId: roomId
+            });
+        }
         
     } catch (error) {
         console.error("❌ Error joining event room:", error);
