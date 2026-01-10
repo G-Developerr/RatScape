@@ -950,7 +950,7 @@ const dbHelpers = {
         }
     },
 
-    // 🔥 ΝΕΟ: Διαγραφή όλων των sample events (για admin) - ΕΝΗΜΕΡΩΜΕΝΗ
+    // ΒΗΜΑ 2: Αφαίρεση/επεξεργασία της συνάρτησης clearSampleEvents - ΒΕΛΤΙΩΜΕΝΗ
     clearSampleEvents: async function(username) {
         if (username.toLowerCase() !== "vf-rat") {
             throw new Error("Only admin can clear sample events");
@@ -961,19 +961,50 @@ const dbHelpers = {
             created_by: { $in: ["admin", "demo"] }
         });
         
-        console.log(`🧹 Admin cleared ${result.deletedCount} sample events`);
-        return result.deletedCount;
+        // 🔥 ΝΕΟ: Επίσης, διαγραφή ΟΛΩΝ των παλιών events που είναι samples
+        const cutoffDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 ημέρες
+        const oldResult = await Event.deleteMany({
+            $or: [
+                { title: { $in: ["Car Meet & Coffee", "Mountain Drive"] } },
+                { created_at: { $lt: cutoffDate }, created_by: { $ne: "Vf-Rat" } }
+            ]
+        });
+        
+        const totalDeleted = result.deletedCount + oldResult.deletedCount;
+        
+        console.log(`🧹 Admin cleared ${totalDeleted} events (samples + old)`);
+        return { 
+            deletedCount: totalDeleted,
+            samples: result.deletedCount,
+            old: oldResult.deletedCount
+        };
     },
 
-    // 🔥 ΝΕΟ: Delete all events (μόνο για admin)
+    // ΒΗΜΑ 3: Ενημέρωση της deleteAllEvents συνάρτησης - ΒΕΛΤΙΩΜΕΝΗ
     deleteAllEvents: async function(username) {
         if (username.toLowerCase() !== "vf-rat") {
             throw new Error("Only admin can delete all events");
         }
         
-        const result = await Event.deleteMany({});
-        console.log(`🔥 Admin ${username} deleted ALL events: ${result.deletedCount}`);
-        return result.deletedCount;
+        // 🔥 ΠΡΟΣΟΧΗ: Διαγράφουμε ΟΛΑ τα events εκτός από αυτά του admin
+        const result = await Event.deleteMany({
+            created_by: { $ne: "Vf-Rat" } // Δεν διαγράφουμε events του admin
+        });
+        
+        console.log(`🔥 Admin ${username} deleted ${result.deletedCount} user events`);
+        
+        // 🔥 ΝΕΟ: Διαγραφή και των sample event patterns
+        const samplePatterns = await Event.deleteMany({
+            title: { $in: ["Car Meet & Coffee", "Mountain Drive"] }
+        });
+        
+        console.log(`🗑️ Also deleted ${samplePatterns.deletedCount} sample pattern events`);
+        
+        return { 
+            deletedCount: result.deletedCount,
+            samplePatterns: samplePatterns.deletedCount,
+            message: `Deleted ${result.deletedCount} user events and ${samplePatterns.deletedCount} sample patterns`
+        };
     },
 
     // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Διαγραφή συγκεκριμένου event από admin - με case insensitive check
@@ -1081,8 +1112,10 @@ async function initializeDatabase() {
         // 🔥 Δημιουργία admin user
         await createAdminIfNotExists();
 
-        // 🔥 Δημιουργία sample events αν χρειαστεί
-        await dbHelpers.createSampleEvents();
+        // ΒΗΜΑ 1: Αφαίρεση της αυτόματης δημιουργίας sample events
+        // 🔥 ΣΗΜΑΝΤΙΚΟ: ΔΕΝ δημιουργούμε πια sample events αυτόματα
+        // await dbHelpers.createSampleEvents();
+        console.log("📅 Sample events: DISABLED (only user-created events)");
 
         return mongoose.connection;
     } catch (error) {
