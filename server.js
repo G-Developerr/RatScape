@@ -1245,7 +1245,7 @@ app.put("/events/:eventId", validateSession, async (req, res) => {
     }
 });
 
-// ===== 🔥 ΝΕΟ ENDPOINT: DELETE ALL SAMPLE EVENTS (Για τον admin) =====
+// ===== 🔥 ΒΕΛΤΙΩΜΕΝΟ ENDPOINT: DELETE ALL SAMPLE EVENTS =====
 app.delete("/events/admin/clear-samples", validateSession, async (req, res) => {
     try {
         const username = req.body.username || req.user?.username;
@@ -1258,21 +1258,24 @@ app.delete("/events/admin/clear-samples", validateSession, async (req, res) => {
             });
         }
         
-        // Χρήση του dbHelpers για διαγραφή sample events
+        // Χρήση της βελτιωμένης συνάρτησης
         const result = await dbHelpers.clearSampleEvents();
         
-        console.log(`🧹 Admin cleared ${result.deletedCount} sample events`);
+        console.log(`🧹 Admin cleared ${result.deletedCount} events`);
         
         res.json({
             success: true,
             deletedCount: result.deletedCount,
-            message: `Cleared ${result.deletedCount} sample events`
+            samples: result.samples,
+            old: result.old,
+            message: `Cleared ${result.deletedCount} events (${result.samples} samples + ${result.old} old)`
         });
         
         // Ενημέρωση όλων των clients
         io.emit("events_cleared", { 
             type: "samples_cleared",
-            deletedCount: result.deletedCount 
+            deletedCount: result.deletedCount,
+            timestamp: new Date().toISOString()
         });
         
     } catch (error) {
