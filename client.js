@@ -73,7 +73,7 @@ async function restoreSessionOnRefresh() {
     return false;
 }
 
-// ΛΥΣΗ 3: Βελτίωση localStorage management
+// ΛΥΣΗ 3: Βελτιωμένη localStorage management
 // Ανανεωμένη saveUserToLocalStorage
 function saveUserToLocalStorage(user) {
     localStorage.setItem(
@@ -347,6 +347,12 @@ function displayHomeEvents(events) {
             </button>`
           )
         ) : ''}
+        <!-- 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Group Chat Button -->
+        ${isParticipant || isCreator ? `
+            <button class="home-event-btn group-chat" data-event-id="${event.id}" data-is-participant="${isParticipant || isCreator}">
+                <i class="fas fa-comments"></i> Group Chat
+            </button>
+        ` : ''}
       </div>
       
       <div class="home-event-creator">
@@ -370,8 +376,8 @@ function displayHomeEvents(events) {
     
     // 🔥 ΠΡΟΣΘΗΚΗ: Έλεγχος για event room μετά τη δημιουργία του event card
     setTimeout(() => {
-      if (currentUser.authenticated) {
-        checkEventRoomStatus(event.id, eventCard);
+      if (currentUser.authenticated && (isParticipant || isCreator)) {
+        updateEventGroupChatButton(event.id, eventCard);
       }
     }, 500);
   });
@@ -488,6 +494,21 @@ function attachHomeEventListeners() {
                     deleteEvent(eventId);
                 }
             );
+            return;
+        }
+        
+        // 🔥 ΠΡΟΣΘΗΚΗ: Group Chat button για home events
+        if (button.classList.contains('group-chat')) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            const isParticipant = button.dataset.isParticipant === 'true';
+            if (!isParticipant) {
+                showNotification("You must join the event first to access the group chat", "info", "Join Required");
+                return;
+            }
+            
+            joinEventRoom(eventId);
             return;
         }
     });
@@ -965,7 +986,7 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// 🔥 FIX: INITIALIZE EVENT LISTENERS - ΜΟΝΟ ΜΙΑ ΦΟΡΑ
+// 🔥 FIX: INITIALIZE EVENT LISTENERS - ΜΟΝΟ ΜΙΑ ΦΟΡΕ
 function initializeUploadAndEmojiListeners() {
     console.log('🔄 Initializing upload and emoji listeners');
     
@@ -3965,6 +3986,445 @@ async function deleteAllEvents() {
     );
 }
 
+// ===== EVENT ROOMS SYSTEM FUNCTIONS =====
+
+// 🔥 ΝΕΑ ΣΥΝΑΡΤΗΣΗ: Αυτόματο join στο event room όταν joinάρεις στο event
+async function autoJoinEventRoom(eventId) {
+    try {
+        console.log(`🤝 Auto-joining event room for event: ${eventId}`);
+        
+        const response = await fetch(`/events/${eventId}/join-room`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            console.log("ℹ️ Could not auto-join event room:", data.error || "Unknown error");
+            return false;
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log("✅ Auto-joined event room successfully");
+            return true;
+        }
+        
+        return false;
+    } catch (error) {
+        console.error("❌ Error auto-joining event room:", error);
+        return false;
+    }
+}
+
+// 🔥 ΠΡΟΣΘΗΚΗ: Βελτιωμένη joinEventRoom συνάρτηση
+async function joinEventRoom(eventId) {
+    try {
+        const response = await fetch(`/events/${eventId}/join-room`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to join event room");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.isAlreadyMember) {
+                showNotification("You're already in the group chat", "info", "Already Member");
+                // Μπες στο room
+                enterRoom(data.room.id, data.room.name, data.room.invite_code);
+            } else {
+                showNotification("Joined event group chat successfully!", "success", "Group Chat");
+                // Μπες στο room
+                enterRoom(data.room.id, data.room.name, data.room.invite_code);
+            }
+        }
+    } catch (error) {
+        console.error("Error joining event room:", error);
+        showNotification(error.message || "Failed to join event room", "error", "Error");
+    }
+}
+
+// 🔥 ΠΡΟΣΘΗΚΗ: Έλεγχος και εμφάνιση "Join Group Chat" button
+async function updateEventGroupChatButton(eventId, eventCard) {
+    try {
+        const response = await fetch(`/events/${eventId}/room-info?username=${currentUser.username}`, {
+            headers: {
+                "X-Session-ID": currentUser.sessionId,
+            },
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (data.success && data.hasRoom) {
+                // Βρείτε το group chat button
+                const groupChatBtn = eventCard.querySelector('.btn-event.group-chat, .home-event-btn.group-chat');
+                
+                if (groupChatBtn) {
+                    if (data.room.isMember) {
+                        // Είναι ήδη στο room - Open Chat
+                        groupChatBtn.innerHTML = '<i class="fas fa-comments"></i> Open Chat';
+                        groupChatBtn.classList.remove('join-room');
+                        groupChatBtn.classList.add('enter-room');
+                        groupChatBtn.dataset.roomId = data.room.id;
+                        groupChatBtn.dataset.roomName = data.room.name;
+                        groupChatBtn.dataset.inviteCode = data.room.invite_code;
+                    } else if (data.room.canJoin) {
+                        // Μπορεί να joinάρει στο room - Join Group Chat
+                        groupChatBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Join Group Chat';
+                        groupChatBtn.classList.remove('enter-room');
+                        groupChatBtn.classList.add('join-room');
+                        groupChatBtn.dataset.eventId = eventId;
+                    } else {
+                        // Δεν μπορεί να joinάρει - Join Event First
+                        groupChatBtn.innerHTML = '<i class="fas fa-calendar-plus"></i> Join Event First';
+                        groupChatBtn.classList.add('join-event-first');
+                        groupChatBtn.dataset.eventId = eventId;
+                        groupChatBtn.disabled = false;
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error updating group chat button:", error);
+    }
+}
+
+// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ: Join event με αυτόματο join στο room
+async function joinEvent(eventId) {
+    try {
+        const response = await fetch(`/events/${eventId}/join`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to join event");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification("Joined event successfully!", "success", "Event Joined");
+            
+            // 🔥 ΚΡΙΤΙΚΟ: Αυτόματο join στο event room
+            setTimeout(async () => {
+                try {
+                    await autoJoinEventRoom(eventId);
+                } catch (roomError) {
+                    console.log("ℹ️ Could not auto-join event room:", roomError.message);
+                }
+            }, 1500);
+            
+            // Επαναφόρτωση events
+            loadEvents();
+            loadHomeEvents();
+        }
+    } catch (error) {
+        console.error("❌ Error joining event:", error);
+        showNotification(error.message || "Failed to join event", "error", "Error");
+    }
+}
+
+// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ: Leave event (αλλά παραμένει στο room)
+async function leaveEvent(eventId) {
+    try {
+        const response = await fetch(`/events/${eventId}/leave`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || "Failed to leave event");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification("Left event successfully", "info", "Event Left");
+            
+            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
+            loadEvents();
+            loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Επαναφόρτωση και home events
+        }
+    } catch (error) {
+        console.error("❌ Error leaving event:", error);
+        showNotification(error.message || "Failed to leave event", "error", "Error");
+    }
+}
+
+// 🔥 ΕΝΗΜΕΡΩΣΗ: Βελτιωμένη displayEvents() για να περιλαμβάνει έλεγχο για room
+function displayEvents(events) {
+    const eventsList = document.getElementById("events-list");
+    if (!eventsList) return;
+    
+    eventsList.innerHTML = "";
+    
+    if (!events || events.length === 0) {
+        eventsList.innerHTML = `
+            <div class="no-events">
+                <i class="fas fa-calendar-times"></i>
+                <h3>No upcoming events</h3>
+                <p>Be the first to create an event!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const now = new Date();
+    
+    events.forEach(event => {
+        const eventDate = new Date(event.date);
+        const isPast = eventDate < now;
+        const isFull = event.max_participants > 0 && event.participant_count >= event.max_participants;
+        const isParticipant = event.participants.includes(currentUser.username);
+        const isCreator = event.created_by === currentUser.username;
+        
+        let statusClass = "upcoming";
+        let statusText = "Upcoming";
+        
+        if (isPast) {
+            statusClass = "past";
+            statusText = "Past";
+        } else if (isFull) {
+            statusClass = "full";
+            statusText = "Full";
+        }
+        
+        const eventCard = document.createElement("div");
+        eventCard.className = `event-card ${statusClass} ${event.photo ? 'has-photo' : ''}`;
+        eventCard.dataset.eventId = event.id;
+        
+        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη inline style για background image
+        if (event.photo) {
+            eventCard.style.backgroundImage = `url('${event.photo}')`;
+            eventCard.style.backgroundSize = 'cover';
+            eventCard.style.backgroundPosition = 'center';
+        }
+        
+        // Format date
+        const formattedDate = eventDate.toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        eventCard.innerHTML = `
+            <div class="event-card-header">
+                <h3>${event.title}</h3>
+                <span class="event-status ${statusClass}">${statusText}</span>
+            </div>
+            
+            <div class="event-details">
+                <div class="event-detail">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>${formattedDate}</span>
+                </div>
+                <div class="event-detail">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>${event.location}</span>
+                </div>
+                ${event.description ? `
+                    <div class="event-detail">
+                        <i class="fas fa-align-left"></i>
+                        <span>${event.description.substring(0, 50)}${event.description.length > 50 ? '...' : ''}</span>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="event-participants">
+                <div class="participant-count">
+                    <i class="fas fa-users"></i>
+                    <span>${event.participant_count} ${event.max_participants > 0 ? `/ ${event.max_participants}` : ''} participants</span>
+                </div>
+                <!-- 🔥 ΠΡΟΣΘΗΚΗ: Group Chat Status -->
+                <div class="group-chat-status" id="group-chat-status-${event.id}" style="font-size: 0.75rem; color: var(--text-light); margin-top: 5px;">
+                    <i class="fas fa-comments"></i>
+                    <span>Group chat available</span>
+                </div>
+            </div>
+            
+            <div class="event-card-footer">
+                <div class="event-creator">
+                    <i class="fas fa-user"></i>
+                    <span>${event.created_by}</span>
+                </div>
+                <div class="event-actions">
+                    <button class="btn-event details" data-event-id="${event.id}">Details</button>
+                    ${!isPast && !isCreator ? (
+                        isParticipant 
+                            ? `<button class="btn-event leave" data-event-id="${event.id}">Leave</button>`
+                            : (!isFull ? `<button class="btn-event join" data-event-id="${event.id}">Join</button>` : '')
+                    ) : ''}
+                    <!-- 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Group Chat Button -->
+                    ${isParticipant || isCreator ? `
+                        <button class="btn-event group-chat" data-event-id="${event.id}" data-is-participant="${isParticipant || isCreator}">
+                            <i class="fas fa-comments"></i> Group Chat
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        eventsList.appendChild(eventCard);
+        
+        // 🔥 ΠΡΟΣΘΗΚΗ: Έλεγχος για event room μετά τη δημιουργία του event card
+        setTimeout(() => {
+            if (currentUser.authenticated && (isParticipant || isCreator)) {
+                updateEventGroupChatButton(event.id, eventCard);
+            }
+        }, 500);
+    });
+    
+    // 🔥 ΠΡΟΣΘΗΚΗ: Event listeners για group chat buttons
+    attachGroupChatListeners();
+}
+
+// 🔥 ΝΕΑ ΣΥΝΑΡΤΗΣΗ: Προσθήκη listeners για group chat buttons
+function attachGroupChatListeners() {
+    const groupChatButtons = document.querySelectorAll('.btn-event.group-chat');
+    
+    groupChatButtons.forEach(button => {
+        button.addEventListener('click', async function(e) {
+            e.stopPropagation();
+            const eventId = this.dataset.eventId;
+            const isParticipant = this.dataset.isParticipant === 'true';
+            
+            if (!isParticipant) {
+                showNotification("You must join the event first to access the group chat", "info", "Join Required");
+                return;
+            }
+            
+            try {
+                // Έλεγχος αν υπάρχει room για το event
+                const response = await fetch(`/events/${eventId}/room-info?username=${currentUser.username}`, {
+                    headers: {
+                        "X-Session-ID": currentUser.sessionId,
+                    },
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.success && data.hasRoom) {
+                        if (data.room.isMember) {
+                            // Είναι ήδη μέλος - μπες στο room
+                            enterRoom(data.room.id, data.room.name, data.room.invite_code);
+                        } else {
+                            // Κάνε join στο room
+                            await joinEventRoom(eventId);
+                        }
+                    } else {
+                        showNotification("No group chat available for this event yet", "info", "No Chat");
+                    }
+                }
+            } catch (error) {
+                console.error("Error accessing event room:", error);
+                showNotification("Could not access group chat", "error", "Error");
+            }
+        });
+    });
+}
+
+// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ: createEvent για αποστολή welcome message
+async function createEvent(eventData) {
+    try {
+        // First create the event
+        const response = await fetch("/create-event", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-ID": currentUser.sessionId,
+            },
+            body: JSON.stringify({
+                ...eventData,
+                username: currentUser.username
+            }),
+        });
+        
+        if (!response.ok) {
+            throw new Error("Failed to create event");
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // If there's a photo, upload it separately
+            if (eventPhotoBase64) {
+                try {
+                    const photoUrl = await uploadEventPhoto(data.event.id, currentUser.username);
+                    if (photoUrl) {
+                        data.event.photo = photoUrl;
+                    }
+                } catch (photoError) {
+                    console.error("Error uploading event photo:", photoError);
+                    // Continue even if photo upload fails
+                }
+            }
+            
+            showNotification("Event created successfully! Group chat is ready.", "success", "Event Created");
+            hideAllModals();
+            
+            // Reset photo
+            removeEventPhoto();
+            
+            // 🔥 ΚΡΙΤΙΚΟ: Αυτόματη είσοδος στο event room
+            setTimeout(async () => {
+                try {
+                    await joinEventRoom(data.event.id);
+                } catch (roomError) {
+                    console.log("ℹ️ Could not join event room immediately, try later from event card");
+                }
+            }, 2000);
+            
+            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
+            loadEvents();
+            loadHomeEvents();
+            return data.event;
+        } else {
+            showNotification(data.error || "Failed to create event", "error", "Event Error");
+        }
+    } catch (error) {
+        console.error("Error creating event:", error);
+        showNotification("Failed to create event", "error", "Error");
+    }
+}
+
 // ===== SOCKET EVENT HANDLERS =====
 
 // ΛΥΣΗ 2: Καλύτερη διαχείριση WebSocket επανασύνδεσης
@@ -4271,671 +4731,6 @@ socket.on("leave_room_success", (data) => {
     showNotification("Left room successfully", "info", "Room Left");
 });
 
-// ===== EVENT ROOMS SYSTEM FUNCTIONS =====
-
-// 🔥 ΠΡΟΣΘΗΚΗ: Αυτόματη ενημέρωση event room buttons
-function updateAllEventRooms() {
-    // Για όλα τα events στη λίστα
-    const eventCards = document.querySelectorAll('.event-card, .home-event-card');
-    eventCards.forEach(card => {
-        const eventId = card.dataset.eventId;
-        if (eventId) {
-            setTimeout(() => {
-                checkEventRoomStatus(eventId, card);
-            }, 500);
-        }
-    });
-}
-
-// 🔥 ΠΡΟΣΘΗΚΗ: Αυτόματο join στο event room όταν γίνεται join στο event
-async function joinEventAndRoom(eventId) {
-    try {
-        // 1. Κάνε join στο event
-        await joinEvent(eventId);
-        
-        // 2. Κάνε join στο event room
-        setTimeout(async () => {
-            try {
-                await joinEventRoom(eventId);
-            } catch (roomError) {
-                console.log("⚠️ Could not join event room:", roomError.message);
-                // Συνέχισε ακόμα κι αν αποτύχει το join στο room
-            }
-        }, 1000);
-        
-    } catch (error) {
-        console.error("❌ Error joining event:", error);
-        showNotification(error.message, "error", "Join Error");
-    }
-}
-
-// 🔥 ΠΡΟΣΘΗΚΗ: Αυτόματο leave από event room όταν γίνεται leave από event
-async function leaveEventAndRoom(eventId) {
-    try {
-        // 1. Κάνε leave από το event
-        await leaveEvent(eventId);
-        
-        // 2. Δεν κάνουμε αυτόματο leave από το room - ο χρήστης παραμένει στο chat
-        // αλλά μπορεί να χρησιμοποιήσει το "Join Group Chat" button για να ξαναμπεί
-        
-    } catch (error) {
-        console.error("❌ Error leaving event:", error);
-        showNotification(error.message, "error", "Leave Error");
-    }
-}
-
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ: Join event με αυτόματο join στο room
-async function joinEvent(eventId) {
-    try {
-        const response = await fetch(`/events/${eventId}/join`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Session-ID": currentUser.sessionId,
-            },
-            body: JSON.stringify({
-                username: currentUser.username
-            }),
-        });
-        
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Failed to join event");
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification("Joined event successfully!", "success", "Event Joined");
-            
-            // 🔥 ΚΡΙΤΙΚΟ: Αυτόματο join στο event room
-            setTimeout(async () => {
-                try {
-                    await joinEventRoom(eventId);
-                } catch (roomError) {
-                    console.log("ℹ️ Event room not available yet, will be able to join later");
-                }
-            }, 1500);
-            
-            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
-            loadEvents();
-            loadHomeEvents();
-        }
-    } catch (error) {
-        console.error("❌ Error joining event:", error);
-        showNotification(error.message || "Failed to join event", "error", "Error");
-    }
-}
-
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ: Leave event (αλλά παραμένει στο room)
-async function leaveEvent(eventId) {
-    try {
-        const response = await fetch(`/events/${eventId}/leave`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Session-ID": currentUser.sessionId,
-            },
-            body: JSON.stringify({
-                username: currentUser.username
-            }),
-        });
-        
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Failed to leave event");
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification("Left event successfully", "info", "Event Left");
-            
-            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
-            loadEvents();
-            loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Επαναφόρτωση και home events
-        }
-    } catch (error) {
-        console.error("❌ Error leaving event:", error);
-        showNotification(error.message || "Failed to leave event", "error", "Error");
-    }
-}
-
-// 🔥 ΕΝΗΜΕΡΩΣΗ: Βελτιωμένη displayEvents() για να περιλαμβάνει έλεγχο για room
-function displayEvents(events) {
-    const eventsList = document.getElementById("events-list");
-    if (!eventsList) return;
-    
-    eventsList.innerHTML = "";
-    
-    if (!events || events.length === 0) {
-        eventsList.innerHTML = `
-            <div class="no-events">
-                <i class="fas fa-calendar-times"></i>
-                <h3>No upcoming events</h3>
-                <p>Be the first to create an event!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    const now = new Date();
-    
-    events.forEach(event => {
-        const eventDate = new Date(event.date);
-        const isPast = eventDate < now;
-        const isFull = event.max_participants > 0 && event.participant_count >= event.max_participants;
-        const isParticipant = event.participants.includes(currentUser.username);
-        const isCreator = event.created_by === currentUser.username;
-        
-        let statusClass = "upcoming";
-        let statusText = "Upcoming";
-        
-        if (isPast) {
-            statusClass = "past";
-            statusText = "Past";
-        } else if (isFull) {
-            statusClass = "full";
-            statusText = "Full";
-        }
-        
-        const eventCard = document.createElement("div");
-        eventCard.className = `event-card ${statusClass} ${event.photo ? 'has-photo' : ''}`;
-        eventCard.dataset.eventId = event.id;
-        
-        // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Προσθήκη inline style για background image
-        if (event.photo) {
-            eventCard.style.backgroundImage = `url('${event.photo}')`;
-            eventCard.style.backgroundSize = 'cover';
-            eventCard.style.backgroundPosition = 'center';
-        }
-        
-        // Format date
-        const formattedDate = eventDate.toLocaleDateString('en-US', {
-            weekday: 'short',
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        
-        eventCard.innerHTML = `
-            <div class="event-card-header">
-                <h3>${event.title}</h3>
-                <span class="event-status ${statusClass}">${statusText}</span>
-            </div>
-            
-            <div class="event-details">
-                <div class="event-detail">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>${formattedDate}</span>
-                </div>
-                <div class="event-detail">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <span>${event.location}</span>
-                </div>
-                ${event.description ? `
-                    <div class="event-detail">
-                        <i class="fas fa-align-left"></i>
-                        <span>${event.description.substring(0, 50)}${event.description.length > 50 ? '...' : ''}</span>
-                    </div>
-                ` : ''}
-            </div>
-            
-            <div class="event-participants">
-                <div class="participant-count">
-                    <i class="fas fa-users"></i>
-                    <span>${event.participant_count} ${event.max_participants > 0 ? `/ ${event.max_participants}` : ''} participants</span>
-                </div>
-                <!-- 🔥 ΠΡΟΣΘΗΚΗ: Group Chat Status -->
-                <div class="group-chat-status" id="group-chat-status-${event.id}" style="font-size: 0.75rem; color: var(--text-light); margin-top: 5px;">
-                    <i class="fas fa-comments"></i>
-                    <span>Group chat available</span>
-                </div>
-            </div>
-            
-            <div class="event-card-footer">
-                <div class="event-creator">
-                    <i class="fas fa-user"></i>
-                    <span>${event.created_by}</span>
-                </div>
-                <div class="event-actions">
-                    <button class="btn-event details" data-event-id="${event.id}">Details</button>
-                    ${!isPast && !isCreator ? (
-                        isParticipant 
-                            ? `<button class="btn-event leave" data-event-id="${event.id}">Leave</button>`
-                            : (!isFull ? `<button class="btn-event join" data-event-id="${event.id}">Join</button>` : '')
-                    ) : ''}
-                    <!-- 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Group Chat Button -->
-                    ${isParticipant || isCreator ? `
-                        <button class="btn-event group-chat" data-event-id="${event.id}" data-is-participant="${isParticipant || isCreator}">
-                            <i class="fas fa-comments"></i> Group Chat
-                        </button>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-        
-        eventsList.appendChild(eventCard);
-        
-        // 🔥 ΠΡΟΣΘΗΚΗ: Έλεγχος για event room μετά τη δημιουργία του event card
-        setTimeout(() => {
-            if (currentUser.authenticated && (isParticipant || isCreator)) {
-                checkEventRoomStatus(event.id, eventCard);
-            }
-        }, 500);
-    });
-    
-    // 🔥 ΠΡΟΣΘΗΚΗ: Event listeners για group chat buttons
-    attachGroupChatListeners();
-}
-
-// 🔥 ΝΕΑ ΣΥΝΑΡΤΗΣΗ: Προσθήκη listeners για group chat buttons
-function attachGroupChatListeners() {
-    const groupChatButtons = document.querySelectorAll('.btn-event.group-chat');
-    
-    groupChatButtons.forEach(button => {
-        button.addEventListener('click', async function(e) {
-            e.stopPropagation();
-            const eventId = this.dataset.eventId;
-            const isParticipant = this.dataset.isParticipant === 'true';
-            
-            if (!isParticipant) {
-                showNotification("You must join the event first to access the group chat", "info", "Join Required");
-                return;
-            }
-            
-            try {
-                // Έλεγχος αν υπάρχει room για το event
-                const response = await fetch(`/events/${eventId}/room-info?username=${currentUser.username}`, {
-                    headers: {
-                        "X-Session-ID": currentUser.sessionId,
-                    },
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.success && data.hasRoom) {
-                        if (data.room.isMember) {
-                            // Είναι ήδη μέλος - μπες στο room
-                            enterRoom(data.room.id, data.room.name, data.room.invite_code);
-                        } else {
-                            // Κάνε join στο room
-                            await joinEventRoom(eventId);
-                        }
-                    } else {
-                        showNotification("No group chat available for this event yet", "info", "No Chat");
-                    }
-                }
-            } catch (error) {
-                console.error("Error accessing event room:", error);
-                showNotification("Could not access group chat", "error", "Error");
-            }
-        });
-    });
-}
-
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ: Έλεγχος και εμφάνιση event room button
-async function checkEventRoomStatus(eventId, eventCard) {
-    if (!currentUser.authenticated) return;
-    
-    try {
-        const response = await fetch(`/events/${eventId}/room-info?username=${currentUser.username}`, {
-            headers: {
-                "X-Session-ID": currentUser.sessionId,
-            },
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            
-            if (data.success && data.hasRoom) {
-                // Βρείτε το group chat status στο card
-                const groupChatStatus = eventCard.querySelector(`#group-chat-status-${eventId}`);
-                if (groupChatStatus) {
-                    if (data.room.isMember) {
-                        groupChatStatus.innerHTML = '<i class="fas fa-comments"></i> <span style="color: var(--success);">In group chat</span>';
-                    } else {
-                        groupChatStatus.innerHTML = '<i class="fas fa-comments"></i> <span style="color: var(--accent-red);">Join group chat</span>';
-                    }
-                }
-                
-                // Βρείτε το group chat button
-                const groupChatBtn = eventCard.querySelector('.btn-event.group-chat');
-                if (groupChatBtn) {
-                    if (data.room.isMember) {
-                        groupChatBtn.innerHTML = '<i class="fas fa-comments"></i> Open Chat';
-                        groupChatBtn.style.background = 'var(--success)';
-                    } else {
-                        groupChatBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Join Chat';
-                        groupChatBtn.style.background = 'var(--primary)';
-                    }
-                }
-            } else {
-                // Αν δεν υπάρχει room ακόμα
-                const groupChatStatus = eventCard.querySelector(`#group-chat-status-${eventId}`);
-                if (groupChatStatus) {
-                    groupChatStatus.innerHTML = '<i class="fas fa-comments"></i> <span style="color: var(--warning);">Chat coming soon</span>';
-                }
-                
-                const groupChatBtn = eventCard.querySelector('.btn-event.group-chat');
-                if (groupChatBtn) {
-                    groupChatBtn.innerHTML = '<i class="fas fa-clock"></i> Wait for Chat';
-                    groupChatBtn.style.background = 'var(--text-light)';
-                    groupChatBtn.disabled = true;
-                }
-            }
-        }
-    } catch (error) {
-        console.error("Error checking event room status:", error);
-    }
-}
-
-// 🔥 ΝΕΑ ΣΥΝΑΡΤΗΣΗ: Join event room
-async function joinEventRoom(eventId) {
-    try {
-        const response = await fetch(`/events/${eventId}/join-room`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Session-ID": currentUser.sessionId,
-            },
-            body: JSON.stringify({
-                username: currentUser.username
-            }),
-        });
-        
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Failed to join event room");
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification("Joined event group chat successfully!", "success", "Group Chat");
-            
-            // Μπες στο room
-            enterRoom(data.room.id, data.room.name, data.room.invite_code);
-        }
-    } catch (error) {
-        console.error("Error joining event room:", error);
-        showNotification(error.message || "Failed to join event room", "error", "Error");
-    }
-}
-
-// 🔥 ΕΝΗΜΕΡΩΣΗ: Βελτιωμένη createEvent() για αποστολή welcome message
-async function createEvent(eventData) {
-    try {
-        // First create the event
-        const response = await fetch("/create-event", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Session-ID": currentUser.sessionId,
-            },
-            body: JSON.stringify({
-                ...eventData,
-                username: currentUser.username
-            }),
-        });
-        
-        if (!response.ok) {
-            throw new Error("Failed to create event");
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // If there's a photo, upload it separately
-            if (eventPhotoBase64) {
-                try {
-                    const photoUrl = await uploadEventPhoto(data.event.id, currentUser.username);
-                    if (photoUrl) {
-                        data.event.photo = photoUrl;
-                    }
-                } catch (photoError) {
-                    console.error("Error uploading event photo:", photoError);
-                    // Continue even if photo upload fails
-                }
-            }
-            
-            showNotification("Event created successfully! Group chat is ready.", "success", "Event Created");
-            hideAllModals();
-            
-            // Reset photo
-            removeEventPhoto();
-            
-            // 🔥 ΚΡΙΤΙΚΟ: Αυτόματη είσοδος στο event room
-            setTimeout(async () => {
-                try {
-                    await joinEventRoom(data.event.id);
-                } catch (roomError) {
-                    console.log("ℹ️ Could not join event room immediately, try later from event card");
-                }
-            }, 2000);
-            
-            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
-            loadEvents();
-            loadHomeEvents();
-            return data.event;
-        } else {
-            showNotification(data.error || "Failed to create event", "error", "Event Error");
-        }
-    } catch (error) {
-        console.error("Error creating event:", error);
-        showNotification("Failed to create event", "error", "Error");
-    }
-}
-
-// 🔥 ΝΕΑ ΣΥΝΑΡΤΗΣΗ: Αποστολή welcome message στο event room
-async function sendEventRoomWelcomeMessage(eventId, eventData) {
-    try {
-        // Βρείτε το room ID από το event
-        const roomId = await dbHelpers.getEventRoomId(eventId);
-        if (!roomId) return;
-        
-        // Δημιουργία welcome message
-        const welcomeMessage = {
-            room_id: roomId,
-            sender: "System",
-            text: `🎉 Welcome to the "${eventData.title}" event group chat!\n\n📅 Date: ${new Date(eventData.date).toLocaleDateString()}\n📍 Location: ${eventData.location}\n👥 Participants: 1 (you)\n\nUse this chat to coordinate with other participants!`,
-            time: getCurrentTime(),
-            isSystem: true
-        };
-        
-        // Αποστολή μέσω socket
-        socket.emit("chat message", welcomeMessage);
-        
-    } catch (error) {
-        console.error("Error sending welcome message:", error);
-    }
-}
-
-// 🔥 ΠΡΟΣΘΗΚΗ: WebSocket event για όταν κάποιος μπαίνει στο event room
-socket.on("user_joined_event_room", (data) => {
-    console.log("👤 User joined event room:", data);
-    
-    // Ενημέρωση UI αν είμαστε στο ίδιο event
-    if (currentRoom.id === data.roomId) {
-        showNotification(`${data.username} joined the group chat`, "info", "New Member");
-    }
-});
-
-socket.on("error", (data) => {
-    showNotification(data.message, "error", "Error");
-});
-
-socket.on("disconnect", (reason) => {
-    console.log("🔌 Disconnected from server:", reason);
-    if (reason === "io server disconnect") {
-        socket.connect();
-    }
-});
-
-socket.on("connect_error", (error) => {
-    console.error("🔌 Connection error:", error);
-});
-
-// ===== EVENTS SYSTEM FUNCTIONS =====
-
-// 🔥 ΒΗΜΑ 3: ΒΕΛΤΙΩΣΗ ΤΗΣ showEventDetails()
-async function showEventDetails(eventId) {
-    console.log("👁️ Showing details for event:", eventId);
-    
-    try {
-        const response = await fetch(`/events/${eventId}`, {
-            headers: {
-                "X-Session-ID": currentUser.sessionId,
-            },
-        });
-        
-        if (!response.ok) {
-            throw new Error("Failed to load event details");
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // 🔥 ΠΡΩΤΑ κλείσε τυχόν ανοιχτό modal
-            hideAllModals();
-            
-            // 🔥 ΜΕΤΑ ενημέρωσε το modal
-            updateEventDetailsModal(data.event);
-            
-            // 🔥 ΤΕΛΟΣ άνοιξε το modal
-            setTimeout(() => {
-                showModal("event-details-modal");
-            }, 50);
-        }
-    } catch (error) {
-        console.error("Error loading event details:", error);
-        showNotification("Could not load event details", "error", "Error");
-    }
-}
-
-function updateEventDetailsModal(event) {
-    document.getElementById("event-details-title").textContent = event.title;
-    
-    const eventDate = new Date(event.date);
-    const formattedDate = eventDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-    
-    const isPast = eventDate < new Date();
-    const isFull = event.max_participants > 0 && event.participant_count >= event.max_participants;
-    const isParticipant = event.participants.includes(currentUser.username);
-    const isCreator = event.created_by === currentUser.username;
-    
-    // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
-    const photoHTML = event.photo ? 
-        `<div class="event-photo-display" style="margin-bottom: 20px; text-align: center;">
-            <img src="${event.photo}" alt="${event.title}" 
-                 style="max-width: 100%; max-height: 300px; border-radius: var(--radius); border: 1px solid var(--border-color);">
-        </div>` : '';
-    
-    let detailsHTML = `
-        ${photoHTML}
-        <div class="event-detail-item">
-            <h4>Description</h4>
-            <p>${event.description || 'No description provided.'}</p>
-        </div>
-        
-        <div class="event-detail-item">
-            <h4>Date & Time</h4>
-            <p><i class="fas fa-calendar-alt"></i> ${formattedDate}</p>
-        </div>
-        
-        <div class="event-detail-item">
-            <h4>Location</h4>
-            <p><i class="fas fa-map-marker-alt"></i> ${event.location}</p>
-        </div>
-        
-        <div class="event-detail-item">
-            <h4>Participants (${event.participant_count}${event.max_participants > 0 ? ` / ${event.max_participants}` : ''})</h4>
-            <div class="event-participants-list">
-    `;
-    
-    event.participants.forEach(participant => {
-        const isCreatorClass = participant === event.created_by ? 'creator' : '';
-        const initials = participant.substring(0, 2).toUpperCase();
-        detailsHTML += `
-            <div class="participant-item ${isCreatorClass}">
-                <div class="participant-avatar">${initials}</div>
-                <span class="participant-name">${participant}${participant === event.created_by ? ' (Creator)' : ''}</span>
-            </div>
-        `;
-    });
-    
-    detailsHTML += `
-            </div>
-        </div>
-        
-        <div class="event-detail-item">
-            <h4>Event Information</h4>
-            <p><i class="fas fa-user"></i> Created by: ${event.created_by}</p>
-            <p><i class="fas fa-clock"></i> Created: ${new Date(event.created_at).toLocaleDateString()}</p>
-            <p><i class="fas fa-globe"></i> ${event.is_public ? 'Public Event' : 'Private Event'}</p>
-        </div>
-    `;
-    
-    document.getElementById("event-details-content").innerHTML = detailsHTML;
-    
-    // Action buttons
-    let actionButtonsHTML = '';
-    
-    if (isCreator) {
-        actionButtonsHTML = `
-            <button class="btn btn-danger" id="delete-event-btn" data-event-id="${event.id}">
-                <i class="fas fa-trash"></i> Delete Event
-            </button>
-            ${!isPast ? `
-                <button class="btn btn-secondary" id="edit-event-btn" data-event-id="${event.id}">
-                    <i class="fas fa-edit"></i> Edit Event
-                </button>
-            ` : ''}
-        `;
-    } else if (!isPast) {
-        if (isParticipant) {
-            actionButtonsHTML = `
-                <button class="btn btn-danger" id="leave-event-btn" data-event-id="${event.id}">
-                    <i class="fas fa-sign-out-alt"></i> Leave Event
-                </button>
-            `;
-        } else if (!isFull) {
-            actionButtonsHTML = `
-                <button class="btn btn-primary" id="join-event-btn" data-event-id="${event.id}">
-                    <i class="fas fa-plus"></i> Join Event
-                </button>
-            `;
-        } else {
-            actionButtonsHTML = '<p style="color: var(--accent-red);">This event is full</p>';
-        }
-    }
-    
-    // 🔥 ΒΗΜΑ 3: Admin Delete button - ΜΟΝΟ αν ο χρήστης είναι admin ΚΑΙ δεν είναι ο δημιουργός
-    if (currentUser.username === "Vf-Rat" && !isCreator) {
-        actionButtonsHTML += `
-            <button class="btn btn-danger" id="admin-delete-event-btn" data-event-id="${event.id}" 
-                    style="background: #cc0000; border-color: #cc0000; margin-top: 10px;">
-                <i class="fas fa-user-shield"></i> Delete as Admin
-            </button>
-        `;
-    }
-    
-    document.getElementById("event-action-buttons").innerHTML = actionButtonsHTML;
-    
-    // 🔥 ΒΗΜΑ 1: ΕΝΗΜΕΡΩΣΗ ΤΟΥ addEventActionListeners()
-    addEventActionListeners(event);
-}
-
 // ===== EVENT EDIT FUNCTIONS =====
 
 // 🔥 ΝΕΟ: Show edit event modal
@@ -5216,8 +5011,6 @@ function initializeEventListeners() {
     // ΠΡΟΣΘΗΚΗ: Initialize profile event listeners
     initializeProfileEventListeners();
     
-    
-    
     // 🔥 ΠΡΟΣΘΗΚΗ: Home events listeners
     document.getElementById("view-all-events-btn")?.addEventListener("click", () => {
         if (currentUser.authenticated) {
@@ -5247,31 +5040,6 @@ function initializeEventListeners() {
     // 🔥 ΠΡΟΣΘΗΚΗ: Initialize event photo system
     initEventPhotoSystem();
     
-    // 🔥 ΠΡΟΣΘΗΚΗ: Event delegation για event room buttons
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.group-chat-btn')) {
-            const button = e.target.closest('.group-chat-btn');
-            
-            if (button.classList.contains('enter-room')) {
-                // Είσοδος στο room
-                const roomId = button.dataset.roomId;
-                const roomName = button.dataset.roomName;
-                const inviteCode = button.dataset.inviteCode;
-                
-                enterRoom(roomId, roomName, inviteCode);
-            } else if (button.classList.contains('join-room')) {
-                // Join στο event room
-                const eventId = button.dataset.eventId;
-                joinEventRoom(eventId);
-            } else if (button.classList.contains('join-event-first')) {
-                // Join στο event πρώτα
-                const eventId = button.dataset.eventId;
-                showNotification("Join the event first to access the group chat", "info", "Join Event Required");
-                joinEvent(eventId);
-            }
-        }
-    });
-    
     // 🔥 ΠΡΟΣΘΗΚΗ: Event delegation για group chat buttons
     document.addEventListener('click', function(e) {
         const groupChatBtn = e.target.closest('.btn-event.group-chat');
@@ -5290,6 +5058,39 @@ function initializeEventListeners() {
             
             // Χρήση της υπάρχουσας joinEventRoom συνάρτησης
             joinEventRoom(eventId);
+        }
+    });
+    
+    // 🔥 ΚΑΙΝΟΥΡΓΙΟ: Event delegation για group chat buttons με διαφορετικές κλάσεις
+    document.addEventListener('click', function(e) {
+        const groupChatBtn = e.target.closest('.group-chat-btn');
+        if (groupChatBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (groupChatBtn.classList.contains('enter-room')) {
+                // Είσοδος στο room
+                const roomId = groupChatBtn.dataset.roomId;
+                const roomName = groupChatBtn.dataset.roomName;
+                const inviteCode = groupChatBtn.dataset.inviteCode;
+                
+                if (roomId && roomName && inviteCode) {
+                    enterRoom(roomId, roomName, inviteCode);
+                }
+            } else if (groupChatBtn.classList.contains('join-room')) {
+                // Join στο event room
+                const eventId = groupChatBtn.dataset.eventId;
+                if (eventId) {
+                    joinEventRoom(eventId);
+                }
+            } else if (groupChatBtn.classList.contains('join-event-first')) {
+                // Join στο event πρώτα
+                const eventId = groupChatBtn.dataset.eventId;
+                if (eventId) {
+                    showNotification("Join the event first to access the group chat", "info", "Join Event Required");
+                    joinEvent(eventId);
+                }
+            }
         }
     });
 }
@@ -5660,4 +5461,19 @@ window.addEventListener('beforeunload', async function() {
     if (currentRoom.id) {
         saveChatState();
     }
+});
+
+socket.on("error", (data) => {
+    showNotification(data.message, "error", "Error");
+});
+
+socket.on("disconnect", (reason) => {
+    console.log("🔌 Disconnected from server:", reason);
+    if (reason === "io server disconnect") {
+        socket.connect();
+    }
+});
+
+socket.on("connect_error", (error) => {
+    console.error("🔌 Connection error:", error);
 });
