@@ -333,6 +333,9 @@ function attachHomeEventListeners() {
 async function showEventDetails(eventId) {
     console.log("🔍 Showing event details for:", eventId);
     
+    // 🔥 ΚΑΙΝΟΥΡΓΙΟ: Έλεγχος αν το modal ανοίγει από την αρχική σελίδα
+    const isFromHomePage = document.getElementById('home-page').classList.contains('active');
+    
     try {
         const response = await fetch(`/events/${eventId}`, {
             headers: {
@@ -457,11 +460,11 @@ async function showEventDetails(eventId) {
                 </button>`;
             }
             
-            // Delete button για δημιουργό ή admin
-            if (isCreator || isAdmin) {
+            // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Delete button μόνο για τον δημιουργό ή admin ΚΑΙ μόνο αν ΔΕΝ είναι από home page
+            if ((isCreator || isAdmin) && !isFromHomePage) {
                 buttonsHtml += `<button class="btn btn-danger" id="delete-event-btn" data-event-id="${eventId}">
                     <i class="fas fa-trash"></i> Delete
-               </button>`;
+                </button>`;
             }
             
             buttons.innerHTML = buttonsHtml;
@@ -5741,5 +5744,3 @@ document.addEventListener("DOMContentLoaded", async () => {
     attachHomeEventListeners();
   }, 2000);
 });
-
-
