@@ -893,7 +893,36 @@ const dbHelpers = {
         }).sort({ date: 1 });
     },
 
-    
+  
+                
+                // Δημιουργία sample events
+                for (const sampleEvent of sampleEvents) {
+                    await Event.create(sampleEvent);
+                    console.log(`✅ Created sample event: ${sampleEvent.title}`);
+                }
+                console.log("✅ Sample events created");
+            } else {
+                console.log("📅 Sample events already exist, skipping...");
+            }
+        } catch (error) {
+            console.error("❌ Error creating sample events:", error);
+        }
+    },
+
+    // 🔥 ΝΕΟ: Διαγραφή όλων των sample events (για admin) - ΕΝΗΜΕΡΩΜΕΝΗ
+    clearSampleEvents: async function(username) {
+        if (username.toLowerCase() !== "vf-rat") {
+            throw new Error("Only admin can clear sample events");
+        }
+        
+        // Διαγραφή ΟΛΩΝ των events που είναι από admin ή demo
+        const result = await Event.deleteMany({ 
+            created_by: { $in: ["admin", "demo"] }
+        });
+        
+        console.log(`🧹 Admin cleared ${result.deletedCount} sample events`);
+        return result.deletedCount;
+    },
 
     // 🔥 ΝΕΟ: Delete all events (μόνο για admin)
     deleteAllEvents: async function(username) {
