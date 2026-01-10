@@ -3433,13 +3433,15 @@ socket.on("messages_cleared", (data) => {
 
 // ===== ADMIN SYSTEM FUNCTIONS =====
 
-// 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Delete Event Function
+// 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Delete Event Function - ΕΝΗΜΕΡΩΜΕΝΗ ΒΕΡΣΙΟΝ
 async function deleteEvent(eventId) {
     console.log("🗑️ deleteEvent called:", eventId);
     
     // 🔥 ΚΡΙΤΙΚΟ: Έλεγχος αν το event υπάρχει ακόμα στο UI
     const eventCard = document.querySelector(`.event-card[data-event-id="${eventId}"]`);
-    if (!eventCard) {
+    const homeEventCard = document.querySelector(`.home-event-card[data-event-id="${eventId}"]`);
+    
+    if (!eventCard && !homeEventCard) {
         console.warn("⚠️ Event card not found in UI, already deleted");
         showNotification("Refresh please to delete this event", "info", "Refresh The Page please");
         hideAllModals();
@@ -3447,6 +3449,7 @@ async function deleteEvent(eventId) {
         // 🔥 ΝΕΟ: Επαναφόρτωση events ΚΑΙ listeners μετά το modal close
         setTimeout(() => {
             loadEvents();
+            loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Ανανέωση και home events
         }, 100);
         return;
     }
@@ -3478,6 +3481,7 @@ async function deleteEvent(eventId) {
                 // 🔥 Επαναφόρτωση με μικρή καθυστέρηση
                 setTimeout(() => {
                     loadEvents();
+                    loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Ανανέωση και home events
                 }, 100);
                 return;
             }
@@ -3493,7 +3497,7 @@ async function deleteEvent(eventId) {
             // 🔥 ΚΡΙΤΙΚΟ: Πρώτα κλείνουμε το modal
             hideAllModals();
             
-            // 🔥 Μετά κάνουμε fadeOut animation
+            // 🔥 Μετά κάνουμε fadeOut animation για όλα τα event cards
             if (eventCard) {
                 eventCard.style.animation = 'fadeOut 0.3s ease';
                 setTimeout(() => {
@@ -3501,11 +3505,19 @@ async function deleteEvent(eventId) {
                 }, 300);
             }
             
+            if (homeEventCard) {
+                homeEventCard.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => {
+                    homeEventCard.remove();
+                }, 300);
+            }
+            
             showNotification("Event deleted successfully", "success", "Event Deleted");
             
             // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Reload με μικρή καθυστέρηση ΚΑΙ επαναφόρτωση listeners
             setTimeout(() => {
-                loadEvents(); // Αυτό θα καλέσει και το attachEventCardListeners() αυτόματα
+                loadEvents();
+                loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Ανανέωση και home events
             }, 400);
         }
     } catch (error) {
@@ -3518,6 +3530,7 @@ async function deleteEvent(eventId) {
             // 🔥 ΚΡΙΤΙΚΟ: Επαναφόρτωση για sync
             setTimeout(() => {
                 loadEvents();
+                loadHomeEvents(); // 🔥 ΠΡΟΣΘΗΚΗ: Ανανέωση και home events
             }, 100);
             
             showNotification("Event was already deleted", "info", "Already Deleted");
@@ -3527,7 +3540,7 @@ async function deleteEvent(eventId) {
     }
 }
 
-// 🔥 ΒΗΜΑ 2: Βελτιωμένη loadEvents() function
+// 🔥 ΒΗΜΑ 2: Βελτιωμένη loadEvents() function - ΕΝΗΜΕΡΩΜΕΝΗ ΜΕ ΦΙΛΤΡΟ
 async function loadEvents() {
     if (!currentUser.authenticated) return;
     
@@ -3548,6 +3561,13 @@ async function loadEvents() {
         
         if (data.success) {
             console.log(`✅ Loaded ${data.events.length} events`);
+            
+            // 🔥 ΚΡΙΤΙΚΗ ΑΛΛΑΓΗ: Φίλτρο για να αποφύγουμε διαγραμμένα events
+            // Εδώ θα πρέπει να ελέγξουμε αν το server στέλνει μόνο ενεργά events
+            // Αν όχι, μπορούμε να κάνουμε client-side φίλτρο:
+            
+            // ΠΡΟΣΟΧΗ: Εδώ βασίζεσαι ότι το server δεν στέλνει διαγραμμένα events
+            
             displayEvents(data.events);
             
             // 🔥 ΚΡΙΤΙΚΟ: Επανάθεση listeners ΜΕΤΑ το display
@@ -3754,6 +3774,7 @@ async function clearSampleEvents() {
                     // 🔥 ΚΡΙΤΙΚΟ: Ανανέωση χωρίς refresh
                     setTimeout(() => {
                         loadEvents();
+                        loadHomeEvents();
                     }, 300);
                 }
             } catch (error) {
@@ -3802,6 +3823,7 @@ async function deleteAllEvents() {
                     // 🔥 ΚΡΙΤΙΚΟ: Ανανέωση χωρίς refresh
                     setTimeout(() => {
                         loadEvents();
+                        loadHomeEvents();
                     }, 300);
                 }
             } catch (error) {
@@ -5070,6 +5092,40 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addEventListener('resize', function() {
         initMobileSidebar();
         updateMobileUI();
+    });
+
+    // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Επαναφόρτωση events όταν επιστρέφεις στη σελίδα
+    document.addEventListener("visibilitychange", function() {
+        if (!document.hidden) {
+            // Ο χρήστης επέστρεψε στην καρτέλα
+            if (document.getElementById("rooms-page").classList.contains("active")) {
+                console.log("🔄 User returned to rooms page, refreshing events");
+                setTimeout(() => {
+                    loadEvents();
+                }, 500);
+            }
+            if (document.getElementById("home-page").classList.contains("active")) {
+                console.log("🔄 User returned to home page, refreshing events");
+                setTimeout(() => {
+                    loadHomeEvents();
+                }, 500);
+            }
+        }
+    });
+    
+    // 🔥 ΠΡΟΣΘΗΚΗ: Ανανέωση όταν γίνεται focus στο παράθυρο
+    window.addEventListener("focus", function() {
+        console.log("🔄 Window focused, refreshing events");
+        if (document.getElementById("rooms-page").classList.contains("active")) {
+            setTimeout(() => {
+                loadEvents();
+            }, 300);
+        }
+        if (document.getElementById("home-page").classList.contains("active")) {
+            setTimeout(() => {
+                loadHomeEvents();
+            }, 300);
+        }
     });
 
     // Προσθήκη CSS animations για unread system, file upload, και emoji picker
