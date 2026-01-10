@@ -458,11 +458,11 @@ async function showEventDetails(eventId) {
             }
             
             // Delete button για δημιουργό ή admin
-            //if (isCreator || isAdmin) {
-               // buttonsHtml += `<button class="btn btn-danger" id="delete-event-btn" data-event-id="${eventId}">
-                  //  <i class="fas fa-trash"></i> Delete
-              // </button>`;
-         //   }
+            if (isCreator || isAdmin) {
+                buttonsHtml += `<button class="btn btn-danger" id="delete-event-btn" data-event-id="${eventId}">
+                    <i class="fas fa-trash"></i> Delete
+               </button>`;
+            }
             
             buttons.innerHTML = buttonsHtml;
             
@@ -5741,4 +5741,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     attachHomeEventListeners();
   }, 2000);
 });
+
 
