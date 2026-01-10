@@ -110,6 +110,36 @@ function getErrorMessage(error) {
   return String(error);
 }
 
+// 🔥 ΒΟΗΘΗΤΙΚΗ ΣΥΝΑΡΤΗΣΗ: Αποστολή welcome message στο event room
+async function sendEventRoomWelcomeMessage(roomId, eventTitle, creatorUsername) {
+    try {
+        if (!roomId) return;
+        
+        const welcomeMessage = {
+            room_id: roomId,
+            sender: "System",
+            text: `🎉 Welcome to the "${eventTitle}" event group chat!\n\nCreated by: ${creatorUsername}\n\nUse this chat to coordinate with other event participants!`,
+            time: new Date().toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+            }),
+            isSystem: true
+        };
+        
+        // Αποθήκευση μηνύματος
+        await dbHelpers.saveMessage(welcomeMessage);
+        
+        // Αποστολή μέσω WebSocket
+        io.to(roomId).emit("chat message", welcomeMessage);
+        
+        console.log(`✅ Welcome message sent to event room ${roomId}`);
+        
+    } catch (error) {
+        console.error("❌ Error sending welcome message:", error);
+    }
+}
+
 // ===== ΠΡΟΣΘΗΚΗ ΣΤΟ server.js - Endpoint για session keep-alive =====
 app.post("/keep-alive", async (req, res) => {
     try {
@@ -1009,7 +1039,7 @@ app.get("/events/:eventId", validateSession, async (req, res) => {
     }
 });
 
-// Join event
+// Join event (updated with auto-join to event room)
 app.post("/events/:eventId/join", validateSession, async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -1020,6 +1050,20 @@ app.post("/events/:eventId/join", validateSession, async (req, res) => {
         }
         
         const event = await dbHelpers.joinEvent(eventId, username);
+        
+        // 🔥 ΚΡΙΤΙΚΟ: Αυτόματο join στο event room
+        try {
+            // Βρείτε το room ID από το event
+            const roomId = await dbHelpers.getEventRoomId(eventId);
+            if (roomId) {
+                // Προσθήκη χρήστη στο room
+                await dbHelpers.addParticipantToEventRoom(eventId, username);
+                console.log(`✅ ${username} auto-joined event room ${roomId}`);
+            }
+        } catch (roomError) {
+            console.log("⚠️ Could not auto-join event room:", roomError.message);
+            // Συνεχίζουμε ακόμα κι αν αποτύχει
+        }
         
         res.json({
             success: true,
@@ -1391,6 +1435,9 @@ app.post("/events/:eventId/join-room", validateSession, async (req, res) => {
             
             // Ενημέρωση του event με το room ID
             await dbHelpers.updateEvent(eventId, event.created_by, { room_id: roomId });
+            
+            // Στέλνουμε welcome message
+            await sendEventRoomWelcomeMessage(roomId, event.title, event.created_by);
         }
         
         // Προσθήκη χρήστη στο room
