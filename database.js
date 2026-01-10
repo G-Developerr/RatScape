@@ -675,6 +675,17 @@ const dbHelpers = {
             const inviteCode = `EVENT_${Date.now().toString(36).toUpperCase()}_${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
             const roomId = `event_room_${eventData.event_id}`;
             
+            // Έλεγχος αν υπάρχει ήδη room για αυτό το event
+            const existingRoom = await Room.findOne({ room_id: roomId });
+            if (existingRoom) {
+                console.log(`ℹ️ Room already exists for event "${eventData.title}": ${roomId}`);
+                return {
+                    roomId: roomId,
+                    inviteCode: existingRoom.invite_code,
+                    roomName: existingRoom.name
+                };
+            }
+            
             // Δημιουργία room για το event
             const room = new Room({
                 room_id: roomId,
@@ -693,22 +704,6 @@ const dbHelpers = {
             });
             
             console.log(`✅ Auto-created room for event "${eventData.title}": ${roomId}`);
-            
-            // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Αποστολή welcome message στο room
-            setTimeout(() => {
-                // Αποστολή welcome message στο room
-                this.saveMessage({
-                    room_id: roomId,
-                    sender: "System",
-                    text: `🎉 Welcome to the "${eventData.title}" event group chat!\n\nCreated by: ${username}\n\nUse this chat to coordinate with other event participants!`,
-                    time: new Date().toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                    }),
-                    isFile: false
-                });
-            }, 1000);
             
             return {
                 roomId: roomId,
@@ -752,14 +747,13 @@ const dbHelpers = {
             }, eventData.created_by);
             
             if (roomInfo) {
-                // Αποθήκευση του room ID στο event για μελλοντική αναφορά
+                // Αποθήκευση του room ID στο event
                 event.room_id = roomInfo.roomId;
                 await event.save();
                 console.log(`✅ Room ${roomInfo.roomId} linked to event ${eventId}`);
             }
         } catch (roomError) {
-            console.error("⚠️ Could not create room for event, but event was created:", roomError);
-            // Συνεχίζουμε ακόμα κι αν αποτύχει η δημιουργία room
+            console.error("⚠️ Could not create room for event:", roomError);
         }
         
         return event;
@@ -985,7 +979,7 @@ const dbHelpers = {
             
             // 🔥 ΚΡΙΤΙΚΗ ΔΙΟΡΘΩΣΗ: Επιστροφή του αποτελέσματος αντί για πάντα true
             if (result.deletedCount === 1) {
-                console.log(`✅ SUCCESS: Event "${event.title}" deleted from database");
+                console.log(`✅ SUCCESS: Event "${event.title}" deleted from database`);
                 return true;
             } else {
                 console.error(`❌ FAILED: Event "${event.title}" NOT deleted from database`);
