@@ -21,6 +21,347 @@ let currentRoom = {
 let eventPhotoFile = null;
 let eventPhotoBase64 = null;
 
+// ===== PREMIUM EVENTS SYSTEM =====
+
+// 🔥 Συνάρτηση για να ελέγχει αν ένα event είναι premium
+async function checkIfEventIsPremium(eventId) {
+  try {
+    const response = await fetch(`/events/${eventId}/is-premium`, {
+      headers: {
+        "X-Session-ID": currentUser.sessionId,
+      },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.is_premium || false;
+    }
+    return false;
+  } catch (error) {
+    console.error("Error checking premium status:", error);
+    return false;
+  }
+}
+
+// 🔥 Συνάρτηση για να δημιουργεί premium event
+async function createPremiumEvent(eventData) {
+  try {
+    // Προσθέτουμε το flag για premium
+    eventData.is_premium = true;
+    
+    const response = await fetch("/create-event", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-ID": currentUser.sessionId,
+      },
+      body: JSON.stringify({
+        ...eventData,
+        username: currentUser.username
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error("Failed to create premium event");
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification("Premium event created successfully!", "success", "Premium Event Created");
+      return data.event;
+    }
+  } catch (error) {
+    console.error("Error creating premium event:", error);
+    showNotification("Failed to create premium event", "error", "Error");
+    throw error;
+  }
+}
+
+// 🔥 Συνάρτηση για να χειρίζεται την πληρωμή premium event
+async function handlePremiumPayment(eventId, eventTitle) {
+  try {
+    // Δημιουργία Stripe checkout session
+    const response = await fetch("/create-premium-checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-ID": currentUser.sessionId,
+      },
+      body: JSON.stringify({
+        eventId: eventId,
+        eventTitle: eventTitle,
+        username: currentUser.username
+      }),
+    });
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Failed to create payment session");
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.url) {
+      // Ανοίγουμε το Stripe checkout σε νέα καρτέλα
+      window.open(data.url, '_blank');
+      
+      // Ελέγχουμε το payment status κάθε 5 δευτερόλεπτα
+      checkPaymentStatus(data.sessionId, eventId);
+    }
+  } catch (error) {
+    console.error("Error processing premium payment:", error);
+    showNotification(error.message || "Failed to process payment", "error", "Payment Error");
+  }
+}
+
+// 🔥 Συνάρτηση για να ελέγχει το status της πληρωμής
+async function checkPaymentStatus(sessionId, eventId) {
+  try {
+    const response = await fetch(`/payment-status/${sessionId}`, {
+      headers: {
+        "X-Session-ID": currentUser.sessionId,
+      },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.status === 'paid') {
+        showNotification("Payment successful! You're now enrolled in the premium event.", "success", "Payment Complete");
+        
+        // Αυτόματη είσοδος στο event μετά την επιτυχημένη πληρωμή
+        setTimeout(() => {
+          joinEvent(eventId);
+        }, 2000);
+        
+        return true;
+      }
+    }
+    
+    // Επανάληψη μετά από 5 δευτερόλεπτα αν δεν έχει ολοκληρωθεί
+    setTimeout(() => {
+      checkPaymentStatus(sessionId, eventId);
+    }, 5000);
+    
+    return false;
+  } catch (error) {
+    console.error("Error checking payment status:", error);
+    return false;
+  }
+}
+
+// 🔥 Ενημέρωση της joinEvent συνάρτησης για να χειρίζεται premium events
+async function joinEvent(eventId) {
+  try {
+    // Έλεγχος αν το event είναι premium
+    const isPremium = await checkIfEventIsPremium(eventId);
+    
+    if (isPremium) {
+      // Αν είναι premium, δείξε το payment modal
+      showPremiumPaymentModal(eventId);
+      return;
+    }
+    
+    // Κανονική join λογική για free events
+    const response = await fetch(`/events/${eventId}/join`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-ID": currentUser.sessionId,
+      },
+      body: JSON.stringify({
+        username: currentUser.username
+      }),
+    });
+    
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Failed to join event");
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification("Joined event successfully!", "success", "Event Joined");
+      
+      // Αυτόματο join στο event room
+      setTimeout(async () => {
+        try {
+          await autoJoinEventRoom(eventId);
+        } catch (roomError) {
+          console.log("ℹ️ Could not auto-join event room:", roomError.message);
+        }
+      }, 1500);
+      
+      // Επαναφόρτωση events
+      loadEvents();
+      loadHomeEvents();
+    }
+  } catch (error) {
+    console.error("❌ Error joining event:", error);
+    showNotification(error.message || "Failed to join event", "error", "Error");
+  }
+}
+
+// 🔥 Modal για premium event payment
+function showPremiumPaymentModal(eventId) {
+  // Δημιουργία dynamic modal για premium payment
+  const modal = document.createElement('div');
+  modal.className = 'modal active';
+  modal.id = 'premium-payment-modal';
+  
+  modal.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🎁 Premium Event Access</h3>
+        <button class="close-modal-btn" id="close-premium-modal">×</button>
+      </div>
+      <div class="form-container active">
+        <div class="premium-event-info">
+          <div class="premium-badge">
+            <i class="fas fa-crown"></i> PREMIUM
+          </div>
+          <h4>Unlock Exclusive Benefits:</h4>
+          <ul class="premium-benefits">
+            <li><i class="fas fa-gift"></i> Special gifts from RatScape team</li>
+            <li><i class="fas fa-star"></i> Exclusive access to Vf-Rat</li>
+            <li><i class="fas fa-award"></i> Premium participant badge</li>
+            <li><i class="fas fa-photo-video"></i> Professional event photos</li>
+          </ul>
+          <div class="premium-price">
+            <span class="price-amount">0.99€</span>
+            <span class="price-note">One-time payment</span>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button class="btn btn-primary" id="pay-premium-btn">
+            <i class="fas fa-lock"></i> Pay & Join Event
+          </button>
+          <button class="btn btn-secondary" id="cancel-premium-btn">
+            Cancel
+          </button>
+        </div>
+        <div class="secure-payment-note">
+          <i class="fas fa-shield-alt"></i> Secure payment by Stripe
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Event listeners για το modal
+  document.getElementById('close-premium-modal').addEventListener('click', () => {
+    modal.remove();
+  });
+  
+  document.getElementById('cancel-premium-btn').addEventListener('click', () => {
+    modal.remove();
+  });
+  
+  document.getElementById('pay-premium-btn').addEventListener('click', async () => {
+    const event = await getEventDetails(eventId);
+    if (event) {
+      await handlePremiumPayment(eventId, event.title);
+      modal.remove();
+    }
+  });
+}
+
+// 🔥 Helper function για να πάρει event details
+async function getEventDetails(eventId) {
+  try {
+    const response = await fetch(`/events/${eventId}`, {
+      headers: {
+        "X-Session-ID": currentUser.sessionId,
+      },
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        return data.event;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting event details:", error);
+    return null;
+  }
+}
+
+// 🔥 Ενημέρωση της createEvent συνάρτησης για premium events
+async function createEvent(eventData) {
+  try {
+    const isPremium = document.getElementById('event-is-premium-input')?.checked || false;
+    
+    if (isPremium) {
+      // Αν είναι premium, χρησιμοποιούμε τη νέα συνάρτηση
+      return await createPremiumEvent(eventData);
+    }
+    
+    // Κανονική create event λογική για free events
+    const response = await fetch("/create-event", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-ID": currentUser.sessionId,
+      },
+      body: JSON.stringify({
+        ...eventData,
+        username: currentUser.username
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error("Failed to create event");
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // If there's a photo, upload it separately
+      if (eventPhotoBase64) {
+        try {
+          const photoUrl = await uploadEventPhoto(data.event.id, currentUser.username);
+          if (photoUrl) {
+            data.event.photo = photoUrl;
+          }
+        } catch (photoError) {
+          console.error("Error uploading event photo:", photoError);
+          // Continue even if photo upload fails
+        }
+      }
+      
+      showNotification("Event created successfully! Group chat is ready.", "success", "Event Created");
+      hideAllModals();
+      
+      // Reset photo
+      removeEventPhoto();
+      
+      // 🔥 ΚΡΙΤΙΚΟ: Αυτόματη είσοδος στο event room
+      setTimeout(async () => {
+        try {
+          await joinEventRoom(data.event.id);
+        } catch (roomError) {
+          console.log("ℹ️ Could not join event room immediately, try later from event card");
+        }
+      }, 2000);
+      
+      // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
+      loadEvents();
+      loadHomeEvents();
+      return data.event;
+    } else {
+      showNotification(data.error || "Failed to create event", "error", "Event Error");
+    }
+  } catch (error) {
+    console.error("Error creating event:", error);
+    showNotification("Failed to create event", "error", "Error");
+  }
+}
+
 // ===== SESSION MANAGEMENT ENHANCEMENTS =====
 
 // ΛΥΣΗ 1: Βελτιωμένη session επικύρωσης - Προσθήκη στο client.js
@@ -4362,49 +4703,6 @@ async function updateEventGroupChatButton(eventId, eventCard) {
     }
 }
 
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ: Join event με αυτόματο join στο room
-async function joinEvent(eventId) {
-    try {
-        const response = await fetch(`/events/${eventId}/join`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Session-ID": currentUser.sessionId,
-            },
-            body: JSON.stringify({
-                username: currentUser.username
-            }),
-        });
-        
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || "Failed to join event");
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification("Joined event successfully!", "success", "Event Joined");
-            
-            // 🔥 ΚΡΙΤΙΚΟ: Αυτόματο join στο event room
-            setTimeout(async () => {
-                try {
-                    await autoJoinEventRoom(eventId);
-                } catch (roomError) {
-                    console.log("ℹ️ Could not auto-join event room:", roomError.message);
-                }
-            }, 1500);
-            
-            // Επαναφόρτωση events
-            loadEvents();
-            loadHomeEvents();
-        }
-    } catch (error) {
-        console.error("❌ Error joining event:", error);
-        showNotification(error.message || "Failed to join event", "error", "Error");
-    }
-}
-
 // 🔥 ΕΝΗΜΕΡΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ: Leave event (αλλά παραμένει στο room)
 async function leaveEvent(eventId) {
     try {
@@ -4613,70 +4911,6 @@ function attachGroupChatListeners() {
             }
         });
     });
-}
-
-// 🔥 ΕΝΗΜΕΡΩΜΕΝΗ ΣΥΝΑΡΤΗΣΗ: createEvent για αποστολή welcome message
-async function createEvent(eventData) {
-    try {
-        // First create the event
-        const response = await fetch("/create-event", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Session-ID": currentUser.sessionId,
-            },
-            body: JSON.stringify({
-                ...eventData,
-                username: currentUser.username
-            }),
-        });
-        
-        if (!response.ok) {
-            throw new Error("Failed to create event");
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // If there's a photo, upload it separately
-            if (eventPhotoBase64) {
-                try {
-                    const photoUrl = await uploadEventPhoto(data.event.id, currentUser.username);
-                    if (photoUrl) {
-                        data.event.photo = photoUrl;
-                    }
-                } catch (photoError) {
-                    console.error("Error uploading event photo:", photoError);
-                    // Continue even if photo upload fails
-                }
-            }
-            
-            showNotification("Event created successfully! Group chat is ready.", "success", "Event Created");
-            hideAllModals();
-            
-            // Reset photo
-            removeEventPhoto();
-            
-            // 🔥 ΚΡΙΤΙΚΟ: Αυτόματη είσοδος στο event room
-            setTimeout(async () => {
-                try {
-                    await joinEventRoom(data.event.id);
-                } catch (roomError) {
-                    console.log("ℹ️ Could not join event room immediately, try later from event card");
-                }
-            }, 2000);
-            
-            // 🔥 ΕΠΑΝΑΦΟΡΤΩΣΗ ΚΑΙ ΕΠΑΝΑΟΡΙΣΜΟΣ LISTENERS
-            loadEvents();
-            loadHomeEvents();
-            return data.event;
-        } else {
-            showNotification(data.error || "Failed to create event", "error", "Event Error");
-        }
-    } catch (error) {
-        console.error("Error creating event:", error);
-        showNotification("Failed to create event", "error", "Error");
-    }
 }
 
 // ===== SOCKET EVENT HANDLERS =====
@@ -5139,6 +5373,7 @@ function initializeEventListeners() {
         const location = document.getElementById("event-location-input").value.trim();
         const maxParticipants = parseInt(document.getElementById("event-max-participants-input").value) || 0;
         const isPublic = document.getElementById("event-is-public-input").checked;
+        const isPremium = document.getElementById("event-is-premium-input")?.checked || false;
         
         if (!title || !description || !date || !location) {
             showNotification("Please fill in all required fields", "error", "Missing Information");
@@ -5151,7 +5386,8 @@ function initializeEventListeners() {
             date,
             location,
             max_participants: maxParticipants,
-            is_public: isPublic
+            is_public: isPublic,
+            is_premium: isPremium
         });
     });
     
@@ -5346,6 +5582,38 @@ function initializeEventListeners() {
                 }
             }
         }
+    });
+    
+    // 🔥 ΠΡΟΣΘΗΚΗ: Event listeners για premium events
+    const premiumCheckbox = document.getElementById('event-is-premium-input');
+    const premiumDetails = document.getElementById('premium-event-details');
+    
+    if (premiumCheckbox && premiumDetails) {
+        premiumCheckbox.addEventListener('change', function() {
+            premiumDetails.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+    
+    // Event listeners για τις σελίδες πληρωμής
+    document.getElementById('go-to-event-btn')?.addEventListener('click', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('eventId');
+        if (eventId) {
+            showEventDetails(eventId);
+        }
+    });
+    
+    document.getElementById('try-again-btn')?.addEventListener('click', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventId = urlParams.get('eventId');
+        if (eventId) {
+            handlePremiumPayment(eventId, "Premium Event");
+        }
+    });
+    
+    document.getElementById('browse-events-btn')?.addEventListener('click', function() {
+        loadUserRooms();
+        showPage("rooms-page");
     });
 }
 
