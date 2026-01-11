@@ -689,7 +689,7 @@
         </div>
     </div>
 
-    <!-- CREATE EVENT MODAL -->
+    <!-- CREATE EVENT MODAL - ΕΝΗΜΕΡΩΜΕΝΗ -->
     <div class="modal" id="create-event-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -713,6 +713,28 @@
                     <label for="event-location-input">Location *</label>
                     <input type="text" id="event-location-input" placeholder="Enter location (e.g., Athens, Greece)" required>
                 </div>
+                
+                <!-- 🔥 ΝΕΟ: Premium Event Option -->
+                <div class="form-group" style="border: 2px solid var(--accent-red); padding: 15px; border-radius: var(--radius); background: rgba(139, 0, 0, 0.1);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <input type="checkbox" id="event-is-premium-input">
+                        <label for="event-is-premium-input" style="margin: 0; font-weight: bold; color: var(--accent-red);">
+                            <i class="fas fa-crown"></i> Make this a Premium Event
+                        </label>
+                    </div>
+                    <div id="premium-event-details" style="display: none; margin-top: 10px;">
+                        <div style="color: var(--text); margin-bottom: 10px;">
+                            <i class="fas fa-info-circle"></i> Premium events cost <strong>0.99€</strong> per participant
+                        </div>
+                        <ul style="color: var(--text-light); font-size: 0.9rem; padding-left: 20px;">
+                            <li>🎁 Special gifts from RatScape team</li>
+                            <li>⭐ I (Vf-Rat) will be there in person!</li>
+                            <li>📸 Professional event photos</li>
+                            <li>🎯 Exclusive networking opportunities</li>
+                        </ul>
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label for="event-photo-input">Event Photo (Optional)</label>
                     <div class="event-photo-upload-section">
@@ -809,6 +831,48 @@
                     </button>
                     <button class="btn btn-secondary" id="cancel-edit-event-btn">Cancel</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAYMENT SUCCESS PAGE -->
+    <div id="payment-success-page" class="page">
+        <div class="payment-success-container">
+            <div class="payment-success-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2>🎉 Payment Successful!</h2>
+            <p>Thank you for joining our premium event. We're excited to have you!</p>
+            <div class="premium-benefits" style="text-align: left; margin: 30px 0;">
+                <h3>Your Premium Benefits:</h3>
+                <ul>
+                    <li><i class="fas fa-gift"></i> Special gifts awaiting you at the event</li>
+                    <li><i class="fas fa-user-crown"></i> Exclusive access to Vf-Rat</li>
+                    <li><i class="fas fa-camera"></i> Professional photos from the event</li>
+                    <li><i class="fas fa-users"></i> Premium networking opportunities</li>
+                </ul>
+            </div>
+            <button id="go-to-event-btn" class="btn btn-primary" style="margin-top: 20px;">
+                <i class="fas fa-calendar-check"></i> Go to Event
+            </button>
+        </div>
+    </div>
+
+    <!-- PAYMENT CANCELED PAGE -->
+    <div id="payment-canceled-page" class="page">
+        <div class="payment-success-container">
+            <div class="payment-success-icon" style="color: var(--warning);">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <h2>😔 Payment Canceled</h2>
+            <p>Your payment was not completed. You can try again or browse free events.</p>
+            <div class="modal-buttons" style="margin-top: 30px;">
+                <button id="try-again-btn" class="btn btn-primary">
+                    <i class="fas fa-redo"></i> Try Again
+                </button>
+                <button id="browse-events-btn" class="btn btn-secondary">
+                    <i class="fas fa-calendar-alt"></i> Browse Events
+                </button>
             </div>
         </div>
     </div>
@@ -969,4 +1033,3 @@
 </body>
 
 </html>
-
