@@ -966,22 +966,16 @@ app.get("/events/:eventId/is-premium", validateSession, async (req, res) => {
   }
 });
 
-// 🔥 Δημιουργία Stripe checkout session για premium event
+// 🔥 Δημιουργία Stripe checkout session για premium event (ΒΕΛΤΙΩΜΕΝΗ ΕΚΔΟΧΗ)
 app.post("/create-premium-checkout", validateSession, async (req, res) => {
   try {
-    const { eventId, eventTitle, username } = req.body;
+    const { eventData, username } = req.body;
     
-    if (!eventId || !username) {
+    if (!eventData || !username) {
       return res.status(400).json({ success: false, error: "Missing required fields" });
     }
     
-    // Έλεγχος αν το event υπάρχει
-    const event = await dbHelpers.getEventById(eventId);
-    if (!event) {
-      return res.status(404).json({ success: false, error: "Event not found" });
-    }
-    
-    // Δημιουργία Stripe session
+    // 🔥 Δημιουργία Stripe session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -989,9 +983,9 @@ app.post("/create-premium-checkout", validateSession, async (req, res) => {
           price_data: {
             currency: 'eur',
             product_data: {
-              name: `Premium Event: ${event.title}`,
-              description: event.description,
-              images: event.photo ? [event.photo] : []
+              name: `Premium Event: ${eventData.title}`,
+              description: eventData.description,
+              images: eventData.photo ? [eventData.photo] : []
             },
             unit_amount: 99, // 0.99 EUR σε cents
           },
@@ -999,12 +993,12 @@ app.post("/create-premium-checkout", validateSession, async (req, res) => {
         },
       ],
       mode: 'payment',
-      success_url: `${req.headers.origin}/payment-success?eventId=${eventId}&username=${username}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.origin}/payment-canceled?eventId=${eventId}`,
+      success_url: `${req.headers.origin}/payment-success?title=${encodeURIComponent(eventData.title)}&username=${username}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.origin}/payment-canceled?title=${encodeURIComponent(eventData.title)}`,
       metadata: {
-        eventId: eventId,
+        eventTitle: eventData.title,
         userId: username,
-        eventTitle: event.title
+        eventData: JSON.stringify(eventData)
       }
     });
     
@@ -1020,6 +1014,63 @@ app.post("/create-premium-checkout", validateSession, async (req, res) => {
       success: false, 
       error: error.message || "Failed to create payment session" 
     });
+  }
+});
+
+// 🔥 ΝΕΟ ENDPOINT: Δημιουργία premium event μετά την πληρωμή
+app.post("/create-premium-event", validateSession, async (req, res) => {
+  try {
+    const { title, description, date, location, max_participants, is_public, photo, username, payment_session_id } = req.body;
+    
+    if (!title || !description || !date || !location || !username) {
+      return res.status(400).json({ success: false, error: "All required fields must be provided" });
+    }
+    
+    // 🔥 Έλεγχος αν η πληρωμή είναι ολοκληρωμένη
+    if (payment_session_id) {
+      const session = await stripe.checkout.sessions.retrieve(payment_session_id);
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ success: false, error: "Payment not completed" });
+      }
+    }
+    
+    const event = await dbHelpers.createEvent({
+      title,
+      description,
+      date: new Date(date),
+      location,
+      created_by: username,
+      max_participants: parseInt(max_participants) || 0,
+      is_public: is_public !== false,
+      photo: photo || null,
+      is_premium: true,
+      price: 0.99
+    });
+    
+    // 🔥 Αυτόματη προσθήκη του χρήστη ως participant
+    await dbHelpers.joinEvent(event.event_id, username);
+    
+    res.json({
+      success: true,
+      event: {
+        id: event.event_id,
+        title: event.title,
+        description: event.description,
+        date: event.date,
+        location: event.location,
+        created_by: event.created_by,
+        max_participants: event.max_participants,
+        participants: event.participants,
+        is_public: event.is_public,
+        created_at: event.created_at,
+        photo: event.photo || null,
+        is_premium: true
+      },
+      message: "Premium event created successfully"
+    });
+  } catch (error) {
+    console.error("❌ Error creating premium event:", error);
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
   }
 });
 
