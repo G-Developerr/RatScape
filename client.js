@@ -1,6 +1,9 @@
 // client.js - RatRoom Client with Enhanced Security, Notifications & UNREAD SYSTEM - UPDATED WITH FILE UPLOAD & EMOJI PICKER & EVENTS & ADMIN SYSTEM & HOME EVENTS & EVENT PHOTOS & EVENT ROOMS
 const socket = io();
 
+// 🔥 ΚΑΙΝΟΥΡΓΙΟ: Stripe initialization
+let stripe = null;
+
 // Current user state
 let currentUser = {
     username: null,
@@ -21,13 +24,7 @@ let currentRoom = {
 let eventPhotoFile = null;
 let eventPhotoBase64 = null;
 
-// ===== STRIPE PAYMENT SYSTEM =====
-let stripe;
-let cardElement;
-let currentEventId;
-let clientSecret;
-
-// Initialize Stripe με dynamic key από server
+// 🔥 ΚΑΙΝΟΥΡΓΙΟ: Αυτό πρέπει να είναι σωστά αρχικοποιημένο:
 async function initializeStripe() {
   try {
     // Fetch το publishable key από τον server
@@ -51,170 +48,6 @@ async function initializeStripe() {
   } catch (error) {
     console.error('❌ Stripe initialization error:', error);
     alert('Σφάλμα φόρτωσης Stripe. Ανανέωσε τη σελίδα.');
-  }
-}
-
-// Setup Card Element (καλείται μόνο όταν ανοίγει το payment modal)
-function setupCardElement() {
-  if (!stripe) {
-    console.error('Stripe not initialized yet');
-    initializeStripe(); // Try again
-    return;
-  }
-  
-  const elements = stripe.elements();
-  cardElement = elements.create('card', {
-    style: {
-      base: {
-        fontSize: '16px',
-        color: '#32325d',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        '::placeholder': {
-          color: '#aab7c4'
-        }
-      },
-      invalid: {
-        color: '#dc3545'
-      }
-    }
-  });
-  
-  cardElement.mount('#card-element');
-  
-  // Listen for errors
-  cardElement.on('change', (event) => {
-    if (event.error) {
-      showError(event.error.message);
-    } else {
-      hideError();
-    }
-  });
-}
-
-// Payment modal functions
-async function openPaymentModal(eventId, eventTitle) {
-  // Έλεγχος αν το Stripe έχει φορτώσει
-  if (!stripe) {
-    alert('Παρακαλώ περίμενε, φορτώνει το Stripe...');
-    await initializeStripe();
-  }
-  
-  currentEventId = eventId;
-  document.getElementById('eventTitleInModal').textContent = eventTitle;
-  document.getElementById('paymentModal').classList.add('active');
-  
-  // Setup card element αν δεν υπάρχει
-  if (!cardElement) {
-    setupCardElement();
-  }
-  
-  hideError();
-  hideSuccess();
-  
-  // Create Payment Intent
-  try {
-    const response = await fetch('/api/create-payment-intent', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Session-ID': currentUser.sessionId,
-      },
-      body: JSON.stringify({
-        eventId: eventId,
-        username: currentUser.username
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      showError(data.error);
-      return;
-    }
-    
-    clientSecret = data.clientSecret;
-    
-  } catch (error) {
-    console.error('Payment intent error:', error);
-    showError('Σφάλμα σύνδεσης πληρωμής. Δοκίμασε ξανά.');
-  }
-}
-
-function closePaymentModal() {
-  document.getElementById('paymentModal').classList.remove('active');
-  currentEventId = null;
-  clientSecret = null;
-}
-
-function showError(message) {
-  const errorElement = document.getElementById('card-errors');
-  errorElement.textContent = message;
-  errorElement.classList.add('active');
-}
-
-function hideError() {
-  const errorElement = document.getElementById('card-errors');
-  errorElement.textContent = '';
-  errorElement.classList.remove('active');
-}
-
-function showSuccess(message) {
-  const successElement = document.getElementById('card-success');
-  successElement.textContent = message;
-  successElement.classList.add('active');
-}
-
-function hideSuccess() {
-  const successElement = document.getElementById('card-success');
-  successElement.textContent = '';
-  successElement.classList.remove('active');
-}
-
-// Handle payment form submission
-async function handlePaymentSubmit(event) {
-  event.preventDefault();
-  
-  if (!stripe || !cardElement) {
-    showError('Το σύστημα πληρωμής δεν είναι έτοιμο. Παρακαλώ περιμένετε.');
-    return;
-  }
-  
-  showError('');
-  
-  // Disable the submit button to prevent multiple clicks
-  const submitButton = document.getElementById('submit-payment-btn');
-  submitButton.disabled = true;
-  submitButton.textContent = 'Πραγματοποιείται πληρωμή...';
-  
-  try {
-    const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-      payment_method: {
-        card: cardElement,
-      }
-    });
-    
-    if (error) {
-      showError(error.message);
-      submitButton.disabled = false;
-      submitButton.textContent = 'Πληρωμή';
-    } else if (paymentIntent.status === 'succeeded') {
-      showSuccess('Η πληρωμή ήταν επιτυχής!');
-      
-      // Auto-join the event after successful payment
-      setTimeout(async () => {
-        try {
-          await joinEvent(currentEventId);
-          closePaymentModal();
-        } catch (joinError) {
-          console.error('Error joining event after payment:', joinError);
-        }
-      }, 2000);
-    }
-  } catch (error) {
-    console.error('Payment confirmation error:', error);
-    showError('Σφάλμα κατά την πληρωμή. Παρακαλώ δοκιμάστε ξανά.');
-    submitButton.disabled = false;
-    submitButton.textContent = 'Πληρωμή';
   }
 }
 
@@ -275,12 +108,37 @@ async function createPremiumEvent(eventData) {
   }
 }
 
-// 🔥 Συνάρτηση για να χειρίζεται την πληρωμή premium event (Updated to use new payment modal)
+// 🔥 Συνάρτηση για να χειρίζεται την πληρωμή premium event
 async function handlePremiumPayment(eventId, eventTitle) {
   try {
-    // Open the new payment modal
-    await openPaymentModal(eventId, eventTitle);
+    // Δημιουργία Stripe checkout session
+    const response = await fetch("/create-premium-checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-ID": currentUser.sessionId,
+      },
+      body: JSON.stringify({
+        eventId: eventId,
+        eventTitle: eventTitle,
+        username: currentUser.username
+      }),
+    });
     
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Failed to create payment session");
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.url) {
+      // Ανοίγουμε το Stripe checkout σε νέα καρτέλα
+      window.open(data.url, '_blank');
+      
+      // Ελέγχουμε το payment status κάθε 5 δευτερόλεπτα
+      checkPaymentStatus(data.sessionId, eventId);
+    }
   } catch (error) {
     console.error("Error processing premium payment:", error);
     showNotification(error.message || "Failed to process payment", "error", "Payment Error");
@@ -331,10 +189,7 @@ async function joinEvent(eventId) {
     
     if (isPremium) {
       // Αν είναι premium, δείξε το payment modal
-      const event = await getEventDetails(eventId);
-      if (event) {
-        await openPaymentModal(eventId, event.title);
-      }
+      showPremiumPaymentModal(eventId);
       return;
     }
     
@@ -379,7 +234,7 @@ async function joinEvent(eventId) {
   }
 }
 
-// 🔥 Modal για premium event payment (Legacy - keeping for compatibility)
+// 🔥 Modal για premium event payment
 function showPremiumPaymentModal(eventId) {
   // Δημιουργία dynamic modal για premium payment
   const modal = document.createElement('div');
@@ -902,7 +757,7 @@ async function loadHomeEvents() {
   }
 }
 
-// 🔥 ΒΗΜΑ 1: Βελτιωμένη attachHomeEventListeners()
+// 🔥 ΒΗΜΑ 1: Βελτιωμένη attachHomeEventListeners() 
 function attachHomeEventListeners() {
     const homeEventsList = document.getElementById('home-events-list');
     if (!homeEventsList) return;
@@ -3356,7 +3211,7 @@ async function handleAddFriend(friendUsername) {
             } else if (response.status === 400) {
                 if (data.error.includes("Already friends")) {
                     errorTitle = "Already Friends";
-                } else if (data.error.includes("already sent")) {
+                } else if (data.error.includes("already sent") || data.error.includes("already exists")) {
                     errorTitle = "Request Already Sent";
                 }
             } else if (response.status === 401) {
@@ -5926,14 +5781,6 @@ function initializeEventListeners() {
         loadUserRooms();
         showPage("rooms-page");
     });
-    
-    // 🔥 ΠΡΟΣΘΗΚΗ: Payment modal event listeners
-    const paymentModal = document.getElementById('paymentModal');
-    if (paymentModal) {
-        document.getElementById('close-payment-modal').addEventListener('click', closePaymentModal);
-        document.getElementById('cancel-payment-btn').addEventListener('click', closePaymentModal);
-        document.getElementById('payment-form').addEventListener('submit', handlePaymentSubmit);
-    }
 }
 
 // ===== PROFILE EVENT LISTENERS =====
@@ -6242,9 +6089,6 @@ function initEventAutoRefresh() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("🐀 RatScape client initialized");
-  
-  // Initialize Stripe
-  await initializeStripe();
 
   // ΛΥΣΗ 1: Αυτόματη επαναφορά session
   const sessionRestored = await restoreSessionOnRefresh();
@@ -6276,8 +6120,5 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.log("🏠 Loading home events on page load");
       loadHomeEvents();
     }
-  }, 1000);
-  
-  // Initialize event auto-refresh
-  initEventAutoRefresh();
+  }, 1500);
 });
