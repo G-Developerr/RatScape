@@ -10,3 +10,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: STRIPE_SECRET_KEY
+        value: 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
+      - key: STRIPE_PUBLIC_KEY
+        value: pk_live_51SoLO0FNQy4ZsZ8FVr7Rjq4NApuiIQeAcRiFhleDPt3sPGNNf6oVrU3eNsw8ecLkCeJIP7MHjj1CiLzR81jXYpXX00X4SteW0o
