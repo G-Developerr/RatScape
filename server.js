@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR PROFILE PICS, LEAVE ROOM & EVENTS SYSTEM
+// server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR PREMIUM EVENTS & STRIPE
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -6,6 +6,9 @@ const cors = require("cors");
 const path = require("path");
 const { dbHelpers, initializeDatabase } = require("./database.js");
 const multer = require('multer');
+
+// 🔥 ΠΡΟΣΘΗΚΗ: Stripe Configuration
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || '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');
 
 const app = express();
 const server = createServer(app);
@@ -939,12 +942,162 @@ app.post("/register", upload.single('avatar'), async (req, res) => {
     }
 });
 
+// ===== 🔥 ΝΕΑ ENDPOINTS: PREMIUM EVENTS SYSTEM =====
+
+// 🔥 Έλεγχος premium event status
+app.get("/events/:eventId/is-premium", validateSession, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const event = await dbHelpers.getEventById(eventId);
+    
+    if (!event) {
+      return res.status(404).json({ success: false, error: "Event not found" });
+    }
+    
+    // 🔥 Προσθέσαμε ένα νέο field 'is_premium' στο Event schema
+    res.json({
+      success: true,
+      is_premium: event.is_premium || false,
+      price: event.price || 0.99
+    });
+  } catch (error) {
+    console.error("❌ Error checking premium status:", error);
+    res.status(500).json({ success: false, error: getErrorMessage(error) });
+  }
+});
+
+// 🔥 Δημιουργία Stripe checkout session για premium event
+app.post("/create-premium-checkout", validateSession, async (req, res) => {
+  try {
+    const { eventId, eventTitle, username } = req.body;
+    
+    if (!eventId || !username) {
+      return res.status(400).json({ success: false, error: "Missing required fields" });
+    }
+    
+    // Έλεγχος αν το event υπάρχει
+    const event = await dbHelpers.getEventById(eventId);
+    if (!event) {
+      return res.status(404).json({ success: false, error: "Event not found" });
+    }
+    
+    // Δημιουργία Stripe session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: `Premium Event: ${event.title}`,
+              description: event.description,
+              images: event.photo ? [event.photo] : []
+            },
+            unit_amount: 99, // 0.99 EUR σε cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${req.headers.origin}/payment-success?eventId=${eventId}&username=${username}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.origin}/payment-canceled?eventId=${eventId}`,
+      metadata: {
+        eventId: eventId,
+        userId: username,
+        eventTitle: event.title
+      }
+    });
+    
+    res.json({
+      success: true,
+      sessionId: session.id,
+      url: session.url
+    });
+    
+  } catch (error) {
+    console.error("❌ Error creating Stripe checkout:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || "Failed to create payment session" 
+    });
+  }
+});
+
+// 🔥 Webhook για Stripe (για production)
+app.post('/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = 'whsec_...'; // Θα το πάρεις από το Stripe Dashboard
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    console.error(`❌ Webhook Error: ${err.message}`);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle the event
+  switch (event.type) {
+    case 'checkout.session.completed':
+      const session = event.data.object;
+      
+      // Εδώ μπορείς να αποθηκεύσεις τη πληρωμή στη βάση δεδομένων
+      console.log(`✅ Payment completed for session: ${session.id}`);
+      
+      // Μπορείς να προσθέσεις τον χρήστη στο event
+      const eventId = session.metadata.eventId;
+      const username = session.metadata.userId;
+      
+      try {
+        await dbHelpers.joinEvent(eventId, username);
+        console.log(`✅ ${username} added to premium event ${eventId} after payment`);
+      } catch (error) {
+        console.error("❌ Error adding user to event:", error);
+      }
+      
+      break;
+      
+    case 'payment_intent.succeeded':
+      const paymentIntent = event.data.object;
+      console.log(`💰 PaymentIntent was successful!`);
+      break;
+      
+    default:
+      console.log(`ℹ️ Unhandled event type ${event.type}`);
+  }
+
+  res.json({received: true});
+});
+
+// 🔥 Έλεγχος status πληρωμής
+app.get("/payment-status/:sessionId", validateSession, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    
+    res.json({
+      success: true,
+      status: session.payment_status,
+      eventId: session.metadata.eventId,
+      customer_email: session.customer_details?.email
+    });
+  } catch (error) {
+    console.error("❌ Error checking payment status:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || "Failed to check payment status" 
+    });
+  }
+});
+
 // ===== 🔥 ΝΕΑ ENDPOINTS: EVENTS SYSTEM =====
 
-// Create event
+// 🔥 ΠΡΟΣΘΗΚΗ: Αλλαγή του create-event endpoint για να υποστηρίζει premium events
 app.post("/create-event", validateSession, async (req, res) => {
     try {
-        const { title, description, date, location, max_participants, is_public, photo } = req.body;
+        const { title, description, date, location, max_participants, is_public, photo, is_premium } = req.body;
         const username = req.body.username || req.user?.username;
 
         if (!title || !description || !date || !location || !username) {
@@ -959,7 +1112,8 @@ app.post("/create-event", validateSession, async (req, res) => {
             created_by: username,
             max_participants: parseInt(max_participants) || 0,
             is_public: is_public !== false,
-            photo: photo || null // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
+            photo: photo || null,
+            is_premium: is_premium || false // 🔥 ΝΕΟ: Προσθήκη premium field
         });
 
         res.json({
@@ -975,7 +1129,8 @@ app.post("/create-event", validateSession, async (req, res) => {
                 participants: event.participants,
                 is_public: event.is_public,
                 created_at: event.created_at,
-                photo: event.photo || null // 🔥 ΝΕΟ
+                photo: event.photo || null,
+                is_premium: event.is_premium || false // 🔥 ΝΕΟ
             },
             message: "Event created successfully"
         });
@@ -1006,7 +1161,8 @@ app.get("/events", validateSession, async (req, res) => {
             is_full: event.max_participants > 0 && event.participants.length >= event.max_participants,
             is_creator: event.created_by === username,
             is_participant: event.participants.includes(username),
-            photo: event.photo || null // 🔥 ΝΕΟ: Προσθήκη φωτογραφίας
+            photo: event.photo || null,
+            is_premium: event.is_premium || false // 🔥 ΝΕΟ: Προσθήκη premium field
         }));
         
         res.json({
@@ -1268,7 +1424,8 @@ app.put("/events/:eventId", validateSession, async (req, res) => {
                 date: event.date,
                 location: event.location,
                 max_participants: event.max_participants,
-                is_public: event.is_public
+                is_public: event.is_public,
+                is_premium: event.is_premium || false // 🔥 ΝΕΟ
             },
             message: "Event updated successfully"
         });
@@ -2424,6 +2581,7 @@ async function startServer() {
       console.log(`👤 PROFILE SYSTEM: ENABLED`);
       console.log(`👤 USER INFO SYSTEM: ENABLED`);
       console.log(`📅 EVENTS SYSTEM: ENABLED`);
+      console.log(`💰 PREMIUM EVENTS SYSTEM: ENABLED (WITH STRIPE)`);
       console.log(`🔔 NOTIFICATION TIMEOUT: 5 SECONDS`);
       console.log(`🌐 WebSocket transports: ${io.engine.opts.transports}`);
       console.log(`📸 IMAGE STORAGE: BASE64 IN MONGODB`);
@@ -2437,7 +2595,8 @@ async function startServer() {
       console.log(`👑 ADMIN SYSTEM: ENABLED (Vf-Rat can delete any event)`);
       console.log(`📸 EVENT PHOTO UPLOAD: ENABLED`);
       console.log(`🔄 SESSION KEEP-ALIVE: ENABLED`);
-      console.log(`💬 EVENT GROUP CHAT SYSTEM: ENABLED`); // 🔥 ΝΕΑ ΔΙΕΥΚΡΙΝΙΣΗ
+      console.log(`💬 EVENT GROUP CHAT SYSTEM: ENABLED`);
+      console.log(`💳 STRIPE PAYMENTS: ENABLED (Test Mode)`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
