@@ -1,4 +1,11 @@
 // server.js - COMPLETE FIXED VERSION WITH MONGODB & UNREAD SYSTEM - UPDATED FOR PREMIUM EVENTS & STRIPE
+
+// ════════════════════════════════════════════════════════════
+// 1. ΣΤΗΝ ΑΡΧΗ ΤΟΥ ΑΡΧΕΙΟΥ (πριν από οτιδήποτε άλλο!)
+// ════════════════════════════════════════════════════════════
+
+require('dotenv').config(); // Αυτό πρέπει να είναι ΠΡΩΤΟ!
+
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -7,8 +14,20 @@ const path = require("path");
 const { dbHelpers, initializeDatabase } = require("./database.js");
 const multer = require('multer');
 
-// 🔥 ΠΡΟΣΘΗΚΗ: Stripe Configuration
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || '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');
+// ════════════════════════════════════════════════════════════
+// 2. STRIPE INITIALIZATION (αντί να έχεις hardcoded key)
+// ════════════════════════════════════════════════════════════
+
+// ✅ ΒΑΛΕ αυτό:
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+// Έλεγχος αν το key φορτώθηκε σωστά
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error('❌ STRIPE_SECRET_KEY is not set!');
+  process.exit(1);
+}
+
+console.log('✅ Stripe initialized successfully');
 
 const app = express();
 const server = createServer(app);
@@ -29,6 +48,23 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// ════════════════════════════════════════════════════════════
+// 4. SESSION SECRET (αντί να έχεις hardcoded secret)
+// ════════════════════════════════════════════════════════════
+
+const session = require('express-session');
+
+// ✅ ΒΑΛΕ αυτό:
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback-secret-change-this',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production', // HTTPS μόνο σε production
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 
 // ΣΗΜΑΝΤΙΚΗ ΑΛΛΑΓΗ: Αφαίρεση του sharp και επεξεργασίας εικόνων στον δίσκο
 const storage = multer.memoryStorage(); // Αποθήκευση αρχείων στη μνήμη αντί για δίσκο
@@ -52,6 +88,17 @@ const upload = multer({
 
 // Serve static files correctly for Render
 app.use(express.static(path.join(__dirname)));
+
+// ════════════════════════════════════════════════════════════
+// 5. ΝΕΟ ROUTE - Για να δώσεις το Publishable Key στο Frontend
+// ════════════════════════════════════════════════════════════
+
+// Πρόσθεσε αυτό route ΠΡΙΝ τα υπόλοιπα routes σου
+app.get('/api/stripe-config', (req, res) => {
+  res.json({
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
+  });
+});
 
 // Routes
 app.get("/", (req, res) => {
@@ -2623,9 +2670,16 @@ async function startServer() {
     // Wait for database to connect
     await initializeDatabase();
     
+    // ════════════════════════════════════════════════════════════
+    // 6. PORT CONFIGURATION
+    // ════════════════════════════════════════════════════════════
+
+    // ✅ ΒΑΛΕ αυτό:
     const PORT = process.env.PORT || 3000;
+
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 RatScape Server running on port ${PORT}`);
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`📱 Available at: http://localhost:${PORT}`);
       console.log(`💬 Enhanced security with session management`);
       console.log(`📬 UNREAD MESSAGES SYSTEM: ENABLED`);
@@ -2648,6 +2702,7 @@ async function startServer() {
       console.log(`🔄 SESSION KEEP-ALIVE: ENABLED`);
       console.log(`💬 EVENT GROUP CHAT SYSTEM: ENABLED`);
       console.log(`💳 STRIPE PAYMENTS: ENABLED (Test Mode)`);
+      console.log(`🔧 Express Session: ENABLED`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
