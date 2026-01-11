@@ -118,7 +118,9 @@ const eventSchema = new mongoose.Schema({
     // 🔥 ΝΕΟ: Προσθήκη πεδίου για φωτογραφία event
     photo: { type: String, default: null }, // Base64 string
     // 🔥 ΚΡΙΤΙΚΗ ΠΡΟΣΘΗΚΗ: Προσθήκη πεδίου για room ID
-    room_id: { type: String, default: null } // Αναφορά στο αντίστοιχο room
+    room_id: { type: String, default: null }, // Αναφορά στο αντίστοιχο room
+      is_premium: { type: Boolean, default: false }, // 🔥 ΝΕΟ FIELD
+    price: { type: Number, default: 0.99 } // 🔥 ΝΕΟ FIELD
 });
 
 // ===== MODELS =====
